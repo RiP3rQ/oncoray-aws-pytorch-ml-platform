@@ -11,11 +11,13 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api" / "src"))
 
+from core_api.config import clear_settings_cache
 from core_api.db import Base, get_async_database_url
 from core_api.models import SessionToken, User
 
 
 config = context.config
+clear_settings_cache()
 config.set_main_option("sqlalchemy.url", get_async_database_url())
 
 if config.config_file_name is not None:

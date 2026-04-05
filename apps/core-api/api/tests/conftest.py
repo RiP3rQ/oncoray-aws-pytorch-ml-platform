@@ -8,8 +8,10 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from core_api.config import clear_settings_cache
 from core_api.db import Base, get_db_session
 from core_api.main import app
+from core_api.rate_limit import auth_rate_limiter
 
 
 @pytest_asyncio.fixture()
@@ -31,6 +33,15 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     await engine.dispose()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def reset_runtime_state() -> AsyncGenerator[None, None]:
+    clear_settings_cache()
+    await auth_rate_limiter.reset()
+    yield
+    clear_settings_cache()
+    await auth_rate_limiter.reset()
+
+
 @pytest_asyncio.fixture()
 async def client(
     db_session: AsyncSession,
@@ -40,6 +51,7 @@ async def client(
         return None
 
     monkeypatch.setattr("core_api.main.model_service.load", fake_load)
+    monkeypatch.setattr("core_api.main.model_service.is_ready", lambda: True)
 
     async def override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield db_session

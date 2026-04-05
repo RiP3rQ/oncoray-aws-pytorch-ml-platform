@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
-from core_api.auth import generate_session_token, hash_password, verify_password
+from core_api.auth import create_access_token, hash_password, hash_session_identifier, verify_password
 from core_api.auth_schemas import LoginRequest, LoginResponse, RegisterRequest, UserResponse
 from core_api.deps import DbSession, get_current_session
 from core_api.models import SessionToken, User
+from core_api.rate_limit import enforce_auth_rate_limit
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -25,7 +27,8 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
         status.HTTP_409_CONFLICT: {"description": "A user with the given email already exists."},
     },
 )
-async def register(payload: RegisterRequest, db: DbSession) -> UserResponse:
+async def register(request: Request, payload: RegisterRequest, db: DbSession) -> UserResponse:
+    await enforce_auth_rate_limit(request, action="register", identifier=payload.email)
     existing_user = await db.scalar(select(User).where(User.email == payload.email))
     if existing_user is not None:
         raise HTTPException(
@@ -35,7 +38,14 @@ async def register(payload: RegisterRequest, db: DbSession) -> UserResponse:
 
     user = User(email=payload.email, password_hash=await hash_password(payload.password))
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this email already exists.",
+        ) from exc
     await db.refresh(user)
     return UserResponse.model_validate(user)
 
@@ -50,18 +60,29 @@ async def register(payload: RegisterRequest, db: DbSession) -> UserResponse:
         status.HTTP_401_UNAUTHORIZED: {"description": "The provided email or password is invalid."},
     },
 )
-async def login(payload: LoginRequest, db: DbSession) -> LoginResponse:
+async def login(request: Request, payload: LoginRequest, db: DbSession) -> LoginResponse:
+    await enforce_auth_rate_limit(request, action="login", identifier=payload.email)
     user = await db.scalar(select(User).where(User.email == payload.email))
     if user is None or not await verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    session_token = SessionToken(user_id=user.id, token=generate_session_token())
+    access_token = create_access_token(user.id)
+    session_token = SessionToken(
+        user_id=user.id,
+        jti_hash=hash_session_identifier(access_token.jti),
+        expires_at=access_token.expires_at,
+    )
     db.add(session_token)
     await db.commit()
-    return LoginResponse(access_token=session_token.token, user=UserResponse.model_validate(user))
+    return LoginResponse(
+        access_token=access_token.token,
+        expires_at=access_token.expires_at,
+        user=UserResponse.model_validate(user),
+    )
 
 
 @router.post(
