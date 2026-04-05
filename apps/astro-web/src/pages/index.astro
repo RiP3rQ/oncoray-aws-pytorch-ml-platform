@@ -1,11 +1,557 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const queue = [
+	{ id: 'XR-2041', patient: 'Matched scan', status: 'Ready for upload', note: 'PA chest X-ray expected' },
+	{ id: 'XR-2042', patient: 'Neural review', status: 'Model warming', note: 'Average turnaround 18 sec' },
+	{ id: 'XR-2043', patient: 'Clinical export', status: 'Awaiting approval', note: 'Radiologist summary slot reserved' }
+];
+
+const findings = [
+	{ label: 'Suspicious nodules', value: '3 low-contrast zones', tone: 'warm' },
+	{ label: 'Risk confidence', value: '87% flagged', tone: 'cool' },
+	{ label: 'Next action', value: 'Escalate for human review', tone: 'success' }
+];
 ---
 
-<Layout>
-	<Welcome />
+<Layout
+	title="OncoRay Workspace"
+	description="Upload X-ray images, review AI-assisted risk flags, and manage patient imaging workflows."
+>
+	<div class="page-shell">
+		<div class="frame app-frame">
+			<header class="topbar glass-card animate-rise">
+				<div>
+					<p class="brand">OncoRay</p>
+					<p class="topnote">AI-assisted X-ray cancer screening</p>
+				</div>
+				<nav>
+					<a href="/login">Log in</a>
+					<a href="/register">Create account</a>
+				</nav>
+			</header>
+
+			<section class="hero-grid">
+				<div class="hero-copy">
+					<span class="eyebrow animate-rise">Clinical imaging workspace</span>
+					<h1 class="headline animate-rise delay-1">Read the subtle shadows before they become obvious.</h1>
+					<p class="lede animate-rise delay-2">
+						OncoRay gives care teams a calm, high-contrast command center for chest X-ray
+						screening. Upload scans, run the neural model, and surface suspicious regions in a
+						single review flow.
+					</p>
+
+					<div class="hero-actions animate-rise delay-3">
+						<a class="pill-link primary-link" href="/register">Start screening</a>
+						<a class="pill-link secondary-link" href="/login">Open existing workspace</a>
+					</div>
+
+					<div class="hero-stats animate-rise delay-3">
+						<div>
+							<strong>18s</strong>
+							<span>median first-pass screening time</span>
+						</div>
+						<div>
+							<strong>5120</strong>
+							<span>high-resolution image tiles processed</span>
+						</div>
+						<div>
+							<strong>Human-in-loop</strong>
+							<span>results are triage support, not a diagnosis</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="hero-panel glass-card animate-rise delay-2">
+					<div class="scan-preview">
+						<div class="scan-grid"></div>
+						<div class="scan-overlay overlay-a"></div>
+						<div class="scan-overlay overlay-b"></div>
+						<div class="scan-overlay overlay-c"></div>
+						<div class="scan-label">X-RAY / AP CHEST / MODEL VIEW</div>
+					</div>
+
+					<div class="findings">
+						<p class="section-label">Current model output</p>
+						{findings.map((item) => (
+							<div class={`finding ${item.tone}`}>
+								<span>{item.label}</span>
+								<strong>{item.value}</strong>
+							</div>
+						))}
+					</div>
+				</div>
+			</section>
+
+			<section class="dashboard-grid">
+				<article class="upload-card glass-card">
+					<div class="section-heading">
+						<div>
+							<p class="section-label">Upload</p>
+							<h2>Drop DICOM, PNG, or JPEG X-rays for immediate review.</h2>
+						</div>
+						<span class="live-dot">Ready</span>
+					</div>
+
+					<div class="dropzone">
+						<div class="dropzone-icon">+</div>
+						<div>
+							<strong>Drag and drop image series</strong>
+							<p>Secure upload area with automatic scan grouping and preprocessing.</p>
+						</div>
+						<button type="button">Choose files</button>
+					</div>
+
+					<div class="upload-meta">
+						<div>
+							<span>Accepted</span>
+							<strong>DICOM / PNG / JPG</strong>
+						</div>
+						<div>
+							<span>Suggested capture</span>
+							<strong>PA or AP chest view</strong>
+						</div>
+						<div>
+							<span>Triage note</span>
+							<strong>Review every positive flag with a clinician</strong>
+						</div>
+					</div>
+				</article>
+
+				<article class="queue-card glass-card">
+					<div class="section-heading">
+						<div>
+							<p class="section-label">Pipeline</p>
+							<h2>Today’s screening queue</h2>
+						</div>
+					</div>
+
+					<div class="queue-list">
+						{queue.map((item) => (
+							<div class="queue-item">
+								<div>
+									<p>{item.id}</p>
+									<strong>{item.patient}</strong>
+								</div>
+								<div>
+									<span>{item.status}</span>
+									<small>{item.note}</small>
+								</div>
+							</div>
+						))}
+					</div>
+				</article>
+
+				<article class="report-card glass-card">
+					<div class="section-heading">
+						<div>
+							<p class="section-label">Report</p>
+							<h2>Explainable output for the last uploaded study</h2>
+						</div>
+					</div>
+
+					<div class="report-body">
+						<p>
+							The neural network highlighted a cluster of faint opacities in the upper-right
+							lung field with elevated suspicion. Confidence crossed the review threshold,
+							so the case has been marked for priority secondary assessment.
+						</p>
+
+						<div class="report-tags">
+							<span>Opacity cluster</span>
+							<span>Right upper lobe</span>
+							<span>Priority review</span>
+						</div>
+					</div>
+				</article>
+			</section>
+		</div>
+	</div>
 </Layout>
+
+<style>
+	.app-frame {
+		padding-bottom: 40px;
+	}
+
+	.topbar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 18px 22px;
+		border-radius: 28px;
+	}
+
+	.brand {
+		margin: 0;
+		font-family: "Syne", sans-serif;
+		font-size: 1.2rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.topnote,
+	.section-label {
+		margin: 4px 0 0;
+		color: var(--muted);
+		font-size: 0.76rem;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+	}
+
+	nav {
+		display: flex;
+		gap: 20px;
+	}
+
+	nav a {
+		color: var(--muted);
+		text-decoration: none;
+	}
+
+	.hero-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+		gap: 28px;
+		margin-top: 28px;
+		align-items: end;
+	}
+
+	.hero-actions,
+	.hero-stats,
+	.upload-meta,
+	.report-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 14px;
+	}
+
+	.hero-stats {
+		margin-top: 28px;
+	}
+
+	.hero-stats div,
+	.upload-meta div {
+		min-width: 180px;
+		padding: 16px 18px;
+		border-radius: 22px;
+		border: 1px solid var(--line);
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	.hero-stats strong,
+	.upload-meta strong {
+		display: block;
+		font-size: 1.05rem;
+	}
+
+	.hero-stats span,
+	.upload-meta span {
+		display: block;
+		margin-top: 8px;
+		color: var(--muted);
+		font-size: 0.9rem;
+		line-height: 1.5;
+	}
+
+	.hero-panel,
+	.upload-card,
+	.queue-card,
+	.report-card {
+		border-radius: 32px;
+	}
+
+	.hero-panel {
+		padding: 22px;
+	}
+
+	.scan-preview {
+		position: relative;
+		overflow: hidden;
+		min-height: 460px;
+		border-radius: 28px;
+		background:
+			linear-gradient(180deg, rgba(142, 226, 255, 0.18), rgba(8, 17, 24, 0.4)),
+			radial-gradient(circle at center, rgba(255, 255, 255, 0.16), transparent 42%),
+			linear-gradient(180deg, #183244 0%, #08131d 100%);
+	}
+
+	.scan-grid {
+		position: absolute;
+		inset: 0;
+		background-image:
+			linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+		background-size: 36px 36px;
+		mask-image: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.9) 20%, rgba(0, 0, 0, 1));
+	}
+
+	.scan-overlay {
+		position: absolute;
+		border-radius: 999px;
+		filter: blur(2px);
+		border: 1px solid rgba(255, 255, 255, 0.18);
+		box-shadow: 0 0 30px rgba(69, 198, 255, 0.25);
+	}
+
+	.overlay-a {
+		inset: 9% 21% 19% 22%;
+		background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 62%);
+	}
+
+	.overlay-b {
+		top: 28%;
+		right: 17%;
+		width: 112px;
+		height: 96px;
+		background: radial-gradient(circle, rgba(255, 132, 104, 0.3), transparent 60%);
+	}
+
+	.overlay-c {
+		left: 20%;
+		bottom: 22%;
+		width: 120px;
+		height: 78px;
+		background: radial-gradient(circle, rgba(116, 240, 193, 0.24), transparent 60%);
+	}
+
+	.scan-label {
+		position: absolute;
+		left: 22px;
+		bottom: 18px;
+		color: rgba(244, 247, 251, 0.7);
+		letter-spacing: 0.28em;
+		font-size: 0.72rem;
+	}
+
+	.findings {
+		display: grid;
+		gap: 12px;
+		margin-top: 18px;
+	}
+
+	.finding {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 16px 18px;
+		border-radius: 20px;
+		border: 1px solid var(--line);
+	}
+
+	.finding span {
+		color: var(--muted);
+	}
+
+	.finding strong {
+		font-size: 1rem;
+	}
+
+	.finding.warm strong {
+		color: var(--accent-warm);
+	}
+
+	.finding.cool strong {
+		color: var(--accent);
+	}
+
+	.finding.success strong {
+		color: var(--success);
+	}
+
+	.dashboard-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+		gap: 28px;
+		margin-top: 28px;
+	}
+
+	.upload-card,
+	.queue-card,
+	.report-card {
+		padding: 24px;
+	}
+
+	.upload-card {
+		grid-column: 1 / 2;
+	}
+
+	.queue-card,
+	.report-card {
+		grid-column: 2 / 3;
+	}
+
+	.section-heading {
+		display: flex;
+		justify-content: space-between;
+		align-items: start;
+		gap: 18px;
+	}
+
+	.section-heading h2 {
+		margin: 8px 0 0;
+		font-family: "Syne", sans-serif;
+		font-size: clamp(1.6rem, 3vw, 2.2rem);
+		line-height: 1.05;
+		letter-spacing: -0.05em;
+	}
+
+	.live-dot {
+		padding: 10px 14px;
+		border-radius: 999px;
+		border: 1px solid rgba(116, 240, 193, 0.28);
+		background: rgba(116, 240, 193, 0.1);
+		color: var(--success);
+		font-size: 0.85rem;
+	}
+
+	.dropzone {
+		display: grid;
+		grid-template-columns: auto 1fr auto;
+		gap: 18px;
+		align-items: center;
+		margin-top: 24px;
+		padding: 26px;
+		border: 1px dashed rgba(142, 226, 255, 0.4);
+		border-radius: 28px;
+		background:
+			linear-gradient(135deg, rgba(142, 226, 255, 0.1), rgba(255, 255, 255, 0.03)),
+			rgba(255, 255, 255, 0.02);
+	}
+
+	.dropzone-icon {
+		display: grid;
+		place-items: center;
+		width: 58px;
+		height: 58px;
+		border-radius: 18px;
+		background: rgba(255, 255, 255, 0.08);
+		font-size: 2rem;
+		color: var(--accent);
+	}
+
+	.dropzone p,
+	.report-body p,
+	.queue-item small {
+		margin: 6px 0 0;
+		color: var(--muted);
+		line-height: 1.65;
+	}
+
+	.dropzone button {
+		padding: 14px 18px;
+		border: 0;
+		border-radius: 999px;
+		background: linear-gradient(135deg, var(--accent) 0%, #d2f5ff 100%);
+		color: #05131d;
+		font-weight: 800;
+		cursor: pointer;
+	}
+
+	.upload-meta {
+		margin-top: 18px;
+	}
+
+	.queue-list {
+		display: grid;
+		gap: 14px;
+		margin-top: 24px;
+	}
+
+	.queue-item {
+		display: flex;
+		justify-content: space-between;
+		gap: 14px;
+		padding: 18px;
+		border-radius: 24px;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid var(--line);
+	}
+
+	.queue-item p,
+	.queue-item strong,
+	.queue-item span {
+		margin: 0;
+	}
+
+	.queue-item p {
+		color: var(--accent);
+		font-size: 0.85rem;
+		letter-spacing: 0.15em;
+		text-transform: uppercase;
+	}
+
+	.queue-item span {
+		display: block;
+		text-align: right;
+	}
+
+	.report-card {
+		margin-top: 0;
+	}
+
+	.report-body {
+		margin-top: 24px;
+		padding: 20px;
+		border-radius: 24px;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid var(--line);
+	}
+
+	.report-tags {
+		margin-top: 20px;
+	}
+
+	.report-tags span {
+		padding: 10px 14px;
+		border-radius: 999px;
+		background: rgba(142, 226, 255, 0.08);
+		color: var(--accent);
+		font-size: 0.88rem;
+	}
+
+	@media (max-width: 1040px) {
+		.hero-grid,
+		.dashboard-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.upload-card,
+		.queue-card,
+		.report-card {
+			grid-column: auto;
+		}
+	}
+
+	@media (max-width: 720px) {
+		.topbar,
+		nav,
+		.dropzone,
+		.queue-item,
+		.section-heading {
+			flex-direction: column;
+			grid-template-columns: 1fr;
+			align-items: start;
+		}
+
+		nav {
+			gap: 10px;
+		}
+
+		.hero-panel {
+			padding: 16px;
+		}
+
+		.scan-preview {
+			min-height: 320px;
+		}
+
+		.dropzone button {
+			width: 100%;
+		}
+
+		.queue-item span {
+			text-align: left;
+		}
+	}
+</style>

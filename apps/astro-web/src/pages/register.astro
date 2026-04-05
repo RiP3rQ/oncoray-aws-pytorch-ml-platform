@@ -1,0 +1,192 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+	title="Register | OncoRay"
+	description="Create an OncoRay account to begin uploading X-rays and reviewing AI-assisted cancer screening flags."
+>
+	<div class="page-shell">
+		<div class="frame register-layout">
+			<section class="register-card glass-card animate-rise">
+				<div class="card-header">
+					<p class="section-label">Create account</p>
+					<h1>Open a secure lane for incoming X-ray studies.</h1>
+					<p>
+						Set up your workspace in seconds. We keep the flow minimal here: just email and
+						password, then you're ready to upload scans and review model output.
+					</p>
+				</div>
+
+				<form class="register-form">
+					<label>
+						<span>Email</span>
+						<input type="email" placeholder="oncology.ops@clinic.org" />
+					</label>
+
+					<label>
+						<span>Password</span>
+						<input type="password" placeholder="Create a strong password" />
+					</label>
+
+					<button type="submit">Create workspace account</button>
+				</form>
+
+				<div class="footnote">
+					<span>Already onboarded?</span>
+					<a href="/login">Log in instead</a>
+				</div>
+			</section>
+
+			<section class="register-copy animate-rise delay-2">
+				<span class="eyebrow">Rapid onboarding</span>
+				<h2 class="headline">A calmer front door for a high-stakes workflow.</h2>
+				<p class="lede">
+					OncoRay is designed for fast triage and careful communication. The interface surfaces
+					suspicious regions, confidence signals, and review checkpoints without pretending the
+					model replaces clinical judgment.
+				</p>
+
+				<div class="feature-grid">
+					<div>
+						<strong>Image-first pipeline</strong>
+						<span>Upload chest X-rays and keep series aligned automatically.</span>
+					</div>
+					<div>
+						<strong>Risk visualization</strong>
+						<span>Highlight suspicious areas and route them for expert confirmation.</span>
+					</div>
+					<div>
+						<strong>Audit-friendly flow</strong>
+						<span>Every screening note is structured for follow-up and escalation.</span>
+					</div>
+				</div>
+			</section>
+		</div>
+	</div>
+</Layout>
+
+<style>
+	.register-layout {
+		display: grid;
+		grid-template-columns: minmax(360px, 470px) minmax(0, 1fr);
+		gap: 30px;
+		align-items: center;
+		min-height: calc(100vh - 64px);
+	}
+
+	.register-card {
+		padding: 30px;
+		border-radius: 34px;
+	}
+
+	.card-header h1,
+	.feature-grid strong {
+		font-family: "Syne", sans-serif;
+	}
+
+	.card-header h1 {
+		margin: 10px 0 14px;
+		font-size: clamp(2.2rem, 5vw, 3.2rem);
+		line-height: 0.95;
+		letter-spacing: -0.06em;
+	}
+
+	.card-header p:last-child {
+		margin: 0;
+		color: var(--muted);
+		line-height: 1.7;
+	}
+
+	.register-form {
+		display: grid;
+		gap: 18px;
+		margin-top: 28px;
+	}
+
+	label span {
+		display: block;
+		margin-bottom: 10px;
+		color: var(--muted);
+		font-size: 0.92rem;
+	}
+
+	input {
+		width: 100%;
+		padding: 16px 18px;
+		border: 1px solid var(--line);
+		border-radius: 20px;
+		background: rgba(255, 255, 255, 0.04);
+		color: var(--text);
+		outline: none;
+		transition:
+			border-color 180ms ease,
+			transform 180ms ease,
+			background 180ms ease;
+	}
+
+	input:focus {
+		border-color: rgba(255, 132, 104, 0.72);
+		background: rgba(255, 132, 104, 0.06);
+		transform: translateY(-1px);
+	}
+
+	button {
+		padding: 16px 18px;
+		border: 0;
+		border-radius: 999px;
+		background: linear-gradient(135deg, var(--accent-warm) 0%, #ffd3c9 100%);
+		color: #1f0d08;
+		font-weight: 800;
+		cursor: pointer;
+	}
+
+	.footnote {
+		display: flex;
+		gap: 10px;
+		margin-top: 20px;
+		color: var(--muted);
+	}
+
+	.footnote a {
+		color: var(--text);
+	}
+
+	.feature-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 16px;
+		margin-top: 34px;
+	}
+
+	.feature-grid div {
+		padding: 20px;
+		border-radius: 24px;
+		border: 1px solid var(--line);
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.feature-grid span {
+		display: block;
+		margin-top: 8px;
+		color: var(--muted);
+		line-height: 1.6;
+	}
+
+	@media (max-width: 980px) {
+		.register-layout {
+			grid-template-columns: 1fr;
+			align-items: start;
+		}
+
+		.feature-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.register-card {
+			padding: 22px 18px;
+		}
+	}
+</style>

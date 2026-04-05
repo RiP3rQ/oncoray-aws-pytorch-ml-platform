@@ -1,0 +1,193 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+	title="Log In | OncoRay"
+	description="Access the OncoRay screening workspace to upload X-rays and review AI-assisted findings."
+>
+	<div class="page-shell">
+		<div class="frame auth-layout">
+			<section class="auth-copy animate-rise">
+				<span class="eyebrow">Protected workspace</span>
+				<h1 class="headline">Step back into the screening room.</h1>
+				<p class="lede">
+					Sign in to continue reviewing uploaded X-rays, flagged regions, and clinician-ready
+					screening notes. Keep every scan flowing through one clean, accountable workspace.
+				</p>
+
+				<div class="signal-strip">
+					<div>
+						<strong>Live model health</strong>
+						<span>Inference nodes calibrated and online</span>
+					</div>
+					<div>
+						<strong>Escalation policy</strong>
+						<span>Every positive flag is routed to human review</span>
+					</div>
+				</div>
+			</section>
+
+			<section class="auth-card glass-card animate-rise delay-2">
+				<div class="card-top">
+					<p class="section-label">Log in</p>
+					<h2>Resume an active case review.</h2>
+				</div>
+
+				<form class="auth-form">
+					<label>
+						<span>Email</span>
+						<input type="email" placeholder="radiology.team@hospital.org" />
+					</label>
+
+					<label>
+						<span>Password</span>
+						<input type="password" placeholder="Enter your password" />
+					</label>
+
+					<div class="form-footer">
+						<label class="checkbox">
+							<input type="checkbox" checked />
+							<span>Keep this workstation signed in for the shift</span>
+						</label>
+						<a href="/register">Need an account?</a>
+					</div>
+
+					<button type="submit">Log in to workspace</button>
+				</form>
+			</section>
+		</div>
+	</div>
+</Layout>
+
+<style>
+	.auth-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1.05fr) minmax(360px, 460px);
+		gap: 28px;
+		align-items: center;
+		min-height: calc(100vh - 64px);
+	}
+
+	.signal-strip {
+		display: grid;
+		gap: 14px;
+		margin-top: 32px;
+	}
+
+	.signal-strip div {
+		padding: 18px 20px;
+		border-radius: 24px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid var(--line);
+	}
+
+	.signal-strip strong,
+	.card-top h2 {
+		font-family: "Syne", sans-serif;
+	}
+
+	.signal-strip span {
+		display: block;
+		margin-top: 8px;
+		color: var(--muted);
+	}
+
+	.auth-card {
+		padding: 28px;
+		border-radius: 34px;
+	}
+
+	.card-top h2 {
+		margin: 8px 0 0;
+		font-size: clamp(2rem, 5vw, 2.7rem);
+		line-height: 0.98;
+		letter-spacing: -0.05em;
+	}
+
+	.auth-form {
+		display: grid;
+		gap: 18px;
+		margin-top: 26px;
+	}
+
+	label span {
+		display: block;
+		margin-bottom: 10px;
+		color: var(--muted);
+		font-size: 0.92rem;
+	}
+
+	input {
+		width: 100%;
+		padding: 16px 18px;
+		border: 1px solid var(--line);
+		border-radius: 20px;
+		background: rgba(255, 255, 255, 0.04);
+		color: var(--text);
+		outline: none;
+		transition:
+			border-color 180ms ease,
+			transform 180ms ease,
+			background 180ms ease;
+	}
+
+	input:focus {
+		border-color: rgba(142, 226, 255, 0.72);
+		background: rgba(142, 226, 255, 0.06);
+		transform: translateY(-1px);
+	}
+
+	.form-footer {
+		display: flex;
+		justify-content: space-between;
+		gap: 14px;
+		align-items: center;
+	}
+
+	.form-footer a,
+	.checkbox span {
+		color: var(--muted);
+		font-size: 0.9rem;
+	}
+
+	.checkbox {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.checkbox input {
+		width: 18px;
+		height: 18px;
+		margin: 0;
+	}
+
+	button {
+		padding: 16px 18px;
+		border: 0;
+		border-radius: 999px;
+		background: linear-gradient(135deg, var(--accent) 0%, #d2f5ff 100%);
+		color: #04111b;
+		font-weight: 800;
+		cursor: pointer;
+	}
+
+	@media (max-width: 900px) {
+		.auth-layout {
+			grid-template-columns: 1fr;
+			align-items: start;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.auth-card {
+			padding: 22px 18px;
+		}
+
+		.form-footer {
+			flex-direction: column;
+			align-items: start;
+		}
+	}
+</style>
