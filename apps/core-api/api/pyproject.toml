@@ -5,8 +5,13 @@ description = "FastAPI backend for serving the local PyTorch model."
 readme = "../README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "alembic>=1.16,<2",
+  "bcrypt>=4.3,<5",
+  "email-validator>=2.2,<3",
   "fastapi>=0.116,<1",
   "first-model",
+  "pytest>=8.3,<9",
+  "sqlalchemy>=2.0,<3",
   "uvicorn>=0.35,<1",
 ]
 

@@ -2,9 +2,11 @@
   "name": "core-api",
   "private": true,
   "scripts": {
+    "alembic": "uv run --package core-api-service alembic",
     "build": "uv sync",
     "check-types": "uv run --package core-api-service python -m compileall api/src",
     "dev": "uv run --package core-api-service uvicorn core_api.main:app --host 0.0.0.0 --port 8000 --reload",
-    "start": "uv run --package core-api-service uvicorn core_api.main:app --host 0.0.0.0 --port 8000"
+    "start": "uv run --package core-api-service uvicorn core_api.main:app --host 0.0.0.0 --port 8000",
+    "test": "uv run --package core-api-service pytest"
   }
 }
