@@ -1,0 +1,10 @@
+{
+  "name": "pytorch-engine",
+  "private": true,
+  "scripts": {
+    "build": "uv sync",
+    "check-types": "uv run --package first-model python -m compileall model/src",
+    "train": "uv run --package first-model train-model"
+  }
+}
+
