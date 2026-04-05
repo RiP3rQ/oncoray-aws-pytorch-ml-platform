@@ -15,17 +15,25 @@ The service depends on the model package in `../pytorch-engine/model`, so both a
 
 ## Endpoints
 
-- `GET /health` confirms the API is up and the model is initialized.
+- `GET /livez` confirms the API process is running.
+- `GET /readyz` confirms the API, database, and model are ready to serve requests.
+- `GET /health` mirrors the readiness probe for backwards compatibility.
 - `POST /predict` returns a prediction for a single numeric input.
 - `POST /auth/register` creates a user with email and password.
-- `POST /auth/login` validates credentials and returns a bearer token.
-- `POST /auth/logout` invalidates the current bearer token.
+- `POST /auth/login` validates credentials and returns a short-lived JWT bearer token.
+- `POST /auth/logout` invalidates the current JWT session.
 
 ## Database and migrations
 
 - SQLite is used as the default local database.
 - Alembic migration files live in `alembic/versions`.
 - Override the database location with `CORE_API_DATABASE_URL` when needed.
+
+## Security configuration
+
+- Set `CORE_API_JWT_SECRET` before running in production.
+- Override `CORE_API_CORS_ALLOWED_ORIGINS` with a comma-separated allow-list for browser clients.
+- Tune auth throttling with `CORE_API_AUTH_RATE_LIMIT_MAX_REQUESTS` and `CORE_API_AUTH_RATE_LIMIT_WINDOW_SECONDS`.
 
 ## Testing
 
