@@ -5,17 +5,17 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core_api.db import get_db_session
 from core_api.models import SessionToken
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
-DbSession = Annotated[Session, Depends(get_db_session)]
+DbSession = Annotated[AsyncSession, Depends(get_db_session)]
 
 
-def get_current_session(
+async def get_current_session(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     db: DbSession,
 ) -> SessionToken:
@@ -25,7 +25,7 @@ def get_current_session(
             detail="Authentication credentials were not provided.",
         )
 
-    session_token = db.scalar(
+    session_token = await db.scalar(
         select(SessionToken).where(SessionToken.token == credentials.credentials),
     )
     if session_token is None:

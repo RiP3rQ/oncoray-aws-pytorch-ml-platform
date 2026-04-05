@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+import pytest
+from httpx import AsyncClient
 
 
-def test_register_creates_user(client: TestClient) -> None:
-    response = client.post(
+@pytest.mark.asyncio
+async def test_register_creates_user(client: AsyncClient) -> None:
+    response = await client.post(
         "/auth/register",
         json={"email": "user@example.com", "password": "supersecret"},
     )
@@ -16,10 +18,11 @@ def test_register_creates_user(client: TestClient) -> None:
     assert "created_at" in payload
 
 
-def test_register_rejects_duplicate_email(client: TestClient) -> None:
-    client.post("/auth/register", json={"email": "user@example.com", "password": "supersecret"})
+@pytest.mark.asyncio
+async def test_register_rejects_duplicate_email(client: AsyncClient) -> None:
+    await client.post("/auth/register", json={"email": "user@example.com", "password": "supersecret"})
 
-    response = client.post(
+    response = await client.post(
         "/auth/register",
         json={"email": "user@example.com", "password": "supersecret"},
     )
@@ -28,10 +31,11 @@ def test_register_rejects_duplicate_email(client: TestClient) -> None:
     assert response.json()["detail"] == "A user with this email already exists."
 
 
-def test_login_returns_access_token(client: TestClient) -> None:
-    client.post("/auth/register", json={"email": "user@example.com", "password": "supersecret"})
+@pytest.mark.asyncio
+async def test_login_returns_access_token(client: AsyncClient) -> None:
+    await client.post("/auth/register", json={"email": "user@example.com", "password": "supersecret"})
 
-    response = client.post(
+    response = await client.post(
         "/auth/login",
         json={"email": "user@example.com", "password": "supersecret"},
     )
@@ -43,10 +47,11 @@ def test_login_returns_access_token(client: TestClient) -> None:
     assert payload["user"]["email"] == "user@example.com"
 
 
-def test_login_rejects_invalid_password(client: TestClient) -> None:
-    client.post("/auth/register", json={"email": "user@example.com", "password": "supersecret"})
+@pytest.mark.asyncio
+async def test_login_rejects_invalid_password(client: AsyncClient) -> None:
+    await client.post("/auth/register", json={"email": "user@example.com", "password": "supersecret"})
 
-    response = client.post(
+    response = await client.post(
         "/auth/login",
         json={"email": "user@example.com", "password": "wrongpass"},
     )
@@ -55,22 +60,23 @@ def test_login_rejects_invalid_password(client: TestClient) -> None:
     assert response.json()["detail"] == "Invalid email or password."
 
 
-def test_logout_invalidates_token(client: TestClient) -> None:
-    client.post("/auth/register", json={"email": "user@example.com", "password": "supersecret"})
-    login_response = client.post(
+@pytest.mark.asyncio
+async def test_logout_invalidates_token(client: AsyncClient) -> None:
+    await client.post("/auth/register", json={"email": "user@example.com", "password": "supersecret"})
+    login_response = await client.post(
         "/auth/login",
         json={"email": "user@example.com", "password": "supersecret"},
     )
     access_token = login_response.json()["access_token"]
 
-    logout_response = client.post(
+    logout_response = await client.post(
         "/auth/logout",
         headers={"Authorization": f"Bearer {access_token}"},
     )
 
     assert logout_response.status_code == 204
 
-    second_logout_response = client.post(
+    second_logout_response = await client.post(
         "/auth/logout",
         headers={"Authorization": f"Bearer {access_token}"},
     )

@@ -1,46 +1,53 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from core_api.db import Base, get_db_session
 from core_api.main import app
 
 
-@pytest.fixture()
-def db_session() -> Generator[Session, None, None]:
-    engine = create_engine(
-        "sqlite://",
+@pytest_asyncio.fixture()
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
-    Base.metadata.create_all(bind=engine)
+    TestingSessionLocal = async_sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
 
-    session = TestingSessionLocal()
-    try:
+    async with TestingSessionLocal() as session:
         yield session
-    finally:
-        session.close()
-        Base.metadata.drop_all(bind=engine)
-        engine.dispose()
+
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
 
 
-@pytest.fixture()
-def client(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient, None, None]:
-    monkeypatch.setattr("core_api.main.model_service.load", lambda: None)
+@pytest_asyncio.fixture()
+async def client(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> AsyncGenerator[AsyncClient, None]:
+    async def fake_load() -> None:
+        return None
 
-    def override_get_db_session() -> Generator[Session, None, None]:
+    monkeypatch.setattr("core_api.main.model_service.load", fake_load)
+
+    async def override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield db_session
 
     app.dependency_overrides[get_db_session] = override_get_db_session
     try:
-        with TestClient(app) as test_client:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://testserver") as test_client:
             yield test_client
     finally:
         app.dependency_overrides.clear()

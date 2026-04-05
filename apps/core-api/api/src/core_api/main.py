@@ -11,7 +11,7 @@ from core_api.service import model_service
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    model_service.load()
+    await model_service.load()
     yield
 
 
@@ -44,5 +44,5 @@ async def healthcheck() -> dict[str, str | bool]:
     description="Run the local PyTorch model against a single numeric input value.",
 )
 async def predict(payload: PredictionRequest) -> PredictionResponse:
-    prediction = model_service.predict(payload.value)
+    prediction = await model_service.predict(payload.value)
     return PredictionResponse(input_value=payload.value, prediction=prediction)

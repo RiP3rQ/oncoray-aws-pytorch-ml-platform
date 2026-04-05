@@ -25,18 +25,18 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
         status.HTTP_409_CONFLICT: {"description": "A user with the given email already exists."},
     },
 )
-def register(payload: RegisterRequest, db: DbSession) -> UserResponse:
-    existing_user = db.scalar(select(User).where(User.email == payload.email))
+async def register(payload: RegisterRequest, db: DbSession) -> UserResponse:
+    existing_user = await db.scalar(select(User).where(User.email == payload.email))
     if existing_user is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A user with this email already exists.",
         )
 
-    user = User(email=payload.email, password_hash=hash_password(payload.password))
+    user = User(email=payload.email, password_hash=await hash_password(payload.password))
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return UserResponse.model_validate(user)
 
 
@@ -50,9 +50,9 @@ def register(payload: RegisterRequest, db: DbSession) -> UserResponse:
         status.HTTP_401_UNAUTHORIZED: {"description": "The provided email or password is invalid."},
     },
 )
-def login(payload: LoginRequest, db: DbSession) -> LoginResponse:
-    user = db.scalar(select(User).where(User.email == payload.email))
-    if user is None or not verify_password(payload.password, user.password_hash):
+async def login(payload: LoginRequest, db: DbSession) -> LoginResponse:
+    user = await db.scalar(select(User).where(User.email == payload.email))
+    if user is None or not await verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
@@ -60,7 +60,7 @@ def login(payload: LoginRequest, db: DbSession) -> LoginResponse:
 
     session_token = SessionToken(user_id=user.id, token=generate_session_token())
     db.add(session_token)
-    db.commit()
+    await db.commit()
     return LoginResponse(access_token=session_token.token, user=UserResponse.model_validate(user))
 
 
@@ -74,10 +74,10 @@ def login(payload: LoginRequest, db: DbSession) -> LoginResponse:
         status.HTTP_401_UNAUTHORIZED: {"description": "The bearer token is missing, invalid, or expired."},
     },
 )
-def logout(
+async def logout(
     db: DbSession,
     session_token: Annotated[SessionToken, Depends(get_current_session)],
 ) -> Response:
-    db.delete(session_token)
-    db.commit()
+    await db.delete(session_token)
+    await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

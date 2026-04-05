@@ -5,6 +5,7 @@ description = "FastAPI backend for serving the local PyTorch model."
 readme = "../README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "aiosqlite>=0.21,<1",
   "alembic>=1.16,<2",
   "bcrypt>=4.3,<5",
   "email-validator>=2.2,<3",
@@ -12,6 +13,7 @@ dependencies = [
   "first-model",
   "httpx>=0.28,<1",
   "pytest>=8.3,<9",
+  "pytest-asyncio>=1.2,<2",
   "sqlalchemy>=2.0,<3",
   "uvicorn>=0.35,<1",
 ]
