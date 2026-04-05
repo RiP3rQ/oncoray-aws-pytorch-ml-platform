@@ -1,0 +1,21 @@
+[project]
+name = "core-api-service"
+version = "0.1.0"
+description = "FastAPI backend for serving the local PyTorch model."
+readme = "../README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.116,<1",
+  "first-model",
+  "uvicorn>=0.35,<1",
+]
+
+[tool.uv.sources]
+first-model = { path = "../../pytorch-engine/model", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/core_api"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
