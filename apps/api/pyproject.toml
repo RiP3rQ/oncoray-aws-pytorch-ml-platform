@@ -1,0 +1,7 @@
+[project]
+name = "fastapi-core-api"
+version = "0.1.0"
+description = "FastAPI service for the monorepo."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
