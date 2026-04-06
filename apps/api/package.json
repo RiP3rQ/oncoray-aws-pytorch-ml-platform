@@ -1,0 +1,13 @@
+{
+    "name": "fastapi-core-api",
+    "private": true,
+    "scripts": {
+      "build": "uv sync",
+      "check-types": "uv run python -m compileall app",
+      "dev": "uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+      "start": "uv run uvicorn app.main:app --host 0.0.0.0 --port 8000",
+      "test": "uv run pytest app/tests",
+      "migrate": "uv run alembic upgrade head"
+    }
+  }
+  
