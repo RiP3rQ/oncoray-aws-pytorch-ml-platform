@@ -24,12 +24,14 @@ from src.utils.token_utils import (
 )
 from src.worker.tasks import send_email_with_template
 
+from src.core.logger import get_logger
 from .base import BaseService
 
 password_hasher = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto",
 )
+logger = get_logger(__name__)
 
 
 class UserService(BaseService):
@@ -62,9 +64,12 @@ class UserService(BaseService):
         if password is None:
             raise BadPassword()
 
+        logger.info("Hashing password for user %s", password)
+
         try:
             return password_hasher.hash(password)
         except PasswordValueError as exc:
+            logger.error("Error hashing password for user %s", password, exc_info=True)
             raise BadPassword() from exc
 
     def _build_verification_url(self, token: str, router_prefix: str) -> str:

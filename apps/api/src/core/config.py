@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 APP_DIR = Path(__file__).resolve().parent
-TEMPLATE_DIR = APP_DIR  / "templates"
+TEMPLATE_DIR = PROJECT_DIR  / "src" / "templates"
 
 _base_config = SettingsConfigDict(
     env_file=PROJECT_DIR / ".env",

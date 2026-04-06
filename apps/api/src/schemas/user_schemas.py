@@ -2,7 +2,6 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
 class BaseUserSchema(BaseModel):
@@ -20,7 +19,6 @@ class UserRead(BaseUserSchema):
         default_factory=uuid4,
         primary_key=True,
         nullable=False,
-        sa_type=PG_UUID(as_uuid=True),
     )
     created_at: datetime = Field()
     updated_at: datetime = Field()
