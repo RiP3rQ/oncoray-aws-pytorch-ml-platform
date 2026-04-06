@@ -8,7 +8,7 @@ from sqlmodel import SQLModel
 
 from alembic import context
 
-from src.core.config import get_db_settings
+from src.core.config import db_settings
 # MAKE SURE TO IMPORT THE MODELS HERE
 from src.database.postgres import User, LLMModel  # noqa: F401
 
@@ -17,7 +17,7 @@ from src.database.postgres import User, LLMModel  # noqa: F401
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-    get_db_settings().postgres_url,
+    db_settings.POSTGRES_URL,
 )
 
 # Interpret the config file for Python logging.

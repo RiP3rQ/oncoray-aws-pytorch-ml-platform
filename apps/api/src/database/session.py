@@ -7,7 +7,7 @@ from src.core.config import db_settings
 # Create a database engine to connect with database
 engine = create_async_engine(
     # database type/dialect and file name
-    url=db_settings.postgres_url,
+    url=db_settings.POSTGRES_URL,
     # Log sql queries
     # echo=True,
 )

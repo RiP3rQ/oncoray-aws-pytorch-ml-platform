@@ -1,11 +1,11 @@
 from redis.asyncio import Redis
 
-from src.core.config import redis_settings
+from src.core.config import db_settings
 
 
 redis_instance = Redis(
-    host=redis_settings.redis_host,
-    port=redis_settings.redis_port,
+    host=db_settings.REDIS_HOST,
+    port=db_settings.REDIS_PORT,
     db=0,
 )
 
