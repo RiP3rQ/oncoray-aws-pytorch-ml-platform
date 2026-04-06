@@ -21,6 +21,18 @@ class EntityNotFound(FastApiCoreError):
     status = status.HTTP_404_NOT_FOUND
     detail = "Entity not found."
 
+class ClientNotAuthorized(FastApiCoreError):
+    """Client is not authorized to perform the action"""
+
+    status = status.HTTP_401_UNAUTHORIZED
+    detail = "Client is not authorized to perform the action."
+
+class InvalidToken(FastApiCoreError):
+    """Access token is invalid or expired"""
+
+    status = status.HTTP_401_UNAUTHORIZED
+    detail = "Access token is invalid or expired."
+
 # =============================== EXCEPTION HANDLER ===============================
 def _get_handler(status: int, detail: str):
     # Define
