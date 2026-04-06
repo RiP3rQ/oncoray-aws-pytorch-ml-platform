@@ -1,24 +1,9 @@
 services:
-  # api:
-  #   build: .
-  #   environment:
-  #     POSTGRES_SERVER: db
-  #   expose:
-  #     - 8000
-  #   command: ["fastapi", "run", "--port", "8000"]
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     - db
-  # WIll uncomment this after the api is ready to be deployed
-
-  db:
-    image: postgres
-    environment:
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "12345678"
-      POSTGRES_DB: "pytorch-model"
+  api:
+    build: .
+    env_file:
+      - .env
     ports:
-      - "5433:5432"
+      - "8000:8000"
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data
+      - ./core_api.db:/app/core_api.db

@@ -1,9 +1,13 @@
-FROM python:3.13-alpine
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+RUN pip install --no-cache-dir uv
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml alembic.ini README.md ./
+COPY api ./api
+COPY alembic ./alembic
 
-COPY . .
+RUN uv sync
+
+CMD ["uv", "run", "--package", "core-api-service", "uvicorn", "core_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
