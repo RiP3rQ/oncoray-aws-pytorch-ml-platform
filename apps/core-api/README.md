@@ -8,8 +8,8 @@ This workspace contains a minimal FastAPI auth service focused on logging, JWT a
 cd D:\Pytorch-model\apps\core-api
 $env:UV_CACHE_DIR = "$PWD\.uv-cache"
 uv sync
-uv run --package core-api-service alembic upgrade head
-uv run --package core-api-service uvicorn core_api.main:app --reload
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
 ```
 
 ## Endpoints
@@ -37,11 +37,11 @@ uv run --package core-api-service uvicorn core_api.main:app --reload
 
 ```powershell
 $env:UV_CACHE_DIR = "$PWD\.uv-cache"
-uv run --package core-api-service pytest
+uv run pytest
 ```
 
 ## Workspace layout
 
-- `pyproject.toml` defines the `uv` workspace.
-- `api/` contains the Python package.
+- `pyproject.toml` defines the `uv` project.
+- `app/` contains the Python package.
 - `alembic/` contains migration configuration and revisions.

@@ -71,6 +71,15 @@ class DatabaseSettings:
     def SYNC_POSTGRES_URL(self) -> str:
         return to_sync_database_url(self.POSTGRES_URL)
 
+@dataclass(frozen=True)
+class RedisSettings:
+    REDIS_HOST: str
+    REDIS_PORT: int
+
+    @property
+    def REDIS_URL(self, db: int) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{db}"
+
 
 @dataclass(frozen=True)
 class SecuritySettings:
@@ -105,6 +114,13 @@ def get_db_settings() -> DatabaseSettings:
         DATABASE_URL_OVERRIDE=_normalize_database_url(database_override) if database_override else None,
     )
 
+@lru_cache(maxsize=1)
+def get_redis_settings() -> RedisSettings:
+    return RedisSettings(
+        REDIS_HOST=_get_setting("REDIS_HOST", "localhost"),
+        REDIS_PORT=int(_get_setting("REDIS_PORT", "6379")),
+    )
+
 
 @lru_cache(maxsize=1)
 def get_security_settings() -> SecuritySettings:
@@ -131,3 +147,4 @@ def to_sync_database_url(database_url: str) -> str:
 app_settings = get_app_settings()
 db_settings = get_db_settings()
 security_settings = get_security_settings()
+redis_settings = get_redis_settings()
