@@ -1,5 +1,7 @@
 from collections.abc import AsyncGenerator
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 from src.core.config import db_settings
@@ -23,3 +25,14 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
     async with async_session() as session:
         yield session
+
+
+async def ping_database(session: AsyncSession) -> bool:
+    """
+    Check whether the database is reachable.
+    """
+    try:
+        await session.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        return False
+    return True

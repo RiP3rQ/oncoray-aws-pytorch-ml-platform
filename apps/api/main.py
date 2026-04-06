@@ -70,33 +70,6 @@ async def get_scalar_docs():
         title="Core API",
     )
 
-# =============================== KUBERNETES READINESS ENDPOINT ===============================
-
-@app.get("/livez")
-async def get_livez():
-    """
-    Kubernetes readiness endpoint.
-    """
-    return {"status": "ok"}
-
-# =============================== KUBERNETES LIVENESS ENDPOINT ===============================
-
-@app.get("/readyz")
-async def get_readyz():
-    """
-    Kubernetes liveness endpoint.
-    """
-    return {"status": "ok"}
-
-# =============================== KUBERNETES HEALTH ENDPOINT ===============================
-
-@app.get("/health")
-async def get_health():
-    """
-    Kubernetes health endpoint.
-    """
-    return {"status": "ok"}
-
 # =============================== ROUTERS ===============================
 # Add all endpoints
 app.include_router(master_router)
