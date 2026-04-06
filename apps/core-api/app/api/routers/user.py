@@ -6,29 +6,29 @@ from fastapi.templating import Jinja2Templates
 from pydantic import EmailStr
 
 from app.api.schemas.shipment import ShipmentRead
-from app.api.tag import APITag
+from app.api.enums.tags import APITag
 from app.core.security import TokenData
 from app.database.redis import add_jti_to_blacklist
 from app.utils import TEMPLATE_DIR
 from app.config import app_settings
 
-from ..dependencies import SellerDep, SellerServiceDep, get_seller_access_token
-from ..schemas.seller import SellerCreate, SellerRead
+from ..dependencies import UserDep, UserServiceDep, get_user_access_token
+from ..schemas.user import UserCreate, UserRead
 
-router = APIRouter(prefix="/seller", tags=[APITag.SELLER])
+router = APIRouter(prefix="/user", tags=[APITag.USER])
 
 
 ### Register a new seller
-@router.post("/signup", response_model=SellerRead)
-async def register_seller(seller: SellerCreate, service: SellerServiceDep):
-    return await service.add(seller)
+@router.post("/signup", response_model=UserRead)
+async def register_seller(user: UserCreate, service: UserServiceDep):
+    return await service.add(user)
 
 
-### Login a seller
+### Login a user
 @router.post("/token", response_model=TokenData)
-async def login_seller(
+async def login_user(
     request_form: Annotated[OAuth2PasswordRequestForm, Depends()],
-    service: SellerServiceDep,
+    service: UserServiceDep,
 ):
     token = await service.token(request_form.username, request_form.password)
     return {
@@ -37,69 +37,24 @@ async def login_seller(
     }
 
 
-### Get seller profile
-@router.get("/me", response_model=SellerRead)
-async def get_seller_profile(seller: SellerDep):
-    return seller
+### Get user profile
+@router.get("/me", response_model=UserRead)
+async def get_user_profile(user: UserDep):
+    return user
 
 
-### Get all shipments created by the seller
-@router.get("/shipments", response_model=list[ShipmentRead])
-async def get_shipments(seller: SellerDep):
-    return seller.shipments
 
-
-### Verify Seller Email
+### Verify User Email
 @router.get("/verify", include_in_schema=False)
-async def verify_seller_email(token: str, service: SellerServiceDep):
+async def verify_user_email(token: str, service: UserServiceDep):
     await service.verify_email(token)
     return {"detail": "Account verified"}
-
-
-### Email Password Reset Link
-@router.get("/forgot_password")
-async def forgot_password(email: EmailStr, service: SellerServiceDep):
-    await service.send_password_reset_link(email, router.prefix)
-    return {"detail": "Check email for password reset link"}
-
-
-### Password Reset Form
-@router.get("/reset_password_form")
-async def get_reset_password_form(request: Request, token: str):
-    templates = Jinja2Templates(TEMPLATE_DIR)
-
-    return templates.TemplateResponse(
-        request=request,
-        name="password/reset.html",
-        context={
-            "reset_url": f"http://{app_settings.APP_DOMAIN}{router.prefix}/reset_password?token={token}"
-        },
-    )
-
-
-### Reset Seller Password
-@router.post("/reset_password")
-async def reset_password(
-    request: Request,
-    token: str,
-    password: Annotated[str, Form()],
-    service: SellerServiceDep,
-):
-    is_success = await service.reset_password(token, password)
-
-    templates = Jinja2Templates(TEMPLATE_DIR)
-    return templates.TemplateResponse(
-        request=request,
-        name="password/reset_success.html"
-        if is_success
-        else "password/reset_failed.html",
-    )
 
 
 ### Logout a seller
 @router.get("/logout")
 async def logout_seller(
-    token_data: Annotated[dict, Depends(get_seller_access_token)],
+    token_data: Annotated[dict, Depends(get_user_access_token)],
 ):
     await add_jti_to_blacklist(token_data["jti"])
     return {"detail": "Successfully logged out"}

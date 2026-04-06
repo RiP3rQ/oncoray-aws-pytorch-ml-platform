@@ -3,7 +3,8 @@ from json import JSONDecodeError, dumps
 from pathlib import Path
 from typing import Any, Mapping
 from uuid import uuid4
-
+from rich import print
+from rich.panel import Panel
 import jwt
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
@@ -61,10 +62,6 @@ def decode_url_safe_token(
 
 
 def print_label(data: Any, title: str | None = None):
-
-    from rich import print
-    from rich.panel import Panel
-
     try:
         data = dumps(data, indent=4) if isinstance(data, (dict, Mapping)) else data
     except JSONDecodeError:

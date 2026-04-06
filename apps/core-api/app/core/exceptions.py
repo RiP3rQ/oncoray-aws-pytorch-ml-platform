@@ -1,37 +1,44 @@
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
+from rich import print, panel
 
-class EntityNotFound(FastShipError):
+class CoreApiError(Exception):
+    """Base exception for all exceptions in core api"""
+    # status_code to be returned for this exception
+    # when it is handled
+    status: int = status.HTTP_400_BAD_REQUEST
+
+class EntityNotFound(CoreApiError):
     """Entity not found in database"""
 
     status = status.HTTP_404_NOT_FOUND
 
 
-class BadPassword(FastShipError):
+class BadPassword(CoreApiError):
     """Password is not strong enough or invalid"""
 
     status = status.HTTP_400_BAD_REQUEST
 
 
-class ClientNotAuthorized(FastShipError):
+class ClientNotAuthorized(CoreApiError):
     """Client is not authorized to perform the action"""
 
     status = status.HTTP_401_UNAUTHORIZED
 
 
-class ClientNotVerified(FastShipError):
+class ClientNotVerified(CoreApiError):
     """Client is not verified"""
 
     status = status.HTTP_401_UNAUTHORIZED
 
 
-class BadCredentials(FastShipError):
+class BadCredentials(CoreApiError):
     """User email or password is incorrect"""
 
     status = status.HTTP_401_UNAUTHORIZED
 
 
-class InvalidToken(FastShipError):
+class InvalidToken(CoreApiError):
     """Access token is invalid or expired"""
 
     status = status.HTTP_401_UNAUTHORIZED
@@ -40,7 +47,6 @@ def _get_handler(status: int, detail: str):
     # Define
     def handler(request: Request, exception: Exception) -> Response:
         # DEBUG PRINT STATEMENT 👇
-        from rich import print, panel
         print(
             panel.Panel(
                 exception.__class__.__name__,
@@ -63,7 +69,7 @@ def _get_handler(status: int, detail: str):
 
 def add_exception_handlers(app: FastAPI):
     # Get all subclass of 👇, our custom exceptions
-    exception_classes = FastShipError.__subclasses__()
+    exception_classes = CoreApiError.__subclasses__()
 
     for exception_class in exception_classes:
         # Add exception handler
