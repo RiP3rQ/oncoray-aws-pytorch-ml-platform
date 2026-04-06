@@ -1,15 +1,30 @@
-from pydantic import BaseModel, EmailStr
+from __future__ import annotations
+
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
-class BaseSeller(BaseModel):
-    name: str
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
     email: EmailStr
+    created_at: datetime
 
 
-class SellerRead(BaseSeller):
-    pass
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
 
-class SellerCreate(BaseSeller):
-    password: str
-    address: str
-    zip_code: int
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=128)
+
+
+class LoginResponse(BaseModel):
+    token_type: str
+    access_token: str
+    expires_at: datetime
+    user: UserResponse

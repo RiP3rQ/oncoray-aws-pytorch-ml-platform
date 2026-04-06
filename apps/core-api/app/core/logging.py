@@ -1,17 +1,34 @@
-# import logging
+from __future__ import annotations
 
-# import logtail
+import logging
+from logging.config import dictConfig
 
-# logger = logging.getLogger("pytorch-model")
-# logger.setLevel(logging.INFO)
 
-# logtail_handler = logtail.LogtailHandler(
-#     source_token="change-me-before-production",
-#     host="localhost:8000",
-# )
-# logtail_handler.setFormatter(
-#     logging.Formatter(
-#         "[%(levelname)s]: %(message)s"
-#     )
-# )
-# logger.addHandler(logtail_handler)
+def setup_logging(level: str = "INFO") -> None:
+    dictConfig(
+        {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)s %(levelname)s [%(name)s] %(message)s",
+                },
+            },
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "default",
+                },
+            },
+            "root": {
+                "handlers": ["console"],
+                "level": level,
+            },
+            "loggers": {
+                "uvicorn.access": {"level": "WARNING"},
+            },
+        },
+    )
+
+
+logger = logging.getLogger("core_api")

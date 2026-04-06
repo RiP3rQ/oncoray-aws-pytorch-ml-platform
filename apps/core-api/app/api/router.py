@@ -1,9 +1,7 @@
 from fastapi import APIRouter
-from .routers import shipment, seller, delivery_partner
 
-# Single router to group all api routers
+from app.api.routers import user
+
+
 master_router = APIRouter()
-
-master_router.include_router(shipment.router)
-master_router.include_router(seller.router)
-master_router.include_router(delivery_partner.router)
+master_router.include_router(user.router)

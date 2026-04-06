@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from httpx import AsyncClient
 
-from core_api.auth import TokenValidationError, create_access_token, decode_access_token
+from app.core.security import TokenValidationError, create_access_token, decode_access_token
 
 
 @pytest.mark.asyncio
