@@ -1,45 +1,79 @@
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.database.session import Base
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, Uuid, func
+from sqlmodel import Column, Field, Relationship, SQLModel
 
 
-class User(Base):
+class User(SQLModel, table=True):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
+    id: UUID = Field(
+        sa_column=Column(
+            Uuid(as_uuid=True),
+            default=uuid4,
+            primary_key=True,
+        )
+    )
+    email: str = Field(
+        sa_column=Column(String(320), unique=True, index=True, nullable=False),
+    )
+    password_hash: str = Field(sa_column=Column(String(255), nullable=False))
+    name: str = Field(sa_column=Column(String(255), nullable=False))
+    email_verified: bool = Field(default=False)
+    created_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=func.now(),
+        )
     )
 
-    session_tokens: Mapped[list["SessionToken"]] = relationship(
+    session_tokens: list["SessionToken"] = Relationship(
         back_populates="user",
-        cascade="all, delete-orphan",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "lazy": "selectin",
+        },
     )
 
 
-class SessionToken(Base):
+class SessionToken(SQLModel, table=True):
     __tablename__ = "session_tokens"
     __table_args__ = (
         UniqueConstraint("jti_hash", name="uq_session_tokens_jti_hash"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    jti_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
+    id: UUID = Field(
+        sa_column=Column(
+            Uuid(as_uuid=True),
+            default=uuid4,
+            primary_key=True,
+        )
     )
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    user_id: UUID = Field(
+        sa_column=Column(
+            Uuid(as_uuid=True),
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    jti_hash: str = Field(sa_column=Column(String(64), nullable=False, index=True))
+    created_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=func.now(),
+        )
+    )
+    expires_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
 
-    user: Mapped[User] = relationship(back_populates="session_tokens")
+    user: User = Relationship(
+        back_populates="session_tokens",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )

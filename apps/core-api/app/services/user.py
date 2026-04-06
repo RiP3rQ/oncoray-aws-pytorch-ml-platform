@@ -1,4 +1,3 @@
-from datetime import timedelta
 from uuid import UUID
 
 from passlib.context import CryptContext
