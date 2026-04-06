@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -80,10 +80,28 @@ class DatabaseSettings(BaseSettings):
 class SecuritySettings(BaseSettings):
     """JWT and related security settings."""
 
-    JWT_SECRET: str = "change-me-before-production"
-    JWT_ALGORITHM: str = "HS256"
+    SECRET_KEY: str = Field(
+        default="change-me-before-production",
+        validation_alias=AliasChoices("SECRET_KEY", "JWT_SECRET"),
+    )
+    ALGORITHM: str = Field(
+        default="HS256",
+        validation_alias=AliasChoices("ALGORITHM", "JWT_ALGORITHM"),
+    )
 
     model_config = _base_config
+
+    @property
+    def JWT_SECRET(self) -> str:
+        """Backward-compatible access for legacy JWT secret references."""
+
+        return self.SECRET_KEY
+
+    @property
+    def JWT_ALGORITHM(self) -> str:
+        """Backward-compatible access for legacy JWT algorithm references."""
+
+        return self.ALGORITHM
 
 
 class NotificationSettings(BaseSettings):
