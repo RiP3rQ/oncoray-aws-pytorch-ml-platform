@@ -8,4 +8,5 @@ dependencies = [
     "alembic>=1.18.4",
     "fastapi[all]>=0.135.3",
     "scalar-fastapi>=1.8.1",
+    "sqlmodel>=0.0.38",
 ]
