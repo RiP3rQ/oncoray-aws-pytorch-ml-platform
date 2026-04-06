@@ -27,6 +27,7 @@ class AppSettings(BaseSettings):
     AUTH_RATE_LIMIT_MAX_REQUESTS: int = 5
     AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 60
     ACCESS_TOKEN_TTL_MINUTES: int = 15
+    APP_DOMAIN: str = "localhost:8000"
 
     model_config = _base_config
 

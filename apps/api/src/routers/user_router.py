@@ -19,7 +19,7 @@ async def register_user(user: UserCreate, service: UserServiceDep):
     """
     Register a new user. No token is returned as user is not verified yet.
     """
-    return await service.add(user)
+    return await service.register_user(user)
 
 
 ### Login a user
@@ -31,7 +31,10 @@ async def login_user(
     """
     Login a user & return the access token.
     """
-    token = await service.token(request_form.username, request_form.password)
+    token = await service.authenticate_user_and_create_token(
+        request_form.username,
+        request_form.password,
+    )
     return {
         "access_token": token,
         "token_type": "jwt",
@@ -53,7 +56,7 @@ async def verify_user_email(token: str, service: UserServiceDep):
     """
     Verify a user email.
     """
-    await service.verify_email(token)
+    await service.verify_user_email(token)
     return {"detail": "Account verified"}
 
 

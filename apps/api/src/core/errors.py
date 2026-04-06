@@ -33,6 +33,28 @@ class InvalidToken(FastApiCoreError):
     status = status.HTTP_401_UNAUTHORIZED
     detail = "Access token is invalid or expired."
 
+
+class BadCredentials(FastApiCoreError):
+    """Email or password is incorrect."""
+
+    status = status.HTTP_401_UNAUTHORIZED
+    detail = "Email or password is incorrect."
+
+
+class BadPassword(FastApiCoreError):
+    """Password does not meet requirements or could not be processed."""
+
+    status = status.HTTP_400_BAD_REQUEST
+    detail = "Password does not meet requirements or could not be processed."
+
+
+class ClientNotVerified(FastApiCoreError):
+    """Email address has not been verified."""
+
+    status = status.HTTP_403_FORBIDDEN
+    detail = "Email address has not been verified."
+
+
 # =============================== EXCEPTION HANDLER ===============================
 def _get_handler(status: int, detail: str):
     # Define
