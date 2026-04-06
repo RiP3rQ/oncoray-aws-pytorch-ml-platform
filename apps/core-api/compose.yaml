@@ -1,15 +1,16 @@
 services:
-  api:
-    build: .
-    environment:
-      POSTGRES_SERVER: db
-    expose:
-      - 8000
-    command: ["fastapi", "run", "--port", "8000"]
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
+  # api:
+  #   build: .
+  #   environment:
+  #     POSTGRES_SERVER: db
+  #   expose:
+  #     - 8000
+  #   command: ["fastapi", "run", "--port", "8000"]
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     - db
+  # WIll uncomment this after the api is ready to be deployed
 
   db:
     image: postgres
