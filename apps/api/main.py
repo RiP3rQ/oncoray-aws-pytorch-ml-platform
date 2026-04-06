@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from scalar_fastapi import get_scalar_api_reference
+from src.routers.master_router import master_router
 
 app = FastAPI()
 
@@ -52,3 +53,5 @@ async def get_health():
     return {"status": "ok"}
 
 # =============================== MAIN ===============================
+# Add all endpoints
+app.include_router(master_router)
