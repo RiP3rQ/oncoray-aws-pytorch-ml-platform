@@ -1,14 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 
-
-class FastShipError(Exception):
-    """Base exception for all exceptions in fastship api"""
-    # status_code to be returned for this exception
-    # when it is handled
-    status = status.HTTP_400_BAD_REQUEST
-
-
 class EntityNotFound(FastShipError):
     """Entity not found in database"""
 
@@ -33,10 +25,6 @@ class ClientNotVerified(FastShipError):
     status = status.HTTP_401_UNAUTHORIZED
 
 
-class NothingToUpdate(FastShipError):
-    """No data provided to update"""
-
-
 class BadCredentials(FastShipError):
     """User email or password is incorrect"""
 
@@ -47,19 +35,6 @@ class InvalidToken(FastShipError):
     """Access token is invalid or expired"""
 
     status = status.HTTP_401_UNAUTHORIZED
-
-
-class DeliveryPartnerNotAvailable(FastShipError):
-    """Delivery partner/s do not service the destination"""
-
-    status = status.HTTP_406_NOT_ACCEPTABLE
-
-
-class DeliveryPartnerCapacityExceeded(FastShipError):
-    """Delivery partner has reached their max handling capacity"""
-
-    status = status.HTTP_406_NOT_ACCEPTABLE
-
 
 def _get_handler(status: int, detail: str):
     # Define
