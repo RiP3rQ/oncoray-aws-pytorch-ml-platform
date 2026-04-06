@@ -1,77 +1,106 @@
-from fastapi import FastAPI, Request, Response
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+import logging
+import time
+from uuid import uuid4
+
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.routing import APIRoute
-from scalar_fastapi import get_scalar_api_reference
 
 from app.api.router import master_router
-from app.api.tag import APITag
-from app.core.exceptions import add_exception_handlers
-# from app.core.logging import logger
-
-description = """
-Delivery Management System for sellers and delivery agents
-
-### Seller
-- Submit shipment effortlessly
-- Share tracking links with customers
-
-### Delivery Agent
-- Auto accept shipments
-- Track and update shipment status
-- Email and SMS notifications
-"""
-tags_metadata = [
-        {
-            "name": APITag.SHIPMENT.value,
-            "description": "Operations related to shipments.",
-        },
-        {
-            "name": APITag.SELLER.value,
-            "description": "Operations related to seller.",
-        },
-        {
-            "name": APITag.PARTNER.value,
-            "description": "Operations related to delivery partner.",
-        },
-    ]
+from app.config import app_settings
+from app.core.logging import setup_logging
+from app.database.session import get_session, ping_database
 
 
-def custom_generate_unique_id_function(route: APIRoute) -> str:
-    return route.name
+class ModelService:
+    async def load(self) -> None:
+        return None
+
+    def is_ready(self) -> bool:
+        return True
+
+
+model_service = ModelService()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    setup_logging(app_settings.APP_LOG_LEVEL)
+    await model_service.load()
+    yield
+
 
 app = FastAPI(
-    title="FastShip",
-    description=description,
-    docs_url=None,
-    redoc_url=None,
+    title=app_settings.APP_NAME,
     version="0.1.0",
-    openapi_tags=tags_metadata,
-    # generate_unique_id_function=custom_generate_unique_id_function,
+    lifespan=lifespan,
 )
-
-# Add CORS middleware to allow requests from the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=list(app_settings.CORS_ALLOWED_ORIGINS),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Add all endpoints
 app.include_router(master_router)
 
-# Add custom exception handlers
-add_exception_handlers(app)
 
-@app.get('/')
-def root():
-    return {"message": "Welcome to FastShip API!"}
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    request_id = uuid4().hex
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = (time.perf_counter() - start) * 1000
+        logging.getLogger("core_api.request").exception(
+            "request failed request_id=%s method=%s path=%s duration_ms=%.2f",
+            request_id,
+            request.method,
+            request.url.path,
+            duration_ms,
+        )
+        raise
 
-# Scalar API Documentation
-@app.get("/docs", include_in_schema=False)
-def get_scalar_docs():
-    return get_scalar_api_reference(
-        openapi_url=app.openapi_url,
-        title="Scalar API",
+    duration_ms = (time.perf_counter() - start) * 1000
+    response.headers["X-Request-ID"] = request_id
+    logging.getLogger("core_api.request").info(
+        "request completed request_id=%s method=%s path=%s status_code=%s duration_ms=%.2f",
+        request_id,
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
     )
+    return response
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"service": "core-api", "status": "ok"}
+
+
+@app.get("/livez")
+async def livez() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
+async def readyz(session=Depends(get_session)):
+    db_ready = await ping_database(session)
+    model_ready = model_service.is_ready()
+    payload = {
+        "status": "ok" if db_ready and model_ready else "degraded",
+        "model_ready": model_ready,
+        "db_ready": db_ready,
+    }
+    if not (db_ready and model_ready):
+        raise HTTPException(status_code=503, detail=payload)
+    return payload
+
+
+@app.get("/health")
+async def health(session=Depends(get_session)):
+    return await readyz(session)
