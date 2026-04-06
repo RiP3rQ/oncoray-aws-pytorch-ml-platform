@@ -1,4 +1,5 @@
-from fastapi import status
+from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 
 
 class FastApiCoreError(Exception):
@@ -19,3 +20,55 @@ class EntityNotFound(FastApiCoreError):
 
     status = status.HTTP_404_NOT_FOUND
     detail = "Entity not found."
+
+# =============================== EXCEPTION HANDLER ===============================
+def _get_handler(status: int, detail: str):
+    # Define
+    def handler(request: Request, exception: Exception) -> Response:
+        # DEBUG PRINT STATEMENT 👇
+        from rich import print, panel
+        print(
+            panel.Panel(
+                exception.__class__.__name__,
+                title="Handled Exception",
+                border_style="red",
+            ),
+        )
+        # DEBUG PRINT STATEMENT 👆
+        
+        # Raise HTTPException with given status and detail
+        # can return JSONResponse as well
+        raise HTTPException(
+            status_code=status,
+            detail=detail,
+        )
+    # Return ExceptionHandler required with given
+    # status and detail for HTTPExcetion above
+    return handler
+
+
+def add_exception_handlers(app: FastAPI):
+    # Get all subclass of 👇, our custom exceptions
+    exception_classes = FastApiCoreError.__subclasses__()
+
+    for exception_class in exception_classes:
+        # Add exception handler
+        app.add_exception_handler(
+            # Custom exception class
+            exception_class,
+            # Get handler function
+            _get_handler(
+                status=exception_class.status,
+                detail=exception_class.__doc__,
+            ),
+        )
+
+    @app.exception_handler(status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def internal_server_error_handler(request: Request, exception: Exception) -> Response:
+        return JSONResponse(
+            content={"detail": "Something went wrong..."},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            headers={
+                "X-Error": f"{exception}",
+            }
+        )
