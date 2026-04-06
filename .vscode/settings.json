@@ -1,0 +1,7 @@
+{
+  "pylint.cwd": "${workspaceFolder}/apps/core-api",
+  "pylint.importStrategy": "useBundled",
+  "pylint.interpreter": [
+    "${workspaceFolder}/apps/core-api/.venv/Scripts/python.exe"
+  ]
+}

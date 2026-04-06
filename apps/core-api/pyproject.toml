@@ -37,3 +37,15 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.pylint.main]
+init-hook = """
+from pathlib import Path
+import sys
+
+cwd = Path.cwd().resolve()
+for candidate in (cwd, *cwd.parents):
+    if (candidate / "pyproject.toml").exists() and (candidate / "app").exists():
+        sys.path.insert(0, str(candidate))
+        break
+"""
