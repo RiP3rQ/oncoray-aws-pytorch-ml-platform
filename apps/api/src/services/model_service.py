@@ -2,8 +2,11 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from src.core.errors import EntityNotFound
+from src.core.logger import get_logger
 from src.schemas.model_schemas import ModelRead
 from src.services.base import BaseService
+
+logger = get_logger(__name__)
 
 MOCK_MODELS: dict[UUID, ModelRead] = {
     UUID("11111111-1111-1111-1111-111111111111"): ModelRead(
@@ -38,7 +41,10 @@ class ModelService(BaseService):
     # Get a model by id
     async def get(self, id: UUID) -> ModelRead:
         """Get a model by id"""
+        logger.info("Fetching mocked model with id=%s", id)
         model = MOCK_MODELS.get(id)
         if model is None:
+            logger.warning("Mocked model was not found for id=%s", id)
             raise EntityNotFound(f"Model '{id}' was not found.")
+        logger.info("Returning mocked model with id=%s", id)
         return model.model_copy(deep=True)

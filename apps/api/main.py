@@ -4,14 +4,18 @@ from fastapi.responses import JSONResponse
 from scalar_fastapi import get_scalar_api_reference
 
 from src.core.errors import FastApiCoreError
+from src.core.logger import configure_logging, get_logger
 from src.routers.master_router import master_router
 
+configure_logging()
+logger = get_logger(__name__)
 app = FastAPI()
 
 
 @app.exception_handler(FastApiCoreError)
 async def handle_core_error(_: Request, exc: FastApiCoreError) -> JSONResponse:
     """Translate domain exceptions into JSON HTTP responses."""
+    logger.warning("Handled application error: %s", exc.detail)
     return JSONResponse(status_code=exc.status, content={"detail": exc.detail})
 
 # =============================== ROOT ENDPOINT ===============================
