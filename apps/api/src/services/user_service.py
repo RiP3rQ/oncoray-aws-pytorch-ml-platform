@@ -21,7 +21,7 @@ from src.utils.token_utils import (
     generate_access_token,
     generate_url_safe_token,
 )
-from src.worker.tasks import send_email_with_template
+from src.worker.tasks import send_email_with_template, send_email_with_template_async
 
 from src.core.logger import get_logger
 from .base import BaseService
@@ -79,9 +79,19 @@ class UserService(BaseService):
         """Queue the account verification email for a newly created user."""
 
         token = generate_url_safe_token({"id": str(user.id)})
-        send_email_with_template.delay(
+        # TODO: UNCOMMENT IN PRODUCTION
+        # send_email_with_template.delay(
+        #     recipients=[user.email],
+        #     subject="Verify Your Account With PyTorch Model",
+        #     context={
+        #         "username": user.email,
+        #         "verification_url": self._build_verification_url(token, router_prefix),
+        #     },
+        #     template_name="mail_email_verify.html",
+        # )
+        await send_email_with_template_async(
             recipients=[user.email],
-            subject="Verify Your Account With FastShip",
+            subject="Verify Your Account With PyTorch Model",
             context={
                 "username": user.email,
                 "verification_url": self._build_verification_url(token, router_prefix),

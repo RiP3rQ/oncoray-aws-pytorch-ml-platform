@@ -70,3 +70,25 @@ def send_email_with_template(
     )
     logger.info(f"Email sent to {recipients}")
     return "Message Sent!"
+
+
+async def send_email_with_template_async(
+    recipients: list[EmailStr],
+    subject: str,
+    context: dict,
+    template_name: str,
+):
+    """
+    Send an email with a Jinja2 template. Bypass Celery and send directly, because celery is not supported on windows machines.
+    """
+    await fast_mail.send_message(
+        message=MessageSchema(
+            recipients=recipients,
+            subject=subject,
+            template_body=context,
+            subtype=MessageType.html,
+        ),
+        template_name=template_name,
+    )
+    logger.info(f"Email sent to {recipients}")
+    return "Message Sent!"
