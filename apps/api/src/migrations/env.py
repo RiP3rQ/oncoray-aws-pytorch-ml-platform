@@ -9,13 +9,15 @@ from sqlmodel import SQLModel
 from alembic import context
 
 from src.core.config import get_db_settings
+# MAKE SURE TO IMPORT THE MODELS HERE
+from src.database.postgres import User, LLMModel  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-    get_db_settings().sync_postgres_url,
+    get_db_settings().postgres_url,
 )
 
 # Interpret the config file for Python logging.
