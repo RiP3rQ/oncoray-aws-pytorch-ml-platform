@@ -4,19 +4,22 @@ from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from pydantic import EmailStr
 
 from src.core.config import db_settings, notification_settings, TEMPLATE_DIR
+from src.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 fast_mail = FastMail(
     ConnectionConfig(
-        **notification_settings.model_dump(
-            exclude=["TWILIO_SID", "TWILIO_AUTH_TOKEN", "TWILIO_NUMBER"]
-        ),
+        **notification_settings.model_dump(),
         TEMPLATE_FOLDER=TEMPLATE_DIR,
     )
 )
 
 send_message = async_to_sync(fast_mail.send_message)
 
-
+"""
+Celery tasks for sending emails
+"""
 app = Celery(
     "api_tasks",
     broker=db_settings.REDIS_URL(9),
@@ -31,6 +34,9 @@ def send_mail(
     subject: str,
     body: str,
 ):
+    """
+    Send an email
+    """
     send_message(
         message=MessageSchema(
             recipients=recipients,
@@ -39,6 +45,7 @@ def send_mail(
             subtype=MessageType.plain,
         ),
     )
+    logger.info(f"Email sent to {recipients}")
     return "Message Sent!"
 
 
@@ -49,6 +56,9 @@ def send_email_with_template(
     context: dict,
     template_name: str,
 ):
+    """
+    Send an email with a Jinja2 template
+    """
     send_message(
         message=MessageSchema(
             recipients=recipients,
@@ -58,3 +68,5 @@ def send_email_with_template(
         ),
         template_name=template_name,
     )
+    logger.info(f"Email sent to {recipients}")
+    return "Message Sent!"
