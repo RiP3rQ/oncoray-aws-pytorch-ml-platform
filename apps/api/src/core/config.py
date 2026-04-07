@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 APP_DIR = Path(__file__).resolve().parent
-TEMPLATE_DIR = PROJECT_DIR  / "src" / "templates"
+TEMPLATE_DIR = PROJECT_DIR / "src" / "templates"
 
 _base_config = SettingsConfigDict(
     env_file=PROJECT_DIR / ".env",
@@ -121,6 +121,17 @@ class NotificationSettings(BaseSettings):
     model_config = _base_config
 
 
+class S3Settings(BaseSettings):
+    """AWS S3 settings for image uploads."""
+
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_REGION: str = "us-east-1"
+    S3_BUCKET_NAME: str = "model-predictions"
+
+    model_config = _base_config
+
+
 def normalize_database_url(url: str) -> str:
     """Ensure override URLs use the asyncpg driver when appropriate."""
     trimmed = url.strip()
@@ -144,3 +155,4 @@ app_settings = AppSettings()
 db_settings = DatabaseSettings()
 security_settings = SecuritySettings()
 notification_settings = NotificationSettings()
+s3_settings = S3Settings()

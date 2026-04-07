@@ -7,16 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.model_service import ModelService
 from src.services.user_service import UserService
+from src.services.s3_service import S3Service
 from src.core.errors import ClientNotAuthorized, InvalidToken
 from src.database.session import get_session
 from src.database.redis import is_jti_blacklisted
 from src.utils.token_utils import decode_access_token
 from src.core.security import oauth2_scheme_user
-from src.database.postgres import User
+from src.database.postgres import User, LLMModel
 
 # =============================== SESSION ===============================
 # Asynchronous database session dep annotation
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
 
 # Access token data dep
 async def _get_access_token(token: str) -> dict:
@@ -38,6 +40,7 @@ async def get_user_access_token(
     """
     return await _get_access_token(token)
 
+
 # =============================== USER SERVICE ===============================
 # Logged In User
 async def get_current_user(
@@ -57,9 +60,11 @@ async def get_current_user(
 
     return current_user
 
+
 # User service dep
 def get_user_service(session: SessionDep):
-    return UserService(User, session)
+    return UserService(model=User, session=session)
+
 
 # User dep annotation
 UserDep = Annotated[
@@ -73,12 +78,23 @@ UserServiceDep = Annotated[
     Depends(get_user_service),
 ]
 
+# =============================== S3 SERVICE ===============================
+def get_s3_service() -> S3Service:
+    return S3Service()
+
+S3ServiceDep = Annotated[
+    S3Service,
+    Depends(get_s3_service),
+]
+
 # =============================== MODEL SERVICE ===============================
 
+
 # Get model service
-async def get_model_service() -> ModelService:
+def get_model_service(session: SessionDep) -> ModelService:
     """Get model service"""
-    return ModelService()
+    return ModelService(model=LLMModel ,session=session, s3_service=get_s3_service())
+
 
 # Model service dep annotation
 ModelServiceDep = Annotated[
