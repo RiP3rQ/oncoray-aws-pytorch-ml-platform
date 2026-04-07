@@ -6,7 +6,7 @@
       "check-types": "uv run python -m compileall main.py src tests",
       "dev": "fastapi dev",
       "worker": "celery -A src.worker.tasks worker --loglevel=INFO",
-      "test": "uv run pytest app/tests",
+      "test": "uv run pytest src/tests/ -v",
       "migrate": "uv run alembic upgrade head"
     }
   }
