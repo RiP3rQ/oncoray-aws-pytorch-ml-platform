@@ -18,7 +18,21 @@ dependencies = [
     "psycopg2>=2.9.11",
     "pyjwt>=2.12.1",
     "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
     "redis>=7.4.0",
     "scalar-fastapi>=1.8.1",
     "sqlmodel>=0.0.38",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["src/tests/*", "src/migrations/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+fail_under = 0
