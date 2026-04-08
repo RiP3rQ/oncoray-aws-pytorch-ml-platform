@@ -205,30 +205,33 @@ def app(mock_session, mock_user_service, mock_model_service):
     from src.database.session import get_session
     from main import app as main_app
 
-    # Override dependencies
+    # Override FastAPI dependencies (bypass real DB/service wiring)
     async def override_get_session():
         yield mock_session
 
-    async def override_get_user_service(session):
-        return mock_user_service
-
-    async def override_get_model_service(session):
-        return mock_model_service
-
     main_app.dependency_overrides[get_session] = override_get_session
-    main_app.dependency_overrides[get_user_service] = override_get_user_service
-    main_app.dependency_overrides[get_model_service] = override_get_model_service
+    main_app.dependency_overrides[get_user_service] = lambda: mock_user_service
+    main_app.dependency_overrides[get_model_service] = lambda: mock_model_service
 
-    # Patch real I/O calls that would hang without running services
+    # Patch real I/O calls that would hang without running services.
+    # Must patch at the import location (where the name is used), not the
+    # definition location, because Python binds imports to local names.
     patches = [
-        patch("src.database.redis.ping_redis", new=AsyncMock(return_value=True)),
         patch(
-            "src.database.redis.is_jti_blacklisted", new=AsyncMock(return_value=False)
+            "src.routers.kubernetes_router.ping_redis", new=AsyncMock(return_value=True)
         ),
         patch(
-            "src.database.redis.add_jti_to_blacklist", new=AsyncMock(return_value=None)
+            "src.routers.kubernetes_router.ping_database",
+            new=AsyncMock(return_value=True),
         ),
-        patch("src.database.session.ping_database", new=AsyncMock(return_value=True)),
+        patch(
+            "src.core.dependencies.is_jti_blacklisted",
+            new=AsyncMock(return_value=False),
+        ),
+        patch(
+            "src.routers.user_router.add_jti_to_blacklist",
+            new=AsyncMock(return_value=None),
+        ),
     ]
 
     for p in patches:
