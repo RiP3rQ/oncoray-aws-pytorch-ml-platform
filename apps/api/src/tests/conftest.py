@@ -2,19 +2,19 @@
 Pytest fixtures and configuration for FastAPI testing.
 """
 
+import sys
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from pathlib import Path
+from unittest.mock import MagicMock, AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.dependencies import get_user_service, get_model_service
-from src.core.security import oauth2_scheme_user
-from src.database.postgres import User as UserModel
-from src.database.session import get_session
+# Add project root to Python path so 'src' can be imported
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 
 # =============================================================================
@@ -27,7 +27,7 @@ def create_fake_user(
         email_verified: bool = False,
 ) -> MagicMock:
     """Create a fake User model instance."""
-    user = MagicMock(spec=UserModel)
+    user = MagicMock()
     user.id = uuid4()
     user.email = email
     user.email_verified = email_verified
@@ -110,13 +110,6 @@ class MockModelService:
         }
 
 
-class MockS3Service:
-    """Mock S3Service for testing."""
-
-    async def upload_image(self, data: bytes, filename: str) -> str:
-        return f"predictions/{uuid4()}.jpg"
-
-
 # =============================================================================
 # Mock Database Session
 # =============================================================================
@@ -135,7 +128,6 @@ class MockAsyncSession:
         ]
 
     async def get(self, model, id):
-
         if model.__name__ == "User":
             return self._user
         elif model.__name__ == "LLMModel":
@@ -146,7 +138,6 @@ class MockAsyncSession:
         return None
 
     async def execute(self, query):
-        """Mock execute - returns a result with scalars().all()"""
         result = MagicMock()
         if "LLMModel" in str(query):
             result.scalars.return_value.all.return_value = self._models
@@ -168,139 +159,106 @@ class MockAsyncSession:
 
 
 # =============================================================================
-# Mock Redis
-# =============================================================================
-
-
-async def mock_add_jti_to_blacklist(jti: str) -> None:
-    """Mock add_jti_to_blacklist."""
-    pass
-
-
-async def mock_is_jti_blacklisted(jti: str) -> bool:
-    """Mock is_jti_blacklisted."""
-    return False
-
-
-async def mock_ping_redis() -> bool:
-    """Mock ping_redis."""
-    return True
-
-
-async def mock_ping_database(session) -> bool:
-    """Mock ping_database."""
-    return True
-
-
-# =============================================================================
-# Fixture Factory
+# Fixtures
 # =============================================================================
 
 
 @pytest.fixture
-def mock_session() -> MockAsyncSession:
+def mock_session():
     """Create a mock database session."""
     return MockAsyncSession()
 
 
 @pytest.fixture
-def mock_user() -> MagicMock:
+def mock_user():
     """Create a mock user."""
     return create_fake_user(email_verified=True)
 
 
 @pytest.fixture
-def mock_models() -> list[MagicMock]:
+def mock_models():
     """Create mock models."""
     return [create_fake_model(), create_fake_model(name="SecondModel")]
 
 
 @pytest.fixture
-def mock_user_service(mock_user: MagicMock) -> MockUserService:
+def mock_user_service(mock_user):
     """Create a mock user service."""
     return MockUserService(user=mock_user)
 
 
 @pytest.fixture
-def mock_model_service(mock_models: list[MagicMock]) -> MockModelService:
+def mock_model_service(mock_models):
     """Create a mock model service."""
     return MockModelService(models=mock_models)
 
 
 # =============================================================================
-# App Fixture with Overridden Dependencies
+# App Fixture
 # =============================================================================
 
 
 @pytest.fixture
-def app(
-        mock_session: MockAsyncSession,
-        mock_user_service: MockUserService,
-        mock_model_service: MockModelService,
-) -> FastAPI:
-    """
-    Create a FastAPI test app with mocked dependencies.
-    """
-    # Import here to avoid circular imports
+def app(mock_session, mock_user_service, mock_model_service):
+    """Create a FastAPI test app with mocked dependencies."""
+    from src.core.dependencies import get_user_service, get_model_service
+    from src.database.session import get_session
     from main import app as main_app
 
-    # Override session dependency
+    # Override dependencies
     async def override_get_session():
         yield mock_session
 
-    # Override user service dependency
-    async def override_get_user_service(session: AsyncSession):
+    async def override_get_user_service(session):
         return mock_user_service
 
-    # Override model service dependency
-    async def override_get_model_service(session: AsyncSession):
+    async def override_get_model_service(session):
         return mock_model_service
 
-    # Apply patches for redis and database ping functions
-    with (
-        patch("src.database.redis.add_jti_to_blacklist", mock_add_jti_to_blacklist),
-        patch("src.database.redis.is_jti_blacklisted", mock_is_jti_blacklisted),
-        patch("src.database.redis.ping_redis", mock_ping_redis),
-        patch("src.database.session.ping_database", mock_ping_database),
-    ):
-        # Override FastAPI dependencies
-        main_app.dependency_overrides[get_session] = override_get_session
-        main_app.dependency_overrides[get_user_service] = override_get_user_service
-        main_app.dependency_overrides[get_model_service] = override_get_model_service
+    main_app.dependency_overrides[get_session] = override_get_session
+    main_app.dependency_overrides[get_user_service] = override_get_user_service
+    main_app.dependency_overrides[get_model_service] = override_get_model_service
 
-        yield main_app
+    # Patch real I/O calls that would hang without running services
+    patches = [
+        patch("src.database.redis.ping_redis", new=AsyncMock(return_value=True)),
+        patch(
+            "src.database.redis.is_jti_blacklisted", new=AsyncMock(return_value=False)
+        ),
+        patch(
+            "src.database.redis.add_jti_to_blacklist", new=AsyncMock(return_value=None)
+        ),
+        patch("src.database.session.ping_database", new=AsyncMock(return_value=True)),
+    ]
 
-        main_app.dependency_overrides.clear()
+    for p in patches:
+        p.start()
+
+    yield main_app
+
+    main_app.dependency_overrides.clear()
+    for p in patches:
+        p.stop()
 
 
 @pytest.fixture
-def client(app: FastAPI) -> TestClient:
+def client(app):
     """Create a test client."""
     return TestClient(app)
 
 
-# =============================================================================
-# Authenticated Client Fixture
-# =============================================================================
-
-
 @pytest.fixture
-def authenticated_client(app: FastAPI, mock_user: MagicMock) -> TestClient:
-    """
-    Create an authenticated test client with a valid mock user.
-    """
+def authenticated_client(app, mock_user):
+    """Create an authenticated test client."""
     from src.utils.token_utils import generate_access_token
+    from src.core.security import oauth2_scheme_user
 
-    # Generate a mock token for the authenticated user
     token = generate_access_token(data={"user": {"id": str(mock_user.id)}})
 
-    # Override oauth2 scheme to return our mock token
     async def override_oauth2_scheme():
         return token
 
     app.dependency_overrides[oauth2_scheme_user] = override_oauth2_scheme
-
     client = TestClient(app)
     yield client
-
     app.dependency_overrides.pop(oauth2_scheme_user, None)
