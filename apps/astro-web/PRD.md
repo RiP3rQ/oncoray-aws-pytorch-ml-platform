@@ -2,254 +2,170 @@
 
 ## Overview
 
-This document outlines the implementation plan for adding authenticated access, model selection, and image prediction
-functionality to the OncoRay Astro frontend. Currently the application has static pages with no client-side
-interactivity or API integration.
+Adding authenticated access, model selection, and image prediction to the OncoRay Astro frontend.
 
 ---
 
-## Current State
+## Completed Work
 
-### Frontend Stack
+### ✅ Phase 1: Auth Infrastructure
 
-- **Framework**: Astro 6.1.3 + @astrojs/react 5.0.2
-- **Styling**: Tailwind CSS 4.2.2 with custom CSS variables (dark medical theme, cyan/warm accents)
-- **Fonts**: Manrope (body), Syne (headings)
-- **Pages**: `index.astro`, `login.astro`, `register.astro` — all static HTML forms
-- **Components**: `ImageDropzone.tsx` — drag/drop UI but no API submission
+- **`src/lib/auth.ts`** — JWT token storage (`getToken`, `setToken`, `removeToken`, `getStoredToken`, `isAuthenticated`), `User` interface, `AuthContext`, `useAuthContext` hook
+- **`src/lib/api.ts`** — Full API client with automatic JWT header injection, 401 interceptor (clear token → redirect `/login`), typed endpoints: `login`, `signup`, `logout`, `getMe`, `getModels`, `getModel`, `predict`
+- **`src/hooks/useAuth.tsx`** — `AuthProvider` with `login`, `register`, `logout`, `fetchUser`, `isLoading` + `isAuthenticated` state
 
-### Backend API Endpoints
+### ✅ Dependencies & shadcn Setup
 
-| Method | Path                        | Purpose                                                       |
-|--------|-----------------------------|---------------------------------------------------------------|
-| POST   | `/user/signup`              | Register new user (body: `UserCreate`)                        |
-| POST   | `/user/token`               | Login, get JWT (form: username/password, returns `TokenData`) |
-| GET    | `/user/verify`              | Verify email (query: `token`)                                 |
-| GET    | `/user/logout`              | Logout, blacklist JWT                                         |
-| GET    | `/user/me`                  | Get current user (requires JWT)                               |
-| GET    | `/model/`                   | List all models                                               |
-| GET    | `/model/{model_id}`         | Get single model                                              |
-| POST   | `/model/{model_id}/predict` | Upload image, get prediction (multipart form)                 |
+All packages installed in `package.json`:
 
-### Backend Schemas
+- `zod` ^4.3.6, `@hookform/resolvers` ^5.2.2, `react-hook-form` ^7.72.1, `swr` ^2.4.1, `react-dropzone` ^15.0.0, `sonner` ^2.0.7
+- `class-variance-authority`, `clsx`, `tailwind-merge`, `tw-animate-css`, `radix-ui`
+- shadcn initialized (`components.json`, `new-york` style, `cssVariables: true`)
+- shadcn components installed: `tabs.tsx`, `sonner.tsx`
+- shadcn CSS variables wired in `global.css` (light + dark mode, mapped to OncoRay theme)
+- `src/lib/utils.ts` — `cn()` utility
 
-```python
-# UserCreate
-{email: EmailStr, password: str(8 - 128 chars)}
+### ✅ Existing Components (UI-only, no API wiring)
 
-# UserRead
-{id: UUID, email: EmailStr, created_at: datetime, updated_at: datetime}
-
-# TokenData
-{access_token: str, token_type: str}
-
-# ModelRead
-{id: UUID, name: str, description: str, version: str, created_at: datetime, updated_at: datetime}
-
-# PredictionResponse
-{model_id: UUID, prediction: str, confidence: float(0 - 1), image_s3_key: str}
-```
+- **`src/components/ImageDropzone.tsx`** — drag/drop UI, file preview, validation (PNG/JPG/WEBP), no API submission yet
 
 ---
 
-## Required Packages
-
-Add these to `apps/astro-web/package.json`:
-
-```json
-{
-  "dependencies": {
-    "zod": "^3.23.8",
-    "@hookform/resolvers": "^3.9.1",
-    "react-hook-form": "^7.54.2",
-    "swr": "^2.3.0",
-    "react-dropzone": "^14.3.5",
-    "sonner": "^1.7.1"
-  }
-}
-```
-
-### Why These Packages
-
-| Package               | Purpose                                                                                        |
-|-----------------------|------------------------------------------------------------------------------------------------|
-| `zod`                 | Schema validation for forms — matches backend validation rules (email format, password length) |
-| `react-hook-form`     | Form state management — performant, minimal re-renders, zod integration via resolvers          |
-| `@hookform/resolvers` | Bridge between react-hook-form and zod schemas                                                 |
-| `swr`                 | Data fetching with caching, revalidation — for model list fetching                             |
-| `react-dropzone`      | Enhanced file dropzone — better than current custom implementation, handles edge cases         |
-| `sonner`              | Toast notifications — lightweight, shadcn-compatible, zero-config setup                        |
-
-### shadcn/ui Components
-
-Initialize shadcn in the astro-web app (requires tailwind config adjustment for shadcn):
-
-- `npx shadcn@latest init`
-- `npx shadcn@latest add toast`
-- `npx shadcn@latest add tabs`
-
-These will add `@radix-ui/react-tabs` and `@radix-ui/react-toast` to dependencies.
-
----
-
-## Implementation Plan
-
-### Phase 1: Auth Infrastructure
-
-#### 1.1 Auth Context & Storage
-
-Create `src/lib/auth.ts`:
-
-- JWT token storage in `localStorage`
-- Auth context provider with React Context
-- Token getter/setter/remover helpers
-- `isAuthenticated` boolean derived from token presence
-
-#### 1.2 API Client
-
-Create `src/lib/api.ts`:
-
-- Base fetch wrapper with automatic JWT header injection (`Authorization: Bearer <token>`)
-- 401 response interceptor → clear token, redirect to `/login`
-- Typed response helpers for each endpoint
-
-#### 1.3 Auth Hook
-
-Create `src/hooks/useAuth.ts`:
-
-- `useAuth()` hook returning `{ user, login, logout, register, isAuthenticated, isLoading }`
-- `login(email, password)` — POST to `/user/token`, store token, fetch user profile
-- `register(email, password)` — POST to `/user/signup`, show toast, redirect to login
-- `logout()` — GET `/user/logout`, clear token, redirect to login
-- `fetchUser()` — GET `/user/me` to hydrate user state on mount
+## Remaining Work
 
 ### Phase 2: Registration Page
 
-#### 2.1 Registration Form Component
+#### 2.1 Create `src/components/RegisterForm.tsx`
 
-Create `src/components/RegisterForm.tsx`:
-
-- Convert `register.astro` from static form to React island
+- React island component replacing static form in `register.astro`
 - Zod schema: `{ email: z.string().email(), password: z.string().min(8).max(128) }`
 - react-hook-form with `@hookform/resolvers/zod`
 - Inline validation errors below each field
-- Submit calls `register()` from useAuth hook
-- On success: show sonner toast ("Check your email for verification"), redirect to `/login`
+- Submit calls `register()` from `useAuthContext` hook
+- On success: sonner toast ("Verification email sent. Check your inbox."), redirect to `/login`
+- On 409 error: toast ("Email already registered")
 
-#### 2.2 Update register.astro
+#### 2.2 Update `src/pages/register.astro`
 
 - Replace static `<form>` with `<RegisterForm client:load />`
-- Keep existing layout and styling
+- Keep existing layout, styling, and sidebar copy sections
+- Must wrap in `<AuthProvider>` so form can access auth context
 
 ### Phase 3: Login Page
 
-#### 3.1 Login Form Component
+#### 3.1 Create `src/components/LoginForm.tsx`
 
-Create `src/components/LoginForm.tsx`:
-
-- Same zod validation as register (email + password)
+- Same zod validation (email + password)
 - react-hook-form with zod resolver
-- Submit calls `login()` from useAuth hook
+- Submit calls `login()` from `useAuthContext` hook
+- "Keep this workstation signed in" checkbox → controls `persistent` flag for token storage (`localStorage` vs `sessionStorage`)
 - On success: redirect to `/`
-- On 401 error: show sonner toast ("Invalid credentials")
+- On 401 error: toast ("Invalid credentials")
 
-#### 3.2 Update login.astro
+#### 3.2 Update `src/pages/login.astro`
 
 - Replace static `<form>` with `<LoginForm client:load />`
-- Keep existing layout and styling
+- Keep existing layout, styling, and sidebar copy sections
+- Must wrap in `<AuthProvider>`
 
 ### Phase 4: Route Protection
 
-#### 4.1 Auth Guard Component
-
-Create `src/components/AuthGuard.tsx`:
+#### 4.1 Create `src/components/AuthGuard.tsx`
 
 - Checks auth state on mount
 - If no token or token invalid (401 from `/user/me`): redirect to `/register`
 - Show loading spinner while checking
 - Wrap authenticated pages with this component
 
-#### 4.2 Update index.astro
+#### 4.2 Update `src/pages/index.astro`
 
-- Wrap main content with `<AuthGuard client:load />`
+- Replace entire static landing page with interactive dashboard wrapped in `<AuthGuard client:load />`
 - Navigation shows user email + logout button when authenticated
+- Layout: AuthGuard → ModelSelector → ImageDropzone → PredictionResult
 
 ### Phase 5: Main Dashboard (Authenticated)
 
-#### 5.1 Model Selector (Tabs)
-
-Create `src/components/ModelSelector.tsx`:
+#### 5.1 Create `src/components/ModelSelector.tsx`
 
 - shadcn `Tabs` component
-- `useSWR('/model/')` to fetch available models
+- `useSWR('/model/')` to fetch available models via `api.getModels()`
 - Each tab shows model name + description
-- Selected model ID stored in component state, passed to dropzone
+- Selected model ID stored in component state, passed to dropzone as prop
 
-#### 5.2 Prediction Dropzone
-
-Update `src/components/ImageDropzone.tsx`:
+#### 5.2 Update `src/components/ImageDropzone.tsx`
 
 - Accept `modelId` prop
-- On file select: POST to `/model/{modelId}/predict` with FormData
-- Show upload progress/loading state
-- Display prediction result below dropzone
+- Accept `onPrediction` callback prop
+- On file select: call `api.predict(modelId, file)` with FormData
+- Show loading state during upload
+- On success: call `onPrediction(result)` and toast "Prediction complete."
+- On error: toast appropriate error message
+- Keep existing drag/drop UI, file validation, and preview
 
-#### 5.3 Prediction Result Display
+#### 5.3 Create `src/components/PredictionResult.tsx`
 
-Create `src/components/PredictionResult.tsx`:
-
-- Show prediction label, confidence score (formatted as %)
-- Color-coded confidence (green > 80%, yellow > 50%, red < 50%)
+- Props: `prediction: PredictionResponse | null`
+- Show prediction label and confidence score (formatted as %)
+- Color-coded confidence: green > 80%, yellow > 50%, red < 50%
 - Display image S3 key for reference
-- Matches existing card styling (`.glass-card`)
+- Match existing `.glass-card` styling
 
-#### 5.4 Update index.astro
+#### 5.4 Create `src/components/Dashboard.tsx` (composition component)
 
-- Replace static content with interactive components
-- Layout: Tabs → Dropzone → Prediction Result
-- All wrapped in AuthGuard
+- Orchestrates ModelSelector + ImageDropzone + PredictionResult
+- Manages selected model ID and prediction result state
+- Wraps everything in AuthGuard context
 
-### Phase 6: Toast Integration
+#### 5.5 Update `src/pages/index.astro`
 
-#### 6.1 Toaster Setup
+- Import and render `<Dashboard client:load />`
+- Remove all static landing page content (hero, queue, report cards)
+- Keep Layout wrapper and topbar structure
 
-- Add `<Toaster />` from sonner to `Layout.astro`
-- Position: bottom-right
-- Match existing theme colors
+### Phase 6: Toast & Layout Integration
 
-#### 6.2 Toast Triggers
+#### 6.1 Update `src/layouts/Layout.astro`
 
-- Registration success: "Verification email sent. Check your inbox."
-- Login error: "Invalid email or password."
-- Logout: "Successfully logged out."
-- Prediction complete: "Prediction complete."
-- 401 errors: "Session expired. Please log in again."
+- Add `<Toaster />` from sonner (bottom-right, dark theme)
+- Add `<AuthProvider>` wrapper around `<slot />` so all pages have auth context
+- Import `@/components/ui/sonner` and `@/hooks/useAuth`
+
+#### 6.2 Toast triggers (already wired in useAuth.tsx)
+
+- Registration success: "Verification email sent. Check your inbox." ✅
+- Login welcome: "Welcome back!" ✅
+- Logout: "Successfully logged out." ✅
+- 401 interceptor: "Session expired. Please log in again." ✅ (in api.ts)
+- Prediction complete: needs wiring in ImageDropzone update
+- Network error: needs catch in form components
 
 ---
 
-## File Structure
+## File Structure (Remaining)
 
 ```
 apps/astro-web/src/
 ├── components/
 │   ├── AuthGuard.tsx          (NEW)
+│   ├── Dashboard.tsx          (NEW - composition)
 │   ├── LoginForm.tsx          (NEW)
 │   ├── RegisterForm.tsx       (NEW)
 │   ├── ModelSelector.tsx      (NEW)
 │   ├── PredictionResult.tsx   (NEW)
-│   ├── ImageDropzone.tsx      (UPDATE - add API submission)
-│   └── Welcome.astro          (EXISTING)
+│   ├── ImageDropzone.tsx      (UPDATE - add modelId, onPrediction, API call)
+│   └── ui/                    (DONE)
 ├── hooks/
-│   └── useAuth.ts             (NEW)
+│   └── useAuth.tsx            (DONE)
 ├── lib/
-│   ├── api.ts                 (NEW)
-│   └── auth.ts                (NEW)
+│   ├── api.ts                 (DONE)
+│   ├── auth.ts                (DONE)
+│   └── utils.ts               (DONE)
 ├── layouts/
-│   └── Layout.astro           (UPDATE - add Toaster)
+│   └── Layout.astro           (UPDATE - add Toaster + AuthProvider)
 └── pages/
-    ├── index.astro            (UPDATE - add AuthGuard, interactive components)
-    ├── login.astro            (UPDATE - use LoginForm)
-    └── register.astro         (UPDATE - use RegisterForm)
+    ├── index.astro            (UPDATE - replace landing with dashboard)
+    ├── login.astro            (UPDATE - use LoginForm island)
+    └── register.astro         (UPDATE - use RegisterForm island)
 ```
 
 ---
@@ -257,7 +173,7 @@ apps/astro-web/src/
 ## Auth Flow
 
 ```
-[Unauthenticated] → /register
+[Unauthenticated] → /register (via AuthGuard redirect)
        ↓
 [Register Form] → POST /user/signup → Toast("Check email") → /login
        ↓
@@ -277,7 +193,7 @@ apps/astro-web/src/
 ## Error Handling
 
 | Scenario                 | Handler                | User Feedback                      |
-|--------------------------|------------------------|------------------------------------|
+| ------------------------ | ---------------------- | ---------------------------------- |
 | Invalid form input       | zod (client-side)      | Inline error below field           |
 | Registration email taken | API 409                | Toast: "Email already registered"  |
 | Invalid login            | API 401                | Toast: "Invalid credentials"       |
@@ -306,10 +222,10 @@ apps/astro-web/src/
 
 ## Notes
 
-- The existing `ImageDropzone.tsx` already has drag/drop UI but no API integration. We will enhance it rather than
-  replace it.
-- Astro islands architecture: use `client:load` for interactive components (forms, tabs, dropzone) since they need
-  immediate hydration.
-- The dark medical theme and existing CSS variables should be preserved — all new components must use the existing
-  design tokens.
-- shadcn components will need to be configured for the dark theme variables already in `global.css`.
+- Astro islands architecture: use `client:load` for interactive components
+- Preserve existing dark medical theme and CSS variables — new components use existing design tokens
+- `AuthProvider` must wrap all pages in Layout.astro so auth state is available everywhere
+- `useAuth` is exposed via `useAuthContext()` hook from `src/lib/auth.ts`
+- Current `useAuth.tsx` exports `AuthProvider` component, not a hook — components access auth via `useAuthContext()`
+- API client (`api.ts`) already handles 401s by clearing token + redirecting to `/login`
+- zod v4 is installed (^4.3.6) — use v4 API (`z.string().email()`, not `z.string().email({})` etc.)
