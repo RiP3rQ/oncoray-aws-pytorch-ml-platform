@@ -5,7 +5,6 @@ from pathlib import Path
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 APP_DIR = Path(__file__).resolve().parent
 TEMPLATE_DIR = PROJECT_DIR / "src" / "templates"
@@ -20,6 +19,7 @@ _base_config = SettingsConfigDict(
 class AppSettings(BaseSettings):
     """General application settings."""
 
+    APP_HTTP_PROTOCOL: str = "http"
     APP_NAME: str = "Core API"
     APP_ENVIRONMENT: str = "development"
     APP_LOG_LEVEL: str = "INFO"

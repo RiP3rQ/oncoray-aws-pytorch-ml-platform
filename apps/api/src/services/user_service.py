@@ -14,6 +14,7 @@ from src.core.errors import (
     EntityNotFound,
     InvalidToken,
 )
+from src.core.logger import get_logger
 from src.database.postgres import User
 from src.schemas.user_schemas import UserCreate
 from src.utils.token_utils import (
@@ -21,9 +22,7 @@ from src.utils.token_utils import (
     generate_access_token,
     generate_url_safe_token,
 )
-from src.worker.tasks import send_email_with_template, send_email_with_template_async
-
-from src.core.logger import get_logger
+from src.worker.tasks import send_email_with_template_async
 from .base import BaseService
 
 logger = get_logger(__name__)
@@ -54,7 +53,8 @@ class UserService(BaseService):
             raise EntityNotFound()
         return user
 
-    def _hash_password(self, password: str | None) -> str:
+    @staticmethod
+    def _hash_password(password: str | None) -> str:
         """Hash a plain-text password and normalize password validation errors."""
 
         if password is None:
@@ -70,10 +70,11 @@ class UserService(BaseService):
             logger.error("Error hashing password for new user", exc_info=True)
             raise BadPassword() from exc
 
-    def _build_verification_url(self, token: str, router_prefix: str) -> str:
+    @staticmethod
+    def _build_verification_url(token: str, router_prefix: str) -> str:
         """Build the email verification link sent to newly registered users."""
 
-        return f"http://{app_settings.APP_DOMAIN}/{router_prefix}/verify?token={token}"
+        return f"{app_settings.APP_HTTP_PROTOCOL}://{app_settings.APP_DOMAIN}/{router_prefix}/verify?token={token}"
 
     async def _send_verification_email(self, user: User, router_prefix: str) -> None:
         """Queue the account verification email for a newly created user."""
