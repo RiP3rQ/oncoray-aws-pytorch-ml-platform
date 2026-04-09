@@ -2,6 +2,9 @@ import { getStoredToken, removeToken } from "./auth.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
+// Paths that should bypass the 401 auto-redirect (they handle errors themselves)
+const AUTH_PATHS = ["/user/token", "/user/signup"];
+
 interface ApiOptions extends RequestInit {
   params?: Record<string, string>;
 }
@@ -33,9 +36,18 @@ async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
   });
 
   if (response.status === 401) {
-    removeToken();
-    window.location.href = "/login";
-    throw new Error("Session expired. Please log in again.");
+    // Auth endpoints handle their own 401s — let the error propagate
+    const isAuthPath = AUTH_PATHS.some((p) => path.startsWith(p));
+
+    if (!isAuthPath) {
+      removeToken();
+      window.location.href = "/login";
+    }
+
+    throw new ApiError(
+      response.status,
+      "Session expired. Please log in again.",
+    );
   }
 
   if (!response.ok) {
