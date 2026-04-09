@@ -16,6 +16,7 @@ Adding authenticated access, model selection, and image prediction to the OncoRa
 
 ### ✅ Dependencies & shadcn Setup
 
+Look up /packages/ui for shadcn components.
 All packages installed in `package.json`:
 
 - `zod` ^4.3.6, `@hookform/resolvers` ^5.2.2, `react-hook-form` ^7.72.1, `swr` ^2.4.1, `react-dropzone` ^15.0.0, `sonner` ^2.0.7
@@ -217,6 +218,52 @@ apps/astro-web/src/
 - [ ] Image upload sends to correct model endpoint
 - [ ] Prediction result displayed below dropzone
 - [ ] Logout clears token and redirects
+
+---
+
+## Design Decisions
+
+### D1: AuthProvider Placement — Global in Layout.astro
+
+`<AuthProvider>` wraps `<slot />` in `Layout.astro` globally. All pages (including `/login` and `/register`) share the same auth context. No infinite redirect loop because `useAuth.tsx` only calls `fetchUser()` when `getStoredToken()` returns a token — unauthenticated pages skip the API call entirely. Expired tokens are cleared by the 401 interceptor before redirect, breaking any potential loop.
+
+### D2: Unauthenticated Redirect Target — `/login`
+
+All unauthenticated redirects go to `/login` (not `/register`). Expired-session users should see login, not registration. Register page is accessible via explicit "Create account" link. Both `AuthGuard` and `api.ts` 401 interceptor redirect to `/login`.
+
+### D3: "Keep this workstation signed in" Checkbox — Persistent by Default
+
+Checkbox **checked** (default) → `persistent = true` → `localStorage`. Checkbox **unchecked** → `persistent = false` → `sessionStorage`. Matches existing `login(email, password, persistent = true)` signature in `useAuth.tsx`.
+
+### D4: ModelSelector State Ownership — Controlled by Dashboard
+
+Dashboard holds `selectedModelId` state. ModelSelector receives `value` + `onValueChange` props (controlled component pattern). Matches shadcn Tabs API (`value` + `onValueChange`). Dashboard passes `selectedModelId` down to ImageDropzone as prop.
+
+### D5: Form Component Source — `@repo/ui` First, Local Fallback
+
+Use shadcn components from `@repo/ui` package (`@repo/ui/components/button`, `@repo/ui/components/input`, etc.). If import issues arise, install locally in `src/components/ui/` (same pattern as existing `tabs.tsx` and `sonner.tsx`). Override styles using existing OncoRay CSS variables (`--accent`, `--accent-warm`, `--line`, etc.).
+
+### D6: 401 Interceptor — Skip Auth Endpoints
+
+In `api.ts` `request()`, skip the automatic token-clear + redirect for paths `/user/token` and `/user/signup`. Let the `ApiError` propagate so login/register forms can catch it and show appropriate toasts. All other 401s continue to trigger auto-logout + redirect to `/login`.
+
+### D7: index.astro — AuthGuard Wraps Everything Including Topbar
+
+Entire page content (topbar + dashboard) is one React island wrapped in `<AuthGuard>`. Unauthenticated users are redirected before anything renders. When authenticated, topbar shows user email + logout button. No conditional server-side topbar logic needed.
+
+### D8: Dashboard Layout — Vertical Stack
+
+Model tabs → ImageDropzone → PredictionResult. Single-column vertical stack. Simple, mobile-friendly, clear flow: pick model → upload → see result.
+
+### D9: PredictionResult Renders Below Dropzone
+
+After prediction, result appears below ImageDropzone. Dropzone stays visible with file preview. User can upload another image for the same model without dismissing the result.
+
+### D10: Model Loading/Empty/Error States
+
+- **Loading**: Spinner (use `@repo/ui/components/spinner`) inside `.glass-card` styled container
+- **Empty**: "No models available" message with retry button
+- **Error**: Error message with retry button
 
 ---
 
