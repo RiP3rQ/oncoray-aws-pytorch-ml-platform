@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { AuthProvider } from "@/hooks/useAuth";
 import { useAuthContext } from "@/lib/auth";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api";
@@ -17,6 +18,14 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterForm() {
+  return (
+    <AuthProvider>
+      <RegisterFormInner />
+    </AuthProvider>
+  );
+}
+
+function RegisterFormInner() {
   const { register: registerUser } = useAuthContext();
   const [submitting, setSubmitting] = useState(false);
 

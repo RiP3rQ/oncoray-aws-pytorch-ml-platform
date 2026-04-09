@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { AuthProvider } from "@/hooks/useAuth";
 import { useAuthContext } from "@/lib/auth";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api";
@@ -14,6 +15,14 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginForm() {
+  return (
+    <AuthProvider>
+      <LoginFormInner />
+    </AuthProvider>
+  );
+}
+
+function LoginFormInner() {
   const { login } = useAuthContext();
   const [submitting, setSubmitting] = useState(false);
   const persistentRef = useRef<HTMLInputElement>(null);

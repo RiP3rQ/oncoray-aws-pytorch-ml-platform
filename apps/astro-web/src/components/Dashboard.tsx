@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AuthProvider } from "@/hooks/useAuth";
 import AuthGuard from "@/components/AuthGuard";
 import ModelSelector from "@/components/ModelSelector";
 import ImageDropzone from "@/components/ImageDropzone";
@@ -7,6 +8,14 @@ import { useAuthContext } from "@/lib/auth";
 import type { PredictionResponse } from "@/lib/api";
 
 export default function Dashboard() {
+  return (
+    <AuthProvider>
+      <DashboardInner />
+    </AuthProvider>
+  );
+}
+
+function DashboardInner() {
   const { user, logout } = useAuthContext();
   const [selectedModelId, setSelectedModelId] = useState("");
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
