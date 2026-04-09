@@ -29,36 +29,26 @@ function DashboardInner() {
               <p className="brand">OncoRay</p>
               <p className="topnote">AI-assisted X-ray cancer screening</p>
             </div>
-            <nav style={{ display: "flex", alignItems: "center", gap: "18px" }}>
-              <span style={{ color: "var(--muted)", fontSize: "0.88rem" }}>
-                {user?.email}
-              </span>
+            <nav className="flex items-center gap-4">
+              <span className="text-[var(--muted)] text-sm">{user?.email}</span>
               <button
                 type="button"
                 onClick={logout}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "999px",
-                  border: "1px solid var(--line)",
-                  background: "rgba(255,255,255,0.04)",
-                  color: "var(--text)",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                }}
+                className="glass-card rounded-full px-4 py-2 text-sm transition-colors hover:bg-white/8"
               >
                 Log out
               </button>
             </nav>
           </header>
 
-          <section style={{ marginTop: "28px" }}>
+          <section className="animate-rise delay-1">
             <ModelSelector
               value={selectedModelId}
               onValueChange={setSelectedModelId}
             />
           </section>
 
-          <section style={{ marginTop: "28px" }}>
+          <section className="animate-rise delay-2">
             <ImageDropzone
               modelId={selectedModelId}
               onPrediction={setPrediction}

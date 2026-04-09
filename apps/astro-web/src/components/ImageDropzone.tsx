@@ -127,7 +127,7 @@ export default function ImageDropzone({
   const canUpload = selectedFile && modelId && !uploading;
 
   return (
-    <div className="dropzone-shell">
+    <div className="dropzone-shell animate-rise">
       <label
         htmlFor={inputId}
         className={`dropzone ${isDragging ? "is-dragging" : ""} ${selectedFile ? "has-file" : ""}`}

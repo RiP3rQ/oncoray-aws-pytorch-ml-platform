@@ -7,31 +7,37 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
   if (isLoading) {
     return (
       <div className="page-shell">
-        <div
-          className="frame"
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: "100vh",
-          }}
-        >
-          <div
-            className="glass-card"
-            style={{ padding: "32px 40px", textAlign: "center" }}
-          >
-            <p
-              style={{
-                color: "var(--muted)",
-                letterSpacing: "0.15em",
-                textTransform: "uppercase",
-                fontSize: "0.76rem",
-              }}
-            >
-              Checking credentials…
-            </p>
+        <div className="frame auth-layout single-column">
+          <div className="glass-card loading-card">
+            <div className="skeleton loading-line loading-line--title" />
+            <div className="skeleton loading-line loading-line--subtitle" />
           </div>
         </div>
+        <style>{`
+          .single-column {
+            grid-template-columns: 1fr;
+            place-items: center;
+          }
+          .loading-card {
+            padding: 32px 40px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+          }
+          .loading-line {
+            height: 12px;
+            border-radius: 6px;
+          }
+          .loading-line--title {
+            width: 120px;
+            height: 16px;
+          }
+          .loading-line--subtitle {
+            width: 80px;
+          }
+        `}</style>
       </div>
     );
   }
@@ -41,5 +47,5 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
     return null;
   }
 
-  return <>{children}</>;
+  return <div className="animate-fade-in">{children}</div>;
 }

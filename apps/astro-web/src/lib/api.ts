@@ -1,6 +1,6 @@
 import { getStoredToken, removeToken } from "./auth.js";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+const API_BASE_URL = "http://localhost:8000";
 
 // Paths that should bypass the 401 auto-redirect (they handle errors themselves)
 const AUTH_PATHS = ["/user/token", "/user/signup"];

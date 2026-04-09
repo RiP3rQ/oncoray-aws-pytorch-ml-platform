@@ -20,67 +20,39 @@ export default function PredictionResult({
   const percentage = (prediction.confidence * 100).toFixed(1);
 
   return (
-    <div className="glass-card" style={{ padding: "24px", marginTop: "20px" }}>
-      <p className="section-label" style={{ marginBottom: "16px" }}>
-        Prediction result
-      </p>
+    <div className="prediction-card animate-rise">
+      <p className="section-label">Prediction result</p>
 
-      <div style={{ display: "grid", gap: "14px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "16px 18px",
-            borderRadius: "20px",
-            border: "1px solid var(--line)",
-          }}
-        >
-          <span style={{ color: "var(--muted)" }}>Label</span>
-          <strong style={{ fontSize: "1rem", color: "var(--text)" }}>
-            {prediction.prediction}
-          </strong>
+      <div className="prediction-grid">
+        <div className="prediction-row">
+          <span className="prediction-label">Label</span>
+          <strong className="prediction-value">{prediction.prediction}</strong>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "16px 18px",
-            borderRadius: "20px",
-            border: "1px solid var(--line)",
-          }}
-        >
-          <span style={{ color: "var(--muted)" }}>Confidence</span>
-          <strong
-            style={{
-              fontSize: "1rem",
-              color: confidenceColor(prediction.confidence),
-            }}
-          >
-            {percentage}%
-          </strong>
+        <div className="prediction-row">
+          <span className="prediction-label">Confidence</span>
+          <div className="confidence-bar-container">
+            <div className="confidence-bar">
+              <div
+                className="confidence-bar-fill"
+                style={{
+                  width: `${prediction.confidence * 100}%`,
+                  backgroundColor: confidenceColor(prediction.confidence),
+                }}
+              />
+            </div>
+            <strong
+              className="prediction-value"
+              style={{ color: confidenceColor(prediction.confidence) }}
+            >
+              {percentage}%
+            </strong>
+          </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "16px 18px",
-            borderRadius: "20px",
-            border: "1px solid var(--line)",
-          }}
-        >
-          <span style={{ color: "var(--muted)" }}>Image reference</span>
-          <strong
-            style={{
-              fontSize: "0.85rem",
-              color: "var(--text)",
-              fontFamily: "monospace",
-            }}
-          >
+        <div className="prediction-row">
+          <span className="prediction-label">Image reference</span>
+          <strong className="prediction-value mono">
             {prediction.image_s3_key}
           </strong>
         </div>
