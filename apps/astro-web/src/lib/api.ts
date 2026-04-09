@@ -1,0 +1,137 @@
+import { getStoredToken, removeToken } from "./auth.js";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+
+interface ApiOptions extends RequestInit {
+  params?: Record<string, string>;
+}
+
+async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  const { params, headers: customHeaders, ...rest } = options;
+
+  const url = new URL(path, API_BASE_URL || window.location.origin);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+  }
+
+  const token = getStoredToken();
+  const headers = new Headers(customHeaders);
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  if (!headers.has("Content-Type") && !(rest.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(url.toString(), {
+    ...rest,
+    headers,
+  });
+
+  if (response.status === 401) {
+    removeToken();
+    window.location.href = "/login";
+    throw new Error("Session expired. Please log in again.");
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new ApiError(response.status, errorBody || response.statusText);
+  }
+
+  if (
+    response.status === 204 ||
+    response.headers.get("content-length") === "0"
+  ) {
+    return undefined as T;
+  }
+
+  return response.json();
+}
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+// Auth endpoints
+export function login(
+  email: string,
+  password: string,
+): Promise<{ access_token: string; token_type: string }> {
+  return request("/user/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ username: email, password }),
+  });
+}
+
+export function signup(email: string, password: string): Promise<void> {
+  return request("/user/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function logout(): Promise<void> {
+  return request("/user/logout", { method: "GET" });
+}
+
+export function getMe(): Promise<{
+  id: string;
+  email: string;
+  created_at: string;
+  updated_at: string;
+}> {
+  return request("/user/me", { method: "GET" });
+}
+
+// Model endpoints
+export interface ModelRead {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export function getModels(): Promise<ModelRead[]> {
+  return request("/model/", { method: "GET" });
+}
+
+export function getModel(modelId: string): Promise<ModelRead> {
+  return request(`/model/${modelId}`, { method: "GET" });
+}
+
+// Prediction endpoint
+export interface PredictionResponse {
+  model_id: string;
+  prediction: string;
+  confidence: number;
+  image_s3_key: string;
+}
+
+export function predict(
+  modelId: string,
+  file: File,
+): Promise<PredictionResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return request(`/model/${modelId}/predict`, {
+    method: "POST",
+    headers: new Headers(), // intentionally empty so browser sets multipart boundary
+    body: formData,
+  });
+}
