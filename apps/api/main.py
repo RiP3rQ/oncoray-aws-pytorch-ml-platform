@@ -1,7 +1,9 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 from scalar_fastapi import get_scalar_api_reference
 
+from src.core.config import app_settings
 from src.core.errors import add_exception_handlers
 from src.core.logger import configure_logging, get_logger
 from src.routers.master_router import master_router
@@ -47,6 +49,15 @@ app = FastAPI(
     version="0.1.0",
     openapi_tags=API_TAGS_METADATA,
     generate_unique_id_function=custom_generate_unique_id_function,
+)
+
+# =============================== CORS MIDDLEWARE ===============================
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=app_settings.cors_allowed_origins_tuple,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # =============================== EXCEPTION HANDLER ===============================
