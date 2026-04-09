@@ -1,5 +1,7 @@
 ---
 import '../styles/global.css';
+import { AuthProvider } from '../hooks/useAuth.tsx';
+import { Toaster } from '../components/ui/sonner.tsx';
 
 interface Props {
 	title?: string;
@@ -24,6 +26,9 @@ const {
 		<title>{title}</title>
 	</head>
 	<body>
-		<slot />
+		<AuthProvider client:load>
+			<slot />
+		</AuthProvider>
+		<Toaster client:load />
 	</body>
 </html>

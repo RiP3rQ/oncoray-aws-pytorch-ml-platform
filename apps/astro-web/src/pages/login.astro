@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import LoginForm from '../components/LoginForm.tsx';
 ---
 
 <Layout
@@ -34,27 +35,7 @@ import Layout from '../layouts/Layout.astro';
 					<h2>Resume an active case review.</h2>
 				</div>
 
-				<form class="auth-form">
-					<label>
-						<span>Email</span>
-						<input type="email" placeholder="radiology.team@hospital.org" />
-					</label>
-
-					<label>
-						<span>Password</span>
-						<input type="password" placeholder="Enter your password" />
-					</label>
-
-					<div class="form-footer">
-						<label class="checkbox">
-							<input type="checkbox" checked />
-							<span>Keep this workstation signed in for the shift</span>
-						</label>
-						<a href="/register">Need an account?</a>
-					</div>
-
-					<button type="submit">Log in to workspace</button>
-				</form>
+				<LoginForm client:load />
 			</section>
 		</div>
 	</div>
@@ -105,20 +86,20 @@ import Layout from '../layouts/Layout.astro';
 		letter-spacing: -0.05em;
 	}
 
-	.auth-form {
+	:global(.auth-form) {
 		display: grid;
 		gap: 18px;
 		margin-top: 26px;
 	}
 
-	label span {
+	:global(.auth-form label span) {
 		display: block;
 		margin-bottom: 10px;
 		color: var(--muted);
 		font-size: 0.92rem;
 	}
 
-	input {
+	:global(.auth-form input) {
 		width: 100%;
 		padding: 16px 18px;
 		border: 1px solid var(--line);
@@ -132,38 +113,45 @@ import Layout from '../layouts/Layout.astro';
 			background 180ms ease;
 	}
 
-	input:focus {
+	:global(.auth-form input:focus) {
 		border-color: rgba(142, 226, 255, 0.72);
 		background: rgba(142, 226, 255, 0.06);
 		transform: translateY(-1px);
 	}
 
-	.form-footer {
+	:global(.field-error) {
+		display: block;
+		margin-top: 6px;
+		font-size: 0.82rem;
+		color: #f87171;
+	}
+
+	:global(.form-footer) {
 		display: flex;
 		justify-content: space-between;
 		gap: 14px;
 		align-items: center;
 	}
 
-	.form-footer a,
-	.checkbox span {
+	:global(.form-footer a),
+	:global(.checkbox span) {
 		color: var(--muted);
 		font-size: 0.9rem;
 	}
 
-	.checkbox {
+	:global(.checkbox) {
 		display: flex;
 		align-items: center;
 		gap: 10px;
 	}
 
-	.checkbox input {
+	:global(.checkbox input) {
 		width: 18px;
 		height: 18px;
 		margin: 0;
 	}
 
-	button {
+	:global(.auth-form button) {
 		padding: 16px 18px;
 		border: 0;
 		border-radius: 999px;
@@ -171,6 +159,11 @@ import Layout from '../layouts/Layout.astro';
 		color: #04111b;
 		font-weight: 800;
 		cursor: pointer;
+	}
+
+	:global(.auth-form button:disabled) {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	@media (max-width: 900px) {
@@ -185,7 +178,7 @@ import Layout from '../layouts/Layout.astro';
 			padding: 22px 18px;
 		}
 
-		.form-footer {
+		:global(.form-footer) {
 			flex-direction: column;
 			align-items: start;
 		}
