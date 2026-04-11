@@ -59,7 +59,10 @@ async def predict(
     if len(image_data) > MAX_IMAGE_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Image size {len(image_data)} bytes exceeds the maximum allowed size of {MAX_IMAGE_SIZE_BYTES} bytes (2 MB).",
+            detail=(
+                f"Image size {len(image_data)} bytes exceeds the maximum"
+                f" allowed size of {MAX_IMAGE_SIZE_BYTES} bytes (2 MB)."
+            ),
         )
 
     return await service.predict_with_image(

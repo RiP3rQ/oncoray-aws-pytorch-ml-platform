@@ -96,7 +96,7 @@ class TestDatabaseSettings:
         assert url == "postgresql+asyncpg://user:pass@host:5432/db"
 
     def test_postgres_url_default(self):
-        """POSTGRES_URL should construct from components when CORE_API_DATABASE_URL is not set."""
+        """POSTGRES_URL should construct from components when not set."""
         settings = DatabaseSettings()
         url = settings.POSTGRES_URL
         assert "postgresql+asyncpg://" in url

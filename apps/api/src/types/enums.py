@@ -1,7 +1,8 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class APITag(str, Enum):
+class APITag(StrEnum):
     """API Tags for the Core API"""
+
     MODEL = "Model"
     USER = "User"

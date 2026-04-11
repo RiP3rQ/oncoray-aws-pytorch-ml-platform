@@ -17,7 +17,8 @@ class ImageSizeError(Exception):
         self.size_bytes = size_bytes
         self.max_bytes = max_bytes
         super().__init__(
-            f"Image size {size_bytes} bytes exceeds the maximum allowed size of {max_bytes} bytes (2 MB)."
+            f"Image size {size_bytes} bytes exceeds the maximum"
+            f" allowed size of {max_bytes} bytes (2 MB)."
         )
 
 

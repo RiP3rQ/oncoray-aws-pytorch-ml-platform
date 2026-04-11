@@ -18,7 +18,12 @@ class ModelService(BaseService):
     Service for managing models.
     """
 
-    def __init__(self,model: type[LLMModel], session: AsyncSession, s3_service: S3Service) -> None:
+    def __init__(
+            self,
+            model: type[LLMModel],
+            session: AsyncSession,
+            s3_service: S3Service,
+    ) -> None:
         super().__init__()
         self.model = model
         self.session = session

@@ -26,7 +26,6 @@ class TestGetSession:
     @pytest.mark.asyncio
     async def test_get_session_yields_session(self):
         """get_session should yield an AsyncSession."""
-        mock_session = AsyncMock()
         with patch("src.database.session.sessionmaker") as mock_sessionmaker:
             mock_factory = MagicMock()
             # Make the context manager work

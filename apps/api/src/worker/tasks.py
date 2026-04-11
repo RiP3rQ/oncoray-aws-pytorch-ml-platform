@@ -79,7 +79,10 @@ async def send_email_with_template_async(
     template_name: str,
 ):
     """
-    Send an email with a Jinja2 template. Bypass Celery and send directly, because celery is not supported on windows machines.
+    Send an email with a Jinja2 template.
+
+    Bypass Celery and send directly, because Celery is not
+    supported on Windows machines.
     """
     await fast_mail.send_message(
         message=MessageSchema(

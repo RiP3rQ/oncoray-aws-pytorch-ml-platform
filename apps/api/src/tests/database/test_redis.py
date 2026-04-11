@@ -56,7 +56,7 @@ class TestIsJtiBlacklisted:
 
     @pytest.mark.asyncio
     async def test_jti_not_blacklisted(self):
-        """is_jti_blacklisted should return falsy value when JTI doesn't exist in Redis."""
+        """is_jti_blacklisted should return falsy when JTI not in Redis."""
         with patch("src.database.redis.redis_instance") as mock_redis:
             mock_redis.exists = AsyncMock(return_value=0)
             from src.database.redis import is_jti_blacklisted

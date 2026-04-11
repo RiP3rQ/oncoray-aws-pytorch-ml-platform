@@ -137,7 +137,7 @@ class TestAddExceptionHandlers:
     """Tests for add_exception_handlers function."""
 
     def test_add_exception_handlers_registers_handlers(self):
-        """add_exception_handlers should register exception handlers for all FastApiCoreError subclasses."""
+        """add_exception_handlers should register exception handlers."""
         app = FastAPI()
         add_exception_handlers(app)
 

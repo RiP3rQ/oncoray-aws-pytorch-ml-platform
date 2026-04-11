@@ -104,7 +104,7 @@ class TestUploadImage:
 
     @pytest.mark.asyncio
     async def test_upload_image_without_extension(self):
-        """upload_image should return object key without extension for files with no dot."""
+        """upload_image should return key without extension for no-dot files."""
         service = S3Service()
         result = await service.upload_image(b"image_data", "no_extension")
         assert result.startswith("predictions/")

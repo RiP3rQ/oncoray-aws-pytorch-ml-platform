@@ -84,7 +84,7 @@ class TestPrettyFormatter:
             assert f"{name} message" in result
 
     def test_format_unknown_level(self):
-        """PrettyFormatter should handle unknown custom log levels without color prefix."""
+        """PrettyFormatter should handle unknown log levels without color prefix."""
         formatter = PrettyFormatter(use_color=True)
         record = logging.LogRecord(
             name="test",
@@ -114,7 +114,7 @@ class TestResolveLogLevel:
         assert _resolve_log_level("INFO") == logging.INFO
 
     def test_resolve_debug_level(self):
-        """_resolve_log_level should resolve 'debug' (case-insensitive) to logging.DEBUG."""
+        """_resolve_log_level should resolve 'debug' to logging.DEBUG."""
         from src.core.logger import _resolve_log_level
 
         assert _resolve_log_level("debug") == logging.DEBUG
@@ -167,7 +167,7 @@ class TestConfigureLogging:
 
         logger_module._LOGGING_CONFIGURED = False
 
-        logger1 = configure_logging(level="INFO")
+        configure_logging(level="INFO")
         logger2 = configure_logging(level="DEBUG")
         assert logger2 is not None
 

@@ -86,7 +86,9 @@ class UserService(BaseService):
         #     subject="Verify Your Account With PyTorch Model",
         #     context={
         #         "username": user.email,
-        #         "verification_url": self._build_verification_url(token, router_prefix),
+        #         "verification_url": self._build_verification_url(
+        #             token, router_prefix,
+        #         ),
         #     },
         #     template_name="mail_email_verify.html",
         # )

@@ -1,5 +1,5 @@
 """
-Tests for Kubernetes health probe endpoints (/livez, /readyz, /startupz, /health, /healthz).
+Tests for Kubernetes health probe endpoints (livez, readyz, startupz, health, healthz).
 """
 
 from unittest.mock import AsyncMock, patch

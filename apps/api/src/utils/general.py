@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from contextlib import suppress
 from json import JSONDecodeError, dumps
 from typing import Any
 
@@ -10,10 +11,8 @@ def print_label(data: Any, title: str | None = None):
     """
     Print a label with the data.
     """
-    try:
+    with suppress(JSONDecodeError):
         data = dumps(data, indent=4) if isinstance(data, (dict, Mapping)) else data
-    except JSONDecodeError:
-        pass
 
     print()
     print(
