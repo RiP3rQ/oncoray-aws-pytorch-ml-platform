@@ -5,9 +5,9 @@ interface PredictionResultProps {
 }
 
 function confidenceColor(confidence: number): string {
-  if (confidence > 0.8) return "#4ade80";
-  if (confidence > 0.5) return "#facc15";
-  return "#f87171";
+  if (confidence > 0.8) return "var(--success)";
+  if (confidence > 0.5) return "var(--warning)";
+  return "var(--danger)";
 }
 
 export default function PredictionResult({
@@ -20,7 +20,7 @@ export default function PredictionResult({
   const percentage = (prediction.confidence * 100).toFixed(1);
 
   return (
-    <div className="prediction-card animate-rise">
+    <div className="prediction-card flat-card animate-rise">
       <p className="section-label">Prediction result</p>
 
       <div className="prediction-grid">

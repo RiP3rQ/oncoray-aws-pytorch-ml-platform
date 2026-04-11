@@ -8,7 +8,7 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
     return (
       <div className="page-shell">
         <div className="frame auth-layout single-column">
-          <div className="glass-card loading-card">
+          <div className="flat-card loading-card">
             <div className="skeleton loading-line loading-line--title" />
             <div className="skeleton loading-line loading-line--subtitle" />
           </div>
@@ -28,7 +28,7 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
           }
           .loading-line {
             height: 12px;
-            border-radius: 6px;
+            border-radius: 4px;
           }
           .loading-line--title {
             width: 120px;

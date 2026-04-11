@@ -213,7 +213,14 @@ export default function ImageDropzone({
       )}
 
       {!modelId && selectedFile && (
-        <p style={{ color: "#facc15", fontSize: "0.88rem", marginTop: "8px" }}>
+        <p
+          style={{
+            color: "var(--warning)",
+            fontSize: "0.875rem",
+            marginTop: "8px",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
           Select a model above before running prediction.
         </p>
       )}

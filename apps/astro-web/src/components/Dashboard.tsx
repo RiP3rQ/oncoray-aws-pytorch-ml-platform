@@ -24,7 +24,7 @@ function DashboardInner() {
     <AuthGuard>
       <div className="page-shell">
         <div className="frame app-frame">
-          <header className="topbar glass-card animate-rise">
+          <header className="topbar flat-card animate-rise">
             <div>
               <p className="brand">OncoRay</p>
               <p className="topnote">AI-assisted X-ray cancer screening</p>
@@ -34,7 +34,7 @@ function DashboardInner() {
               <button
                 type="button"
                 onClick={logout}
-                className="glass-card rounded-full px-4 py-2 text-sm transition-colors hover:bg-white/8"
+                className="flat-card px-4 py-2 text-sm font-mono transition-colors hover:opacity-80"
               >
                 Log out
               </button>

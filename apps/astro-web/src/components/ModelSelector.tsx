@@ -20,7 +20,7 @@ export default function ModelSelector({
 
   if (isLoading) {
     return (
-      <div className="glass-card auth-card skeleton animate-rise">
+      <div className="flat-card auth-card skeleton animate-rise">
         Loading models…
       </div>
     );
@@ -28,7 +28,7 @@ export default function ModelSelector({
 
   if (error || !models) {
     return (
-      <div className="glass-card auth-card animate-rise">
+      <div className="flat-card auth-card animate-rise">
         <p className="dropzone-error">Failed to load models</p>
         <div className="dropzone-actions">
           <button
@@ -45,7 +45,7 @@ export default function ModelSelector({
 
   if (models.length === 0) {
     return (
-      <div className="glass-card auth-card animate-rise">
+      <div className="flat-card auth-card animate-rise">
         <p className="section-label">No models available</p>
         <div className="dropzone-actions">
           <button
