@@ -6,6 +6,8 @@
     "check-types": "uv run mypy src",
     "lint": "uv run ruff check src && uv run ruff format --check src",
     "lint:fix": "uv run ruff check --fix src && uv run ruff format src",
+    "format": "uv run ruff format src",
+    "format:check": "uv run ruff format --check src",
     "train-vit": "uv run python -m vit",
     "train-effnet": "uv run python -m effnet"
   }

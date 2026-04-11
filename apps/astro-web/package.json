@@ -11,6 +11,8 @@
     "preview": "astro preview",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "check-types": "astro check",
     "astro": "astro"
   },

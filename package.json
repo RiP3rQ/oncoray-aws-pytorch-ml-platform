@@ -7,7 +7,7 @@
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "check-types": "turbo run check-types",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "format": "turbo run format",
     "start-database": "turbo run start-database",
     "prepare": "husky"
   },
@@ -15,6 +15,7 @@
     "husky": "^9.1.0",
     "lint-staged": "^15.5.0",
     "prettier": "^3.6.0",
+    "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-tailwindcss": "^0.7.1",
     "turbo": "^2.9.3"
   },
@@ -23,7 +24,7 @@
       "ruff check --fix",
       "ruff format"
     ],
-    "*.{ts,tsx,js,jsx}": [
+    "*.{ts,tsx,js,jsx,astro}": [
       "prettier --write"
     ]
   },

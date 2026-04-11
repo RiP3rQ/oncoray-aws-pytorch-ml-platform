@@ -1,0 +1,16 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+.vercel
+build
+.astro
+
+pnpm-lock.yaml
+package-lock.json
+bun.lock
+bun.lockb
+
+*.min.js
+*.min.css
