@@ -8,6 +8,7 @@
     "worker": "celery -A src.worker.tasks worker --loglevel=INFO",
     "test": "uv run pytest src/tests/ -v",
     "test:coverage": "uv run pytest src/tests/ -v --cov=src --cov-report=term-missing --cov-report=html",
-    "migrate": "uv run alembic upgrade head"
+    "migrate": "uv run alembic upgrade head",
+    "start-database": "docker compose up -d"
   }
 }
