@@ -10,13 +10,11 @@ import torch
 import torchvision
 from matplotlib.figure import Figure
 from PIL import Image
-from torchvision import transforms
+
+from pytorch_engine.transforms import _DEFAULT_IMAGE_SIZE, get_default_transform
+from pytorch_engine.utils import resolve_device
 
 logger = logging.getLogger(__name__)
-
-_IMAGENET_MEAN = [0.485, 0.456, 0.406]
-_IMAGENET_STD = [0.229, 0.224, 0.225]
-_DEFAULT_IMAGE_SIZE: tuple[int, int] = (224, 224)
 
 
 class PredictionResult(TypedDict):
@@ -31,28 +29,6 @@ class PredictionResult(TypedDict):
     class_name: str
     confidence: float
     probabilities: torch.Tensor
-
-
-def _resolve_device(device: str | torch.device) -> torch.device:
-    """Resolve ``"auto"`` to CUDA when available, else CPU."""
-    if isinstance(device, str) and device == "auto":
-        chosen = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info("Auto-detected device: %s", chosen)
-        return torch.device(chosen)
-    resolved = torch.device(device)
-    logger.info("Using explicit device: %s", resolved)
-    return resolved
-
-
-def _default_transform(image_size: tuple[int, int]) -> transforms.Compose:
-    """ImageNet-normalised resize + to-tensor pipeline."""
-    return transforms.Compose(
-        [
-            transforms.Resize(image_size),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=_IMAGENET_MEAN, std=_IMAGENET_STD),
-        ]
-    )
 
 
 def predict_image(
@@ -86,14 +62,14 @@ def predict_image(
         result = predict_image(model, "photo.jpg", class_names=["cat", "dog"])
         print(result["class_name"], result["confidence"])
     """
-    computed_device = _resolve_device(device)
+    computed_device = resolve_device(device)
     logger.info("Predicting on %s for image %s", computed_device, image_path)
 
     img = Image.open(image_path)
     logger.info("Opened image: %s (size=%s)", image_path, img.size)
 
     image_transform = (
-        transform if transform is not None else _default_transform(image_size)
+        transform if transform is not None else get_default_transform(image_size)
     )
 
     model.to(computed_device).eval()

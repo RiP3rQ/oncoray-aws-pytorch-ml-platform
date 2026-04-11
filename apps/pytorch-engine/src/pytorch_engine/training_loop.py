@@ -12,6 +12,8 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
+from pytorch_engine.utils import resolve_device
+
 logger = logging.getLogger(__name__)
 
 
@@ -52,22 +54,6 @@ class TrainResult(TypedDict):
 
 
 # ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _resolve_device(device: str | torch.device) -> torch.device:
-    """Resolve ``"auto"`` to CUDA when available, else CPU."""
-    if isinstance(device, str) and device == "auto":
-        chosen = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info("Auto-detected device: %s", chosen)
-        return torch.device(chosen)
-    resolved = torch.device(device)
-    logger.info("Using explicit device: %s", resolved)
-    return resolved
-
-
-# ---------------------------------------------------------------------------
 # Single-epoch steps
 # ---------------------------------------------------------------------------
 
@@ -95,7 +81,7 @@ def train_step(
     Returns:
         A :class:`StepResult` with average ``loss`` and ``accuracy``.
     """
-    computed_device = _resolve_device(device)
+    computed_device = resolve_device(device)
     # Put model in train mode
     model.to(computed_device).train()
 
@@ -159,7 +145,7 @@ def test_step(
     Returns:
         A :class:`StepResult` with average ``loss`` and ``accuracy``.
     """
-    computed_device = _resolve_device(device)
+    computed_device = resolve_device(device)
     # Put model in eval mode
     model.to(computed_device).eval()
 
@@ -240,7 +226,7 @@ def train_model(
         )
         # result["train_loss"] → [2.06, 1.05, ...]
     """
-    computed_device = _resolve_device(device)
+    computed_device = resolve_device(device)
     # Make sure model on target device
     model.to(computed_device)
 
