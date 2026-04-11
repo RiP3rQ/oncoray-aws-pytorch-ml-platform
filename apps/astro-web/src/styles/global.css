@@ -13,9 +13,7 @@
    Berkeley Mono is the primary; IBM Plex Mono is the
    open-source fallback with nearly identical metrics.
    ============================================================ */
-@import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
-@import "@fontsource/ibm-plex-mono/700.css";
+@import "@fontsource/ibm-plex-mono";
 
 /* ============================================================
    Design Token Overrides — OpenCode Terminal Aesthetic

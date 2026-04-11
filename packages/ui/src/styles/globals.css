@@ -1,9 +1,6 @@
 @import "@repo/tailwind-config";
 @import "tw-animate-css";
-@import "@fontsource-variable/jetbrains-mono";
-@import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
-@import "@fontsource/ibm-plex-mono/700.css";
+@import "@fontsource/ibm-plex-mono";
 
 @source "../components/**/*.{ts,tsx}";
 @source "../hooks/**/*.{ts,tsx}";
@@ -295,181 +292,25 @@
       background-color 120ms ease,
       border-color 120ms ease;
   }
-
-  /* ── Backward compat aliases ── */
-  .zag-bg {
-    background-color: var(--color-opencode-light);
-  }
-  .-zag-bg {
-    background-color: var(--color-opencode-dark);
-  }
-  .zag-text {
-    color: var(--color-opencode-dark);
-  }
-  .-zag-text {
-    color: var(--color-opencode-light);
-  }
-  .zag-muted {
-    color: var(--color-opencode-mid-gray);
-  }
-  .zag-border-b {
-    border-bottom: 1px solid var(--color-opencode-border-warm);
-  }
 }
 
-  html {
-    font-family: var(--font-body);
-    background: var(--background);
-  }
+html {
+  font-family: var(--font-body);
+  background: var(--background);
+}
 
-  body {
-    @apply bg-background text-foreground;
-    font-family: var(--font-body);
-    min-height: 100svh;
-    background-attachment: fixed;
-  }
+body {
+  @apply bg-background text-foreground;
+  font-family: var(--font-body);
+  min-height: 100svh;
+  background-attachment: fixed;
+}
 
-  a {
-    color: inherit;
-  }
+a {
+  color: inherit;
+}
 
-  ::selection {
-    background-color: var(--color-zag-accent-light);
-    color: var(--color-zag-dark-muted);
-  }
-
-  .opsz {
-    font-variation-settings: "opsz" 72;
-  }
-
-  .zag-transition {
-    @media (prefers-reduced-motion: no-preference) {
-      transition:
-        background-color var(--zag-transition-duration)
-          var(--zag-transition-timing-function),
-        color var(--zag-transition-duration)
-          var(--zag-transition-timing-function),
-        fill var(--zag-transition-duration)
-          var(--zag-transition-timing-function),
-        border-color var(--zag-transition-duration)
-          var(--zag-transition-timing-function),
-        transform var(--zag-transition-duration)
-          var(--zag-transition-timing-function);
-    }
-  }
-
-  .zag-bg {
-    background-color: var(--color-zag-light);
-    :where(.dark, .dark *) & {
-      background-color: var(--color-zag-dark);
-    }
-  }
-
-  .-zag-bg {
-    background-color: var(--color-zag-dark);
-    :where(.dark, .dark *) & {
-      background-color: var(--color-zag-light);
-    }
-  }
-
-  .zag-text {
-    color: var(--color-zag-dark);
-    :where(.dark, .dark *) & {
-      color: var(--color-zag-light);
-    }
-  }
-
-  .-zag-text {
-    color: var(--color-zag-light);
-    :where(.dark, .dark *) & {
-      color: var(--color-zag-dark);
-    }
-  }
-
-  .zag-muted {
-    color: var(--color-zag-dark-muted);
-    :where(.dark, .dark *) & {
-      color: var(--color-zag-light-muted);
-    }
-  }
-
-  .zag-fill {
-    fill: var(--color-zag-dark);
-    &:where(.dark, .dark *) {
-      fill: var(--color-zag-light);
-    }
-  }
-
-  .zag-border-b {
-    border-bottom: var(--zag-stroke) solid;
-    border-color: var(--color-zag-dark);
-    &:where(.dark, .dark *) {
-      border-color: var(--color-zag-light);
-    }
-  }
-
-  .zag-offset {
-    text-underline-offset: var(--zag-offset);
-  }
-
-  .hover-zag-dotted-grid:hover::before {
-    --dot-bg: var(--color-zag-light);
-    --dot-color: var(--color-zag-dark-muted);
-    --dot-size: 1.5px;
-    --dot-space: 16px;
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-    z-index: -1;
-    background:
-      linear-gradient(
-          90deg,
-          var(--dot-bg) calc(var(--dot-space) - var(--dot-size)),
-          transparent 1%
-        )
-        bottom right / var(--dot-space) var(--dot-space),
-      linear-gradient(
-          var(--dot-bg) calc(var(--dot-space) - var(--dot-size)),
-          transparent 1%
-        )
-        bottom right / var(--dot-space) var(--dot-space),
-      var(--dot-color);
-    pointer-events: none;
-  }
-
-  :where(.dark, .dark *) .hover-zag-dotted-grid:hover::before {
-    --dot-bg: var(--color-zag-dark);
-    --dot-color: var(--color-zag-light-muted);
-  }
-
-  .hover-zag-dotted-grid:hover::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-    z-index: -1;
-    background: linear-gradient(
-      159deg,
-      var(--color-zag-light) 0%,
-      var(--color-zag-light) 50%,
-      var(--color-zag-light-opaque) 100%
-    );
-    pointer-events: none;
-  }
-
-  :where(.dark, .dark *) .hover-zag-dotted-grid:hover::after {
-    background: linear-gradient(
-      159deg,
-      var(--color-zag-dark) 0%,
-      var(--color-zag-dark) 50%,
-      var(--color-zag-dark-opaque) 100%
-    );
-  }
+::selection {
+  background-color: var(--color-opencode-accent-blue);
+  color: #fff;
 }
