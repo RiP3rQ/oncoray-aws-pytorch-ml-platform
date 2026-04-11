@@ -12,7 +12,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from pytorch_engine.utils import resolve_device
+from pytorch_engine.utils import accuracy_fn, resolve_device
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ def train_step(
 
         # Calculate and accumulate accuracy metric across all batches
         y_pred_class = torch.argmax(torch.softmax(y_pred, dim=1), dim=1)
-        running_acc += (y_pred_class == y).sum().item() / len(y_pred)
+        running_acc += accuracy_fn(y_true=y, y_pred=y_pred_class)
 
     # Adjust metrics to get average loss and accuracy per batch
     avg_loss = running_loss / num_batches
@@ -172,7 +172,7 @@ def test_step(
 
             # Calculate and accumulate accuracy (argmax over logits, no softmax needed)
             test_pred_labels = test_pred_logits.argmax(dim=1)
-            running_acc += (test_pred_labels == y).sum().item() / len(test_pred_labels)
+            running_acc += accuracy_fn(y_true=y, y_pred=test_pred_labels)
 
     # Adjust metrics to get average loss and accuracy per batch
     avg_loss = running_loss / num_batches

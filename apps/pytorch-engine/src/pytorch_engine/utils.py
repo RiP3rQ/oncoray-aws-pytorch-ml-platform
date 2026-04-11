@@ -31,18 +31,62 @@ def resolve_device(device: str | torch.device) -> torch.device:
     return resolved
 
 
-def get_current_device() -> torch.device:
-    """Get the current device."""
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-def set_seeds(seed: int = 42):
-    """Sets random sets for torch operations.
+def accuracy_fn(y_true: torch.Tensor, y_pred: torch.Tensor) -> float:
+    """Compute classification accuracy as a fraction in [0, 1].
 
     Args:
-        seed (int, optional): Random seed to set. Defaults to 42.
+        y_true: Ground-truth class indices.
+        y_pred: Predicted class indices (same shape as *y_true*).
+
+    Returns:
+        Accuracy value between 0 and 1.
+
+    Example::
+
+        acc = accuracy_fn(y_true=torch.tensor([0, 1, 2]),
+                          y_pred=torch.tensor([0, 2, 2]))
+        # acc ≈ 0.6667
     """
-    # Set the seed for general torch operations
+    correct = torch.eq(y_true, y_pred).sum().item()
+    return correct / len(y_pred)
+
+
+def print_train_time(
+    start: float, end: float, device: str | torch.device | None = None
+) -> float:
+    """Print and return the elapsed time between *start* and *end*.
+
+    Args:
+        start: Start timestamp (e.g. from :func:`time.time`).
+        end: End timestamp.
+        device: Device label to include in the output. Defaults to ``None``.
+
+    Returns:
+        Elapsed time in seconds.
+
+    Example::
+
+        start = time.time()
+        # … training …
+        elapsed = print_train_time(start, time.time(), device="cuda")
+    """
+    total_time = end - start
+    device_str = f" on {device}" if device else ""
+    logger.info("Train time%s: %.3f seconds", device_str, total_time)
+    return total_time
+
+
+def set_seeds(seed: int = 42) -> None:
+    """Set random seeds for reproducible PyTorch operations.
+
+    Seeds both CPU and CUDA random number generators.
+
+    Args:
+        seed: Random seed to set. Defaults to 42.
+
+    Example::
+
+        set_seeds(42)  # deterministic results
+    """
     torch.manual_seed(seed)
-    # Set the seed for CUDA torch operations (ones that happen on the GPU)
     torch.cuda.manual_seed(seed)

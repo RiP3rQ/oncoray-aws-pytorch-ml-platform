@@ -1,12 +1,91 @@
-"""PyTorch DataLoader creation for image classification datasets."""
+"""PyTorch DataLoader creation and data utilities for image classification datasets."""
 
+import logging
 import os
+import zipfile
+from pathlib import Path
 from typing import TypedDict
 
+import requests
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 NUM_WORKERS: int | None = os.cpu_count()
+
+logger = logging.getLogger(__name__)
+
+
+def walk_through_dir(dir_path: str | Path) -> None:
+    """Walk through *dir_path* and print the number of directories and images.
+
+    Useful for inspecting image classification directory structures before
+    creating data loaders.
+
+    Args:
+        dir_path: Target directory to inspect.
+
+    Example::
+
+        walk_through_dir("data/pizza_steak_sushi")
+        # There are 2 directories and 750 images in 'data/pizza_steak_sushi'
+    """
+    for dirpath, dirnames, filenames in os.walk(dir_path):
+        logger.info(
+            "There are %d directories and %d images in '%s'",
+            len(dirnames),
+            len(filenames),
+            dirpath,
+        )
+
+
+def download_data(
+    source: str,
+    destination: str,
+    remove_source: bool = True,
+) -> Path:
+    """Download a zipped dataset from *source* and extract to *destination*.
+
+    Creates ``data/<destination>`` if it does not exist, downloads the zip
+    archive, extracts it, and optionally removes the downloaded zip.
+
+    Args:
+        source: URL pointing to a zipped file containing data.
+        destination: Target directory name under ``data/``.
+        remove_source: Whether to delete the zip after extraction.
+            Defaults to ``True``.
+
+    Returns:
+        The :class:`~pathlib.Path` to the extracted data directory.
+
+    Example::
+
+        image_path = download_data(
+            source="LINK_TO_ZIP_FILE",
+            destination="pizza_steak_sushi",
+        )
+    """
+    data_path = Path("data/")
+    image_path = data_path / destination
+
+    if image_path.is_dir():
+        logger.info("%s directory exists, skipping download.", image_path)
+    else:
+        logger.info("Did not find %s directory, creating one…", image_path)
+        image_path.mkdir(parents=True, exist_ok=True)
+
+        target_file = Path(source).name
+        with open(data_path / target_file, "wb") as f:
+            logger.info("Downloading %s from %s…", target_file, source)
+            f.write(requests.get(source).content)
+
+        with zipfile.ZipFile(data_path / target_file, "r") as zip_ref:
+            logger.info("Unzipping %s data…", target_file)
+            zip_ref.extractall(image_path)
+
+        if remove_source:
+            os.remove(data_path / target_file)
+
+    return image_path
 
 
 class DataLoadersResult(TypedDict):

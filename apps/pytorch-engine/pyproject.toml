@@ -10,6 +10,7 @@ dependencies = [
     "matplotlib>=3.9,<4",
     "tqdm>=4.67.3",
     "torchinfo>=1.8.0",
+    "requests>=2.33.1",
 ]
 
 [dependency-groups]
