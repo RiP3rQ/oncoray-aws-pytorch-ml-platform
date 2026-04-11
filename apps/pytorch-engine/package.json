@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "build": "uv sync",
-    "check-types": "uv run --package optic-models python -m compileall optic-models/src",
-    "train-vit": "uv run --package optic-models python -m optic_models.vit",
-    "train-effnet": "uv run --package optic-models python -m optic_models.effnet"
+    "check-types": "uv run python -m compileall src",
+    "train-vit": "uv run python -m vit",
+    "train-effnet": "uv run python -m effnet"
   }
 }
