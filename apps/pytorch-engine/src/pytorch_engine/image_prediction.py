@@ -11,7 +11,7 @@ import torchvision
 from matplotlib.figure import Figure
 from PIL import Image
 
-from pytorch_engine.transforms import _DEFAULT_IMAGE_SIZE, get_default_transform
+from pytorch_engine.transforms import DEFAULT_IMAGE_SIZE, get_default_transform
 from pytorch_engine.utils import resolve_device
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def predict_image(
     model: torch.nn.Module,
     image_path: str | Path,
     class_names: list[str],
-    image_size: tuple[int, int] = _DEFAULT_IMAGE_SIZE,
+    image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
     transform: torchvision.transforms.Compose | None = None,
     device: str | torch.device = "auto",
 ) -> PredictionResult:
