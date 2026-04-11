@@ -1,3 +1,18 @@
-[tool.uv.workspace]
-members = ["model"]
+[project]
+name = "pytorch-engine"
+version = "0.1.0"
+description = "ML project for ViT and EffNetB2 optic models."
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.6,<3",
+    "torchvision>=0.21,<1",
+    "numpy>=2,<3",
+    "matplotlib>=3.9,<4",
+]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.workspace]
+members = ["optic-models"]
