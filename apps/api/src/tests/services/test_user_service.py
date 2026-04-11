@@ -110,7 +110,7 @@ class TestSaveUser:
 
     @pytest.mark.asyncio
     async def test_save_user_calls_add_commit_refresh(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
         """_save_user should add, commit, and refresh the user."""
         await user_service._save_user(fake_user)
@@ -136,7 +136,7 @@ class TestGetUserByIdOrRaise:
 
     @pytest.mark.asyncio
     async def test_get_user_by_id_returns_user(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
         """_get_user_by_id_or_raise should return user when found."""
         user_id = uuid4()
@@ -148,12 +148,10 @@ class TestGetUserByIdOrRaise:
         assert result == fake_user
 
     @pytest.mark.asyncio
-
-
-async def test_get_user_by_id_raises_when_not_found(
-            self, user_service, mock_session
+    async def test_get_user_by_id_raises_when_not_found(
+        self, user_service, mock_session
     ):
-    """_get_user_by_id_or_raise should raise EntityNotFound if not found."""
+        """_get_user_by_id_or_raise should raise EntityNotFound if not found."""
         mock_session.get.return_value = None
 
         with pytest.raises(EntityNotFound):
@@ -185,12 +183,12 @@ class TestSendVerificationEmail:
 
     @pytest.mark.asyncio
     async def test_send_verification_email_calls_task(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
         """_send_verification_email should queue the email verification task."""
         with patch(
-                "src.services.user_service.send_email_with_template_async",
-                new_callable=AsyncMock,
+            "src.services.user_service.send_email_with_template_async",
+            new_callable=AsyncMock,
         ) as mock_send:
             await user_service._send_verification_email(fake_user, "user")
 
@@ -210,34 +208,33 @@ class TestCreatePendingUserAndSendVerificationEmail:
 
     @pytest.mark.asyncio
     async def test_create_pending_user_hashes_password(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
         """_create_pending_user_and_send_verification_email should hash the password."""
         mock_session.refresh.side_effect = lambda obj: None
 
         with patch(
-                "src.services.user_service.send_email_with_template_async",
-                new_callable=AsyncMock,
+            "src.services.user_service.send_email_with_template_async",
+            new_callable=AsyncMock,
         ):
             user_data = {"email": "new@example.com", "password": "securepassword123"}
 
             with patch.object(
-                    user_service,
-                    "_save_user",
-                    new_callable=AsyncMock,
-                    return_value=fake_user,
+                user_service,
+                "_save_user",
+                new_callable=AsyncMock,
+                return_value=fake_user,
             ):
                 await user_service._create_pending_user_and_send_verification_email(
-                        user_data, "user"
-                    )
+                    user_data, "user"
+                )
 
     @pytest.mark.asyncio
-
-
-async def test_create_pending_user_raises_bad_password_when_none(
-            self, user_service, mock_session
+    async def test_create_pending_user_raises_bad_password_when_none(
+        self, user_service, mock_session
     ):
-    """_create_pending_user_and_send_verification_email raises BadPassword when password is None."""
+        """_create_pending_user_and_send_verification_email raises
+        BadPassword when password is None."""
         user_data = {"email": "new@example.com"}
 
         with pytest.raises(BadPassword):
@@ -256,7 +253,7 @@ class TestRegisterUser:
 
     @pytest.mark.asyncio
     async def test_register_user_creates_user(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
         """register_user should create and return a new user."""
         user_create = MagicMock()
@@ -266,10 +263,10 @@ class TestRegisterUser:
         }
 
         with patch.object(
-                user_service,
-                "_create_pending_user_and_send_verification_email",
-                new_callable=AsyncMock,
-                return_value=fake_user,
+            user_service,
+            "_create_pending_user_and_send_verification_email",
+            new_callable=AsyncMock,
+            return_value=fake_user,
         ) as mock_create:
             result = await user_service.register_user(user_create)
 
@@ -290,7 +287,7 @@ class TestVerifyUserEmail:
 
     @pytest.mark.asyncio
     async def test_verify_user_email_success(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
         """verify_user_email should verify email when token is valid."""
         user_id = str(fake_user.id)
@@ -369,7 +366,7 @@ class TestGetUserByEmail:
 
     @pytest.mark.asyncio
     async def test_get_user_by_email_returns_user(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
         """_get_user_by_email should return the user when found."""
         mock_session.scalar.return_value = fake_user
@@ -398,7 +395,7 @@ class TestAuthenticateUser:
 
     @pytest.mark.asyncio
     async def test_authenticate_user_success(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
         """_authenticate_user should return user with correct credentials."""
         mock_session.scalar.return_value = fake_user
@@ -412,7 +409,7 @@ class TestAuthenticateUser:
 
     @pytest.mark.asyncio
     async def test_authenticate_user_raises_bad_credentials_when_not_found(
-            self, user_service, mock_session
+        self, user_service, mock_session
     ):
         """_authenticate_user should raise BadCredentials when user not found."""
         mock_session.scalar.return_value = None
@@ -422,25 +419,26 @@ class TestAuthenticateUser:
 
     @pytest.mark.asyncio
     async def test_authenticate_user_raises_bad_credentials_wrong_password(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
         """_authenticate_user should raise BadCredentials with wrong password."""
         mock_session.scalar.return_value = fake_user
 
-
-with (
-    patch("src.services.user_service.bcrypt.checkpw", return_value=False),
-    pytest.raises(BadCredentials),
-):
-    await user_service._authenticate_user(
-                    "test@example.com", "wrongpassword"
-    )
+        with (
+            patch(
+                "src.services.user_service.bcrypt.checkpw",
+                return_value=False,
+            ),
+            pytest.raises(BadCredentials),
+        ):
+            await user_service._authenticate_user("test@example.com", "wrongpassword")
 
     @pytest.mark.asyncio
     async def test_authenticate_user_raises_bad_credentials_on_bcrypt_error(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
-        """_authenticate_user should raise BadCredentials when bcrypt raises ValueError."""
+        """_authenticate_user should raise BadCredentials
+        when bcrypt raises ValueError."""
         mock_session.scalar.return_value = fake_user
 
         with (
@@ -462,12 +460,11 @@ class TestAuthenticateUserAndCreateToken:
     """Tests for UserService.authenticate_user_and_create_token."""
 
     @pytest.mark.asyncio
-
-
-async def test_authenticate_and_create_token_success(
-            self, user_service, mock_session, fake_user
+    async def test_authenticate_and_create_token_success(
+        self, user_service, mock_session, fake_user
     ):
-    """authenticate_user_and_create_token should return a JWT for verified user."""
+        """authenticate_user_and_create_token should return
+        a JWT for verified user."""
         mock_session.scalar.return_value = fake_user
 
         with (
@@ -485,26 +482,30 @@ async def test_authenticate_and_create_token_success(
 
     @pytest.mark.asyncio
     async def test_authenticate_and_create_token_raises_client_not_verified(
-            self, user_service, mock_session, fake_user
+        self, user_service, mock_session, fake_user
     ):
-        """authenticate_user_and_create_token should raise ClientNotVerified for unverified."""
+        """authenticate_user_and_create_token should raise
+        ClientNotVerified for unverified."""
         fake_user.email_verified = False
         mock_session.scalar.return_value = fake_user
 
-
-with (
-    patch("src.services.user_service.bcrypt.checkpw", return_value=True),
-    pytest.raises(ClientNotVerified),
-):
-    await user_service.authenticate_user_and_create_token(
-                    "test@example.com", "validpassword"
-    )
+        with (
+            patch(
+                "src.services.user_service.bcrypt.checkpw",
+                return_value=True,
+            ),
+            pytest.raises(ClientNotVerified),
+        ):
+            await user_service.authenticate_user_and_create_token(
+                "test@example.com", "validpassword"
+            )
 
     @pytest.mark.asyncio
     async def test_authenticate_and_create_token_raises_bad_credentials(
         self, user_service, mock_session
     ):
-        """authenticate_user_and_create_token should raise BadCredentials with wrong email."""
+        """authenticate_user_and_create_token should raise
+        BadCredentials with wrong email."""
         mock_session.scalar.return_value = None
 
         with pytest.raises(BadCredentials):

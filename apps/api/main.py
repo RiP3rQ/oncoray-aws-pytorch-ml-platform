@@ -25,21 +25,23 @@ Core API for the PyTorch Model
 ### User - CRUD operations + auth flow
 """
 API_TAGS_METADATA = [
-        {
-            "name": APITag.MODEL.value,
-            "description": "Operations related to LLM models.",
-        },
-        {
-            "name": APITag.USER.value,
-            "description": "Operations related to users + auth flow.",
-        },
-    ]
+    {
+        "name": APITag.MODEL.value,
+        "description": "Operations related to LLM models.",
+    },
+    {
+        "name": APITag.USER.value,
+        "description": "Operations related to users + auth flow.",
+    },
+]
+
 
 def custom_generate_unique_id_function(route: APIRoute) -> str:
     """
     Generate a unique ID for the route.
     """
     return route.name
+
 
 app = FastAPI(
     title="Core API",
@@ -63,6 +65,7 @@ app.add_middleware(
 # =============================== EXCEPTION HANDLER ===============================
 add_exception_handlers(app)
 
+
 # =============================== ROOT + DOCS ENDPOINT ===============================
 @app.get("/")
 async def get_root():
@@ -70,6 +73,7 @@ async def get_root():
     Root endpoint for the API.
     """
     return {"service": "core-api", "status": "ok"}
+
 
 @app.get("/scalar", include_in_schema=False)
 async def get_scalar_docs():
@@ -80,6 +84,7 @@ async def get_scalar_docs():
         openapi_url="/openapi.json",
         title="Core API",
     )
+
 
 # =============================== ROUTERS ===============================
 # Add all endpoints

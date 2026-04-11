@@ -9,6 +9,7 @@ redis_instance = Redis(
     db=0,
 )
 
+
 async def add_jti_to_blacklist(jti: str) -> None:
     """
     Add a JTI of a token to the blacklist

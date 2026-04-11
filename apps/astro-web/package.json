@@ -10,6 +10,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "check-types": "astro check",
     "astro": "astro"
   },

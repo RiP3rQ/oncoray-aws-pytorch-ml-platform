@@ -12,6 +12,7 @@ def _get_url_safe_serializer() -> URLSafeTimedSerializer:
 
     return URLSafeTimedSerializer(security_settings.SECRET_KEY)
 
+
 def generate_access_token(
     data: dict,
     expiry: timedelta | None = None,

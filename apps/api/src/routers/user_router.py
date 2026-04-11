@@ -13,6 +13,7 @@ from src.types.enums import APITag
 router = APIRouter(prefix="/user", tags=[APITag.USER])
 logger = get_logger(__name__)
 
+
 ### Register a new user
 @router.post("/signup", response_model=UserRead)
 async def register_user(user: UserCreate, service: UserServiceDep):

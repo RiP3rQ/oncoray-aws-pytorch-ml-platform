@@ -248,7 +248,7 @@
 #     __tablename__ = "location"
 
 #     zip_code: int = Field(primary_key=True)
-    
+
 #     # Additional metadata fields
 #     # estimated_delivery_days: int = Field(default=3)
 #     # surcharge: float = Field(default=0.0)

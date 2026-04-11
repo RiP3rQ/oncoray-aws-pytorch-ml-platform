@@ -5,6 +5,7 @@ Revises: 9b9040153d5d
 Create Date: 2026-04-06 19:15:37.527229
 
 """
+
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
@@ -13,8 +14,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '9302f10ba4a6'
-down_revision: str | Sequence[str] | None = '9b9040153d5d'
+revision: str = "9302f10ba4a6"
+down_revision: str | Sequence[str] | None = "9b9040153d5d"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -61,7 +62,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     op.execute(
-        sa.delete(llm_models_table).where(
-            llm_models_table.c.id.in_(seeded_model_ids)
-        )
+        sa.delete(llm_models_table).where(llm_models_table.c.id.in_(seeded_model_ids))
     )

@@ -77,9 +77,11 @@ UserServiceDep = Annotated[
     Depends(get_user_service),
 ]
 
+
 # =============================== S3 SERVICE ===============================
 def get_s3_service() -> S3Service:
     return S3Service()
+
 
 S3ServiceDep = Annotated[
     S3Service,
@@ -92,7 +94,7 @@ S3ServiceDep = Annotated[
 # Get model service
 def get_model_service(session: SessionDep) -> ModelService:
     """Get model service"""
-    return ModelService(model=LLMModel ,session=session, s3_service=get_s3_service())
+    return ModelService(model=LLMModel, session=session, s3_service=get_s3_service())
 
 
 # Model service dep annotation

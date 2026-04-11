@@ -54,10 +54,13 @@ class TestGetAccessToken:
         """_get_access_token should raise InvalidToken for invalid token."""
         from src.core.dependencies import _get_access_token
 
-        with patch(
+        with (
+            patch(
                 "src.core.dependencies.decode_access_token",
                 return_value=None,
-        ), pytest.raises(InvalidToken):
+            ),
+            pytest.raises(InvalidToken),
+        ):
             await _get_access_token("invalid_token")
 
     @pytest.mark.asyncio
@@ -78,7 +81,8 @@ class TestGetAccessToken:
             patch(
                 "src.core.dependencies.is_jti_blacklisted",
                 new=AsyncMock(return_value=True),
-            ), pytest.raises(InvalidToken)
+            ),
+            pytest.raises(InvalidToken),
         ):
             await _get_access_token("blacklisted_token")
 
