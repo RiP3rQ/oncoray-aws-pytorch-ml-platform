@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "build": "uv sync",
-    "check-types": "uv run python -m compileall main.py src tests",
+    "check-types": "uv run mypy main.py src",
+    "lint": "uv run ruff check main.py src && uv run ruff format --check main.py src",
+    "lint:fix": "uv run ruff check --fix main.py src && uv run ruff format main.py src",
     "dev": "fastapi dev",
     "worker": "celery -A src.worker.tasks worker --loglevel=INFO",
     "test": "uv run pytest src/tests/ -v",

@@ -1,0 +1,24 @@
+# Root config — shared linting/formatting rules for all Python apps
+# Apps inherit these settings; per-app overrides go in apps/*/pyproject.toml
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/**" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+strict = true
+warn_return_any = true
+disallow_untyped_defs = true
+python_version = "3.11"
