@@ -1,43 +1,43 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import LoginForm from '../components/LoginForm.tsx';
+import Layout from "../layouts/Layout.astro";
+import LoginForm from "../components/LoginForm.tsx";
 ---
 
 <Layout
-	title="Log In | OncoRay"
-	description="Access the OncoRay screening workspace to upload X-rays and review AI-assisted findings."
+  title="Log In | OncoRay"
+  description="Access the OncoRay screening workspace to upload X-rays and review AI-assisted findings."
 >
-	<div class="page-shell">
-		<div class="frame auth-layout">
-			<section class="auth-copy animate-rise">
-				<span class="eyebrow">Protected workspace</span>
-				<h1 class="headline">Step back into the screening room.</h1>
-				<p class="lede">
-					Sign in to continue reviewing uploaded X-rays, flagged regions, and clinician-ready
-					screening notes. Keep every scan flowing through one clean, accountable workspace.
-				</p>
+  <div class="page-shell">
+    <div class="frame auth-layout">
+      <section class="auth-copy animate-rise">
+        <span class="eyebrow">Protected workspace</span>
+        <h1 class="headline">Step back into the screening room.</h1>
+        <p class="lede">
+          Sign in to continue reviewing uploaded X-rays, flagged regions, and
+          clinician-ready screening notes. Keep every scan flowing through one
+          clean, accountable workspace.
+        </p>
 
-				<div class="signal-strip">
-					<div>
-						<strong>Live model health</strong>
-						<span>Inference nodes calibrated and online</span>
-					</div>
-					<div>
-						<strong>Escalation policy</strong>
-						<span>Every positive flag is routed to human review</span>
-					</div>
-				</div>
-			</section>
+        <div class="signal-strip">
+          <div>
+            <strong>Live model health</strong>
+            <span>Inference nodes calibrated and online</span>
+          </div>
+          <div>
+            <strong>Escalation policy</strong>
+            <span>Every positive flag is routed to human review</span>
+          </div>
+        </div>
+      </section>
 
-			<section class="auth-card flat-card animate-rise delay-2">
-				<div class="card-top">
-					<p class="section-label">Log in</p>
-					<h2>Resume an active case review.</h2>
-				</div>
+      <section class="auth-card flat-card animate-rise delay-2">
+        <div class="card-top">
+          <p class="section-label">Log in</p>
+          <h2>Resume an active case review.</h2>
+        </div>
 
-				<LoginForm client:load />
-			</section>
-		</div>
-	</div>
+        <LoginForm client:load />
+      </section>
+    </div>
+  </div>
 </Layout>
-

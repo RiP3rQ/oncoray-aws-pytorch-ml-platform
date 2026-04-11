@@ -62,12 +62,12 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "relative inline-flex items-center justify-center px-3 py-2 text-sm font-medium font-mono leading-none whitespace-nowrap text-[var(--color-opencode-mid-gray)] transition-colors duration-[var(--duration-fast)]",
+        "relative inline-flex items-center justify-center px-3 py-2 font-mono text-sm leading-none font-medium whitespace-nowrap text-[var(--color-opencode-mid-gray)] transition-colors duration-[var(--duration-fast)]",
         "hover:text-[var(--color-opencode-light)]",
-        "focus-visible:outline-2 focus-visible:outline-[var(--color-opencode-accent-blue)] focus-visible:outline-offset-2",
-        "data-[state=active]:text-[var(--color-opencode-light)] data-[state=active]:font-bold",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-opencode-accent-blue)]",
+        "data-[state=active]:font-bold data-[state=active]:text-[var(--color-opencode-light)]",
         /* OpenCode tab active indicator: 2px solid bottom border */
-        "after:absolute after:left-0 after:right-0 after:bottom-0 after:h-0.5 after:bg-[var(--color-opencode-border-tab)] after:scale-x-0 after:transition-transform after:duration-[var(--duration-fast)]",
+        "after:absolute after:right-0 after:bottom-0 after:left-0 after:h-0.5 after:scale-x-0 after:bg-[var(--color-opencode-border-tab)] after:transition-transform after:duration-[var(--duration-fast)]",
         "data-[state=active]:after:scale-x-100",
         "disabled:pointer-events-none disabled:opacity-50",
         className,

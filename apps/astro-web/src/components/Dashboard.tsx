@@ -30,11 +30,11 @@ function DashboardInner() {
               <p className="topnote">AI-assisted X-ray cancer screening</p>
             </div>
             <nav className="flex items-center gap-4">
-              <span className="text-[var(--muted)] text-sm">{user?.email}</span>
+              <span className="text-sm text-[var(--muted)]">{user?.email}</span>
               <button
                 type="button"
                 onClick={logout}
-                className="px-5 py-1 text-sm font-mono font-medium leading-[2] rounded border transition-colors duration-[var(--duration-fast)] bg-transparent border-[var(--color-opencode-border-outline)] text-[var(--color-opencode-mid-gray)] hover:border-[var(--color-opencode-accent-blue)] hover:text-[var(--color-opencode-light)] focus-visible:outline-2 focus-visible:outline-[var(--color-opencode-accent-blue)] focus-visible:outline-offset-2"
+                className="rounded border border-[var(--color-opencode-border-outline)] bg-transparent px-5 py-1 font-mono text-sm leading-[2] font-medium text-[var(--color-opencode-mid-gray)] transition-colors duration-[var(--duration-fast)] hover:border-[var(--color-opencode-accent-blue)] hover:text-[var(--color-opencode-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-opencode-accent-blue)]"
               >
                 Log out
               </button>

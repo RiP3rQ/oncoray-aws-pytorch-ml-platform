@@ -1,52 +1,61 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import RegisterForm from '../components/RegisterForm.tsx';
+import Layout from "../layouts/Layout.astro";
+import RegisterForm from "../components/RegisterForm.tsx";
 ---
 
 <Layout
-	title="Register | OncoRay"
-	description="Create an OncoRay account to begin uploading X-rays and reviewing AI-assisted cancer screening flags."
+  title="Register | OncoRay"
+  description="Create an OncoRay account to begin uploading X-rays and reviewing AI-assisted cancer screening flags."
 >
-	<div class="page-shell">
-		<div class="frame register-layout">
-			<section class="register-card flat-card animate-rise">
-				<div class="card-header">
-					<p class="section-label">Create account</p>
-					<h1>Open a secure lane for incoming X-ray studies.</h1>
-					<p>
-						Set up your workspace in seconds. We keep the flow minimal here: just email and
-						password, then you're ready to upload scans and review model output.
-					</p>
-				</div>
+  <div class="page-shell">
+    <div class="frame register-layout">
+      <section class="register-card flat-card animate-rise">
+        <div class="card-header">
+          <p class="section-label">Create account</p>
+          <h1>Open a secure lane for incoming X-ray studies.</h1>
+          <p>
+            Set up your workspace in seconds. We keep the flow minimal here:
+            just email and password, then you're ready to upload scans and
+            review model output.
+          </p>
+        </div>
 
-				<RegisterForm client:load />
-			</section>
+        <RegisterForm client:load />
+      </section>
 
-			<section class="register-copy animate-rise delay-2">
-				<span class="eyebrow">Rapid onboarding</span>
-				<h2 class="headline">A calmer front door for a high-stakes workflow.</h2>
-				<p class="lede">
-					OncoRay is designed for fast triage and careful communication. The interface surfaces
-					suspicious regions, confidence signals, and review checkpoints without pretending the
-					model replaces clinical judgment.
-				</p>
+      <section class="register-copy animate-rise delay-2">
+        <span class="eyebrow">Rapid onboarding</span>
+        <h2 class="headline">
+          A calmer front door for a high-stakes workflow.
+        </h2>
+        <p class="lede">
+          OncoRay is designed for fast triage and careful communication. The
+          interface surfaces suspicious regions, confidence signals, and review
+          checkpoints without pretending the model replaces clinical judgment.
+        </p>
 
-				<div class="feature-grid">
-					<div>
-						<strong>Image-first pipeline</strong>
-						<span>Upload chest X-rays and keep series aligned automatically.</span>
-					</div>
-					<div>
-						<strong>Risk visualization</strong>
-						<span>Highlight suspicious areas and route them for expert confirmation.</span>
-					</div>
-					<div>
-						<strong>Audit-friendly flow</strong>
-						<span>Every screening note is structured for follow-up and escalation.</span>
-					</div>
-				</div>
-			</section>
-		</div>
-	</div>
+        <div class="feature-grid">
+          <div>
+            <strong>Image-first pipeline</strong>
+            <span
+              >Upload chest X-rays and keep series aligned automatically.</span
+            >
+          </div>
+          <div>
+            <strong>Risk visualization</strong>
+            <span
+              >Highlight suspicious areas and route them for expert
+              confirmation.</span
+            >
+          </div>
+          <div>
+            <strong>Audit-friendly flow</strong>
+            <span
+              >Every screening note is structured for follow-up and escalation.</span
+            >
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
 </Layout>
-
