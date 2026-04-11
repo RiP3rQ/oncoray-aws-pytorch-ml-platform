@@ -1,90 +1,150 @@
-"""
-Utility functions to make predictions.
+"""Image prediction and visualization utilities for PyTorch models."""
 
-Main reference for code creation: https://www.learnpytorch.io/06_pytorch_transfer_learning/#6-make-predictions-on-images-from-the-test-set
-"""
+from __future__ import annotations
 
-import matplotlib.pyplot as plt
+import logging
+from pathlib import Path
+from typing import TypedDict
+
 import torch
 import torchvision
+from matplotlib.figure import Figure
 from PIL import Image
 from torchvision import transforms
 
-# Set device
-device = "cuda" if torch.cuda.is_available() else "cpu"
+logger = logging.getLogger(__name__)
+
+_IMAGENET_MEAN = [0.485, 0.456, 0.406]
+_IMAGENET_STD = [0.229, 0.224, 0.225]
+_DEFAULT_IMAGE_SIZE: tuple[int, int] = (224, 224)
 
 
-# Predict on a target image with a target model
-# Function created in: https://www.learnpytorch.io/06_pytorch_transfer_learning/#6-make-predictions-on-images-from-the-test-set
-def pred_and_plot_image(
-        model: torch.nn.Module,
-        class_names: list[str],
-        image_path: str,
-        image_size: tuple[int, int] = (224, 224),
-        transform: torchvision.transforms = None,
-        device: torch.device = device,
-):
-    """Predicts on a target image with a target model.
+class PredictionResult(TypedDict):
+    """Return type for :func:`predict_image`.
 
-    Args:
-        model (torch.nn.Module): A trained (or untrained) PyTorch model
-            to predict on an image.
-        class_names (List[str]): A list of target classes to map
-            predictions to.
-        image_path (str): Filepath to target image to predict on.
-        image_size (Tuple[int, int], optional): Size to transform target
-            image to. Defaults to (224, 224).
-        transform (torchvision.transforms, optional): Transform to perform
-            on image. Defaults to None which uses ImageNet normalization.
-        device (torch.device, optional): Target device to perform
-            prediction on. Defaults to device.
+    Attributes:
+        class_name: Predicted class label.
+        confidence: Prediction probability for the top class (0–1).
+        probabilities: Full probability distribution over all classes.
     """
 
-    # Open image
-    img = Image.open(image_path)
+    class_name: str
+    confidence: float
+    probabilities: torch.Tensor
 
-    # Create transformation for image (if one doesn't exist)
-    if transform is not None:
-        image_transform = transform
-    else:
-        image_transform = transforms.Compose(
-            [
-                transforms.Resize(image_size),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-        )
 
-    ### Predict on image ###
+def _resolve_device(device: str | torch.device) -> torch.device:
+    """Resolve ``"auto"`` to CUDA when available, else CPU."""
+    if isinstance(device, str) and device == "auto":
+        chosen = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info("Auto-detected device: %s", chosen)
+        return torch.device(chosen)
+    resolved = torch.device(device)
+    logger.info("Using explicit device: %s", resolved)
+    return resolved
 
-    # Make sure the model is on the target device
-    model.to(device)
 
-    # Turn on model evaluation mode and inference mode
-    model.eval()
-    with torch.inference_mode():
-        # Transform and add an extra dimension to image
-        # (model requires samples in [batch_size, color_channels, height, width])
-        transformed_image = image_transform(img).unsqueeze(dim=0)
-
-        # Make a prediction on image with an extra dimension
-        # and send it to the target device
-        target_image_pred = model(transformed_image.to(device))
-
-    # Convert logits -> prediction probabilities
-    # (using torch.softmax() for multi-class classification)
-    target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
-
-    # Convert prediction probabilities -> prediction labels
-    target_image_pred_label = torch.argmax(target_image_pred_probs, dim=1)
-
-    # Plot image with predicted label and probability
-    plt.figure()
-    plt.imshow(img)
-    plt.title(
-        f"Pred: {class_names[target_image_pred_label]} | "
-        f"Prob: {target_image_pred_probs.max():.3f}"
+def _default_transform(image_size: tuple[int, int]) -> transforms.Compose:
+    """ImageNet-normalised resize + to-tensor pipeline."""
+    return transforms.Compose(
+        [
+            transforms.Resize(image_size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=_IMAGENET_MEAN, std=_IMAGENET_STD),
+        ]
     )
-    plt.axis(False)
+
+
+def predict_image(
+    model: torch.nn.Module,
+    image_path: str | Path,
+    class_names: list[str],
+    image_size: tuple[int, int] = _DEFAULT_IMAGE_SIZE,
+    transform: torchvision.transforms.Compose | None = None,
+    device: str | torch.device = "auto",
+) -> PredictionResult:
+    """Run inference on a single image.
+
+    Puts *model* into eval mode with :func:`torch.inference_mode` and
+    returns predicted class, confidence, and full probability tensor.
+
+    Args:
+        model: A PyTorch model to predict with.
+        image_path: Filepath to the image to predict on.
+        class_names: Mapping from class index to label.
+        image_size: ``(H, W)`` to resize to when *transform* is ``None``.
+        transform: Custom transform pipeline. When ``None``, an ImageNet
+            normalised resize pipeline is constructed from *image_size*.
+        device: Target device. ``"auto"`` picks CUDA if available.
+
+    Returns:
+        A :class:`PredictionResult` dict with ``"class_name"``,
+        ``"confidence"``, and ``"probabilities"`` keys.
+
+    Example::
+
+        result = predict_image(model, "photo.jpg", class_names=["cat", "dog"])
+        print(result["class_name"], result["confidence"])
+    """
+    computed_device = _resolve_device(device)
+    logger.info("Predicting on %s for image %s", computed_device, image_path)
+
+    img = Image.open(image_path)
+    logger.info("Opened image: %s (size=%s)", image_path, img.size)
+
+    image_transform = (
+        transform if transform is not None else _default_transform(image_size)
+    )
+
+    model.to(computed_device).eval()
+    with torch.inference_mode():
+        transformed = image_transform(img)
+        assert isinstance(transformed, torch.Tensor), "Transform must produce a Tensor"
+        img_tensor = transformed.unsqueeze(dim=0).to(computed_device)
+        logger.info("Input tensor shape: %s", img_tensor.shape)
+        logits = model(img_tensor)
+
+    probabilities = torch.softmax(logits, dim=1)
+    confidence: float = probabilities.max().item()
+    pred_index: int = int(probabilities.argmax(dim=1).item())
+    logger.info(
+        "Prediction: class=%s confidence=%.4f index=%d",
+        class_names[pred_index],
+        confidence,
+        pred_index,
+    )
+
+    return PredictionResult(
+        class_name=class_names[pred_index],
+        confidence=confidence,
+        probabilities=probabilities.squeeze(0),
+    )
+
+
+def plot_prediction(
+    image_path: str | Path,
+    class_name: str,
+    confidence: float,
+) -> Figure:
+    """Display an image annotated with predicted class and confidence.
+
+    Args:
+        image_path: Filepath to the source image.
+        class_name: Predicted label to display.
+        confidence: Probability of the predicted label.
+
+    Returns:
+        The :class:`matplotlib.figure.Figure` for further customisation
+        or saving.
+    """
+    import matplotlib.pyplot as plt
+
+    logger.info(
+        "Plotting prediction for %s: %s (%.3f)", image_path, class_name, confidence
+    )
+    img = Image.open(image_path)
+    fig, ax = plt.subplots()
+    ax.imshow(img)
+    ax.set_title(f"Pred: {class_name} | Prob: {confidence:.3f}")
+    ax.axis("off")
+    return fig
