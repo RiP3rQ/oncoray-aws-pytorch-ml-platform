@@ -3,9 +3,9 @@ Pytest fixtures and configuration for FastAPI testing.
 """
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -32,8 +32,8 @@ def create_fake_user(
     user.email = email
     user.email_verified = email_verified
     user.password_hash = "$2b$12$fake_hash_for_testing"
-    user.created_at = datetime.now(timezone.utc)
-    user.updated_at = datetime.now(timezone.utc)
+    user.created_at = datetime.now(UTC)
+    user.updated_at = datetime.now(UTC)
     return user
 
 
@@ -48,8 +48,8 @@ def create_fake_model(
     model.name = name
     model.description = description
     model.version = version
-    model.created_at = datetime.now(timezone.utc)
-    model.updated_at = datetime.now(timezone.utc)
+    model.created_at = datetime.now(UTC)
+    model.updated_at = datetime.now(UTC)
     return model
 
 
@@ -201,9 +201,10 @@ def mock_model_service(mock_models):
 @pytest.fixture
 def app(mock_session, mock_user_service, mock_model_service):
     """Create a FastAPI test app with mocked dependencies."""
-    from src.core.dependencies import get_user_service, get_model_service
-    from src.database.session import get_session
     from main import app as main_app
+
+    from src.core.dependencies import get_model_service, get_user_service
+    from src.database.session import get_session
 
     # Override FastAPI dependencies (bypass real DB/service wiring)
     async def override_get_session():
@@ -253,8 +254,8 @@ def client(app):
 @pytest.fixture
 def authenticated_client(app, mock_user):
     """Create an authenticated test client."""
-    from src.utils.token_utils import generate_access_token
     from src.core.security import oauth2_scheme_user
+    from src.utils.token_utils import generate_access_token
 
     token = generate_access_token(data={"user": {"id": str(mock_user.id)}})
 

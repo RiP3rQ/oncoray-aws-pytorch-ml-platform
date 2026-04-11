@@ -15,7 +15,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.database.session import get_session, ping_database
 
-
 # =============================================================================
 # Tests for get_session
 # =============================================================================

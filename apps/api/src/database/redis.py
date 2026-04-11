@@ -3,7 +3,6 @@ from redis.exceptions import RedisError
 
 from src.core.config import db_settings
 
-
 redis_instance = Redis(
     host=db_settings.REDIS_HOST,
     port=db_settings.REDIS_PORT,

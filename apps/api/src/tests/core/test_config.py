@@ -13,18 +13,17 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.core.config import (
     AppSettings,
     DatabaseSettings,
-    SecuritySettings,
     NotificationSettings,
     S3Settings,
-    normalize_database_url,
-    to_sync_database_url,
+    SecuritySettings,
     app_settings,
     db_settings,
-    security_settings,
+    normalize_database_url,
     notification_settings,
     s3_settings,
+    security_settings,
+    to_sync_database_url,
 )
-
 
 # =============================================================================
 # Tests for AppSettings

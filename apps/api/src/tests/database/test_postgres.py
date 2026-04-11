@@ -3,7 +3,7 @@ Tests for PostgreSQL models (User, LLMModel, TimestampedModel).
 """
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Add project root to Python path
@@ -11,8 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.database.postgres import utc_now, TimestampedModel, User, LLMModel
-
+from src.database.postgres import LLMModel, TimestampedModel, User, utc_now
 
 # =============================================================================
 # Tests for utc_now
@@ -31,7 +30,7 @@ class TestUtcNow:
     def test_utc_now_returns_utc(self):
         """utc_now should return UTC timezone."""
         result = utc_now()
-        assert result.tzinfo == timezone.utc
+        assert result.tzinfo == UTC
 
 
 # =============================================================================

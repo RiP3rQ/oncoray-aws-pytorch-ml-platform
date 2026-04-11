@@ -12,13 +12,12 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.utils.token_utils import (
-    generate_access_token,
-    decode_access_token,
-    generate_url_safe_token,
-    decode_url_safe_token,
     _get_url_safe_serializer,
+    decode_access_token,
+    decode_url_safe_token,
+    generate_access_token,
+    generate_url_safe_token,
 )
-
 
 # =============================================================================
 # Tests for generate_access_token / decode_access_token

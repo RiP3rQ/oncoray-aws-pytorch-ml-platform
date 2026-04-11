@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from src.routers import kubernetes_router, model_router, user_router
 
 # Single router to group all api routers

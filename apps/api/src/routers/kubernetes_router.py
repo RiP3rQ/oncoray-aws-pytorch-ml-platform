@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.redis import ping_redis
 from src.database.session import get_session, ping_database
 
-
 router = APIRouter(include_in_schema=False)
 
 

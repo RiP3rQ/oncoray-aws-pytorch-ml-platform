@@ -1,7 +1,8 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, File, HTTPException, Path, Query, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Path, UploadFile, status
+
 from src.core.dependencies import ModelServiceDep
 from src.core.logger import get_logger
 from src.schemas.model_schemas import ModelRead, PredictionResponse

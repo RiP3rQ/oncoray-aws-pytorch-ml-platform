@@ -2,6 +2,7 @@
 Contains functionality for creating PyTorch DataLoaders for
 image classification data.
 """
+
 import os
 
 from torch.utils.data import DataLoader
@@ -15,7 +16,7 @@ def create_dataloaders(
         test_dir: str,
         transform: transforms.Compose,
         batch_size: int,
-        num_workers: int = NUM_WORKERS
+        num_workers: int = NUM_WORKERS,
 ):
     """Creates training and testing DataLoaders.
 

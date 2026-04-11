@@ -3,7 +3,7 @@ from celery import Celery
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from pydantic import EmailStr
 
-from src.core.config import db_settings, notification_settings, TEMPLATE_DIR
+from src.core.config import TEMPLATE_DIR, db_settings, notification_settings
 from src.core.logger import get_logger
 
 logger = get_logger(__name__)

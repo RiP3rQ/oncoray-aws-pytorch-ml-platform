@@ -3,7 +3,7 @@ Tests for ModelService - getting models and predictions.
 """
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -20,7 +20,6 @@ from src.database.postgres import LLMModel
 from src.schemas.model_schemas import ModelRead, PredictionResponse
 from src.services.model_service import ModelService
 from src.services.s3_service import S3Service
-
 
 # =============================================================================
 # Fixtures
@@ -52,8 +51,8 @@ def fake_model():
     model.name = "TestModel"
     model.description = "A test model"
     model.version = "v1"
-    model.created_at = datetime.now(timezone.utc)
-    model.updated_at = datetime.now(timezone.utc)
+    model.created_at = datetime.now(UTC)
+    model.updated_at = datetime.now(UTC)
     return model
 
 

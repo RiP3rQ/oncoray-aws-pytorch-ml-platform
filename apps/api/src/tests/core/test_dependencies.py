@@ -16,7 +16,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.core.errors import ClientNotAuthorized, InvalidToken
 
-
 # =============================================================================
 # Tests for _get_access_token
 # =============================================================================
@@ -58,9 +57,8 @@ class TestGetAccessToken:
         with patch(
                 "src.core.dependencies.decode_access_token",
                 return_value=None,
-        ):
-            with pytest.raises(InvalidToken):
-                await _get_access_token("invalid_token")
+        ), pytest.raises(InvalidToken):
+            await _get_access_token("invalid_token")
 
     @pytest.mark.asyncio
     async def test_blacklisted_token_raises_error(self):
@@ -80,10 +78,9 @@ class TestGetAccessToken:
             patch(
                 "src.core.dependencies.is_jti_blacklisted",
                 new=AsyncMock(return_value=True),
-            ),
+            ), pytest.raises(InvalidToken)
         ):
-            with pytest.raises(InvalidToken):
-                await _get_access_token("blacklisted_token")
+            await _get_access_token("blacklisted_token")
 
 
 # =============================================================================

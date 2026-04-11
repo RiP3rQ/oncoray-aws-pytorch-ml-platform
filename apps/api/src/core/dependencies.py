@@ -4,16 +4,15 @@ from uuid import UUID
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
-from src.services.model_service import ModelService
-from src.services.user_service import UserService
-from src.services.s3_service import S3Service
 from src.core.errors import ClientNotAuthorized, InvalidToken
-from src.database.session import get_session
-from src.database.redis import is_jti_blacklisted
-from src.utils.token_utils import decode_access_token
 from src.core.security import oauth2_scheme_user
-from src.database.postgres import User, LLMModel
+from src.database.postgres import LLMModel, User
+from src.database.redis import is_jti_blacklisted
+from src.database.session import get_session
+from src.services.model_service import ModelService
+from src.services.s3_service import S3Service
+from src.services.user_service import UserService
+from src.utils.token_utils import decode_access_token
 
 # =============================== SESSION ===============================
 # Asynchronous database session dep annotation

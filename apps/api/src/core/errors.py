@@ -60,7 +60,7 @@ def _get_handler(status: int, detail: str):
     # Define
     def handler(request: Request, exception: Exception) -> Response:
         # DEBUG PRINT STATEMENT 👇
-        from rich import print, panel
+        from rich import panel, print
         print(
             panel.Panel(
                 exception.__class__.__name__,

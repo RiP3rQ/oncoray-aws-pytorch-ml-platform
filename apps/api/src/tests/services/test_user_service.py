@@ -3,7 +3,7 @@ Tests for UserService - user registration, authentication, email verification.
 """
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -24,7 +24,6 @@ from src.core.errors import (
 )
 from src.database.postgres import User
 from src.services.user_service import UserService
-
 
 # =============================================================================
 # Fixtures
@@ -52,8 +51,8 @@ def fake_user():
     user.email = "test@example.com"
     user.password_hash = "$2b$12$fake_hash_for_testing"
     user.email_verified = True
-    user.created_at = datetime.now(timezone.utc)
-    user.updated_at = datetime.now(timezone.utc)
+    user.created_at = datetime.now(UTC)
+    user.updated_at = datetime.now(UTC)
     return user
 
 
@@ -297,25 +296,23 @@ class TestVerifyUserEmail:
         with patch(
                 "src.services.user_service.decode_url_safe_token",
                 return_value={"id": user_id},
-        ):
-            with patch.object(
-                    user_service, "_save_user", new_callable=AsyncMock
-            ) as mock_save:
-                mock_session.get.return_value = fake_user
+        ), patch.object(
+            user_service, "_save_user", new_callable=AsyncMock
+        ) as mock_save:
+            mock_session.get.return_value = fake_user
 
-                await user_service.verify_user_email("valid_token")
+            await user_service.verify_user_email("valid_token")
 
-                assert fake_user.email_verified is True
-                mock_save.assert_called_once_with(fake_user)
+            assert fake_user.email_verified is True
+            mock_save.assert_called_once_with(fake_user)
 
     @pytest.mark.asyncio
     async def test_verify_user_email_invalid_token(self, user_service, mock_session):
         """verify_user_email should raise InvalidToken for invalid/empty token."""
         with patch(
                 "src.services.user_service.decode_url_safe_token", return_value=None
-        ):
-            with pytest.raises(InvalidToken):
-                await user_service.verify_user_email("invalid_token")
+        ), pytest.raises(InvalidToken):
+            await user_service.verify_user_email("invalid_token")
 
     @pytest.mark.asyncio
     async def test_verify_user_email_missing_id_key(self, user_service, mock_session):
@@ -323,9 +320,8 @@ class TestVerifyUserEmail:
         with patch(
                 "src.services.user_service.decode_url_safe_token",
                 return_value={"wrong_key": "value"},
-        ):
-            with pytest.raises(InvalidToken):
-                await user_service.verify_user_email("token_no_id")
+        ), pytest.raises(InvalidToken):
+            await user_service.verify_user_email("token_no_id")
 
     @pytest.mark.asyncio
     async def test_verify_user_email_invalid_uuid(self, user_service, mock_session):
@@ -333,9 +329,8 @@ class TestVerifyUserEmail:
         with patch(
                 "src.services.user_service.decode_url_safe_token",
                 return_value={"id": "not-a-uuid"},
-        ):
-            with pytest.raises(InvalidToken):
-                await user_service.verify_user_email("token_bad_uuid")
+        ), pytest.raises(InvalidToken):
+            await user_service.verify_user_email("token_bad_uuid")
 
     @pytest.mark.asyncio
     async def test_verify_user_email_nonexistent_user(self, user_service, mock_session):
@@ -345,9 +340,8 @@ class TestVerifyUserEmail:
         with patch(
                 "src.services.user_service.decode_url_safe_token",
                 return_value={"id": str(uuid4())},
-        ):
-            with pytest.raises(EntityNotFound):
-                await user_service.verify_user_email("valid_token_nonexistent_user")
+        ), pytest.raises(EntityNotFound):
+            await user_service.verify_user_email("valid_token_nonexistent_user")
 
 
 # =============================================================================
@@ -434,9 +428,8 @@ class TestAuthenticateUser:
         with patch(
                 "src.services.user_service.bcrypt.checkpw",
                 side_effect=ValueError("bad hash"),
-        ):
-            with pytest.raises(BadCredentials):
-                await user_service._authenticate_user("test@example.com", "password")
+        ), pytest.raises(BadCredentials):
+            await user_service._authenticate_user("test@example.com", "password")
 
 
 # =============================================================================

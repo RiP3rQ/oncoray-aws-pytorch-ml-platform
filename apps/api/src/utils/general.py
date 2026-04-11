@@ -1,5 +1,7 @@
+from collections.abc import Mapping
 from json import JSONDecodeError, dumps
-from typing import Any, Mapping
+from typing import Any
+
 from rich import print
 from rich.panel import Panel
 

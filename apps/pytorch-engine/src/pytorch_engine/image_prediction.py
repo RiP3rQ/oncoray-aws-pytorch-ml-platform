@@ -27,12 +27,17 @@ def pred_and_plot_image(
     """Predicts on a target image with a target model.
 
     Args:
-        model (torch.nn.Module): A trained (or untrained) PyTorch model to predict on an image.
-        class_names (List[str]): A list of target classes to map predictions to.
+        model (torch.nn.Module): A trained (or untrained) PyTorch model
+            to predict on an image.
+        class_names (List[str]): A list of target classes to map
+            predictions to.
         image_path (str): Filepath to target image to predict on.
-        image_size (Tuple[int, int], optional): Size to transform target image to. Defaults to (224, 224).
-        transform (torchvision.transforms, optional): Transform to perform on image. Defaults to None which uses ImageNet normalization.
-        device (torch.device, optional): Target device to perform prediction on. Defaults to device.
+        image_size (Tuple[int, int], optional): Size to transform target
+            image to. Defaults to (224, 224).
+        transform (torchvision.transforms, optional): Transform to perform
+            on image. Defaults to None which uses ImageNet normalization.
+        device (torch.device, optional): Target device to perform
+            prediction on. Defaults to device.
     """
 
     # Open image
@@ -60,13 +65,16 @@ def pred_and_plot_image(
     # Turn on model evaluation mode and inference mode
     model.eval()
     with torch.inference_mode():
-        # Transform and add an extra dimension to image (model requires samples in [batch_size, color_channels, height, width])
+        # Transform and add an extra dimension to image
+        # (model requires samples in [batch_size, color_channels, height, width])
         transformed_image = image_transform(img).unsqueeze(dim=0)
 
-        # Make a prediction on image with an extra dimension and send it to the target device
+        # Make a prediction on image with an extra dimension
+        # and send it to the target device
         target_image_pred = model(transformed_image.to(device))
 
-    # Convert logits -> prediction probabilities (using torch.softmax() for multi-class classification)
+    # Convert logits -> prediction probabilities
+    # (using torch.softmax() for multi-class classification)
     target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
 
     # Convert prediction probabilities -> prediction labels
@@ -76,6 +84,7 @@ def pred_and_plot_image(
     plt.figure()
     plt.imshow(img)
     plt.title(
-        f"Pred: {class_names[target_image_pred_label]} | Prob: {target_image_pred_probs.max():.3f}"
+        f"Pred: {class_names[target_image_pred_label]} | "
+        f"Prob: {target_image_pred_probs.max():.3f}"
     )
     plt.axis(False)

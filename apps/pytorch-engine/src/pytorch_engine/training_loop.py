@@ -6,11 +6,13 @@ import torch
 from tqdm.auto import tqdm
 
 
-def train_step(model: torch.nn.Module,
-               dataloader: torch.utils.data.DataLoader,
-               loss_fn: torch.nn.Module,
-               optimizer: torch.optim.Optimizer,
-               device: torch.device) -> tuple[float, float]:
+def train_step(
+        model: torch.nn.Module,
+        dataloader: torch.utils.data.DataLoader,
+        loss_fn: torch.nn.Module,
+        optimizer: torch.optim.Optimizer,
+        device: torch.device,
+) -> tuple[float, float]:
     """Trains a PyTorch model for a single epoch.
 
     Turns a target PyTorch model to training mode and then
@@ -37,7 +39,7 @@ def train_step(model: torch.nn.Module,
     train_loss, train_acc = 0, 0
 
     # Loop through data loader data batches
-    for batch, (X, y) in enumerate(dataloader):
+    for _batch, (X, y) in enumerate(dataloader):
         # Send data to target device
         X, y = X.to(device), y.to(device)
 
@@ -67,10 +69,12 @@ def train_step(model: torch.nn.Module,
     return train_loss, train_acc
 
 
-def test_step(model: torch.nn.Module,
-              dataloader: torch.utils.data.DataLoader,
-              loss_fn: torch.nn.Module,
-              device: torch.device) -> tuple[float, float]:
+def test_step(
+        model: torch.nn.Module,
+        dataloader: torch.utils.data.DataLoader,
+        loss_fn: torch.nn.Module,
+        device: torch.device,
+) -> tuple[float, float]:
     """Tests a PyTorch model for a single epoch.
 
     Turns a target PyTorch model to "eval" mode and then performs
@@ -97,7 +101,7 @@ def test_step(model: torch.nn.Module,
     # Turn on inference context manager
     with torch.inference_mode():
         # Loop through DataLoader batches
-        for batch, (X, y) in enumerate(dataloader):
+        for _batch, (X, y) in enumerate(dataloader):
             # Send data to target device
             X, y = X.to(device), y.to(device)
 
@@ -110,7 +114,7 @@ def test_step(model: torch.nn.Module,
 
             # Calculate and accumulate accuracy
             test_pred_labels = test_pred_logits.argmax(dim=1)
-            test_acc += ((test_pred_labels == y).sum().item() / len(test_pred_labels))
+            test_acc += (test_pred_labels == y).sum().item() / len(test_pred_labels)
 
     # Adjust metrics to get average loss and accuracy per batch
     test_loss = test_loss / len(dataloader)
@@ -118,13 +122,15 @@ def test_step(model: torch.nn.Module,
     return test_loss, test_acc
 
 
-def train(model: torch.nn.Module,
-          train_dataloader: torch.utils.data.DataLoader,
-          test_dataloader: torch.utils.data.DataLoader,
-          optimizer: torch.optim.Optimizer,
-          loss_fn: torch.nn.Module,
-          epochs: int,
-          device: torch.device) -> dict[str, list]:
+def train(
+        model: torch.nn.Module,
+        train_dataloader: torch.utils.data.DataLoader,
+        test_dataloader: torch.utils.data.DataLoader,
+        optimizer: torch.optim.Optimizer,
+        loss_fn: torch.nn.Module,
+        epochs: int,
+        device: torch.device,
+) -> dict[str, list]:
     """Trains and tests a PyTorch model.
 
     Passes a target PyTorch models through train_step() and test_step()
@@ -157,26 +163,23 @@ def train(model: torch.nn.Module,
               test_acc: [0.3400, 0.2973]}
     """
     # Create empty results dictionary
-    results = {"train_loss": [],
-               "train_acc": [],
-               "test_loss": [],
-               "test_acc": []
-               }
+    results = {"train_loss": [], "train_acc": [], "test_loss": [], "test_acc": []}
 
     # Make sure model on target device
     model.to(device)
 
     # Loop through training and testing steps for a number of epochs
     for epoch in tqdm(range(epochs)):
-        train_loss, train_acc = train_step(model=model,
-                                           dataloader=train_dataloader,
-                                           loss_fn=loss_fn,
-                                           optimizer=optimizer,
-                                           device=device)
-        test_loss, test_acc = test_step(model=model,
-                                        dataloader=test_dataloader,
-                                        loss_fn=loss_fn,
-                                        device=device)
+        train_loss, train_acc = train_step(
+            model=model,
+            dataloader=train_dataloader,
+            loss_fn=loss_fn,
+            optimizer=optimizer,
+            device=device,
+        )
+        test_loss, test_acc = test_step(
+            model=model, dataloader=test_dataloader, loss_fn=loss_fn, device=device
+        )
 
         # Print out what's happening
         print(
