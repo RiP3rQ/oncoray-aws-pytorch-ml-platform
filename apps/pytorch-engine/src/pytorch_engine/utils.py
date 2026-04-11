@@ -29,3 +29,8 @@ def resolve_device(device: str | torch.device) -> torch.device:
     resolved = torch.device(device)
     logger.info("Using explicit device: %s", resolved)
     return resolved
+
+
+def get_current_device() -> torch.device:
+    """Get the current device."""
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
