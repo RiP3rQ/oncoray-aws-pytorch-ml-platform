@@ -12,6 +12,8 @@ dependencies = [
     "torchinfo>=1.8.0",
     "requests>=2.33.1",
     "opencv-python>=4.13.0.92",
+    "pip>=26.0.1",
+    "pandas>=3.0.2",
 ]
 
 [dependency-groups]
