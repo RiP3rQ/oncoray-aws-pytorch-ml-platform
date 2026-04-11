@@ -2,13 +2,13 @@
 Trains a PyTorch image classification model using device-agnostic code.
 """
 
+import engine
+import model_builder
 import torch
+import utils
 from torchvision import transforms
 
 import data_setup
-import engine
-import model_builder
-import utils
 
 # Setup hyperparameters
 NUM_EPOCHS = 5

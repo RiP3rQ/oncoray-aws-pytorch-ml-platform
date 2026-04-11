@@ -1,7 +1,6 @@
 """
 Contains functions for training and testing a PyTorch model.
 """
-from typing import Dict, List, Tuple
 
 import torch
 from tqdm.auto import tqdm
@@ -11,7 +10,7 @@ def train_step(model: torch.nn.Module,
                dataloader: torch.utils.data.DataLoader,
                loss_fn: torch.nn.Module,
                optimizer: torch.optim.Optimizer,
-               device: torch.device) -> Tuple[float, float]:
+               device: torch.device) -> tuple[float, float]:
     """Trains a PyTorch model for a single epoch.
 
     Turns a target PyTorch model to training mode and then
@@ -71,7 +70,7 @@ def train_step(model: torch.nn.Module,
 def test_step(model: torch.nn.Module,
               dataloader: torch.utils.data.DataLoader,
               loss_fn: torch.nn.Module,
-              device: torch.device) -> Tuple[float, float]:
+              device: torch.device) -> tuple[float, float]:
     """Tests a PyTorch model for a single epoch.
 
     Turns a target PyTorch model to "eval" mode and then performs
@@ -125,7 +124,7 @@ def train(model: torch.nn.Module,
           optimizer: torch.optim.Optimizer,
           loss_fn: torch.nn.Module,
           epochs: int,
-          device: torch.device) -> Dict[str, List]:
+          device: torch.device) -> dict[str, list]:
     """Trains and tests a PyTorch model.
 
     Passes a target PyTorch models through train_step() and test_step()
