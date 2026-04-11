@@ -11,6 +11,7 @@ dependencies = [
     "tqdm>=4.67.3",
     "torchinfo>=1.8.0",
     "requests>=2.33.1",
+    "opencv-python>=4.13.0.92",
 ]
 
 [dependency-groups]
