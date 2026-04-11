@@ -7,6 +7,21 @@ import torch
 logger = logging.getLogger(__name__)
 
 
+def get_current_device() -> torch.device:
+    """Return the best available device (CUDA if available, else CPU).
+
+    Shorthand for :func:`resolve_device` with ``"auto"``.
+
+    Returns:
+        A :class:`torch.device` pointing to CUDA when available, otherwise CPU.
+
+    Example::
+
+        device = get_current_device()  # → cuda or cpu
+    """
+    return resolve_device("auto")
+
+
 def resolve_device(device: str | torch.device) -> torch.device:
     """Resolve ``"auto"`` to CUDA when available, else CPU.
 
