@@ -88,28 +88,26 @@ def download_data(
     return image_path
 
 
-class DataLoadersResult(TypedDict):
-    """Return type for :func:`create_dataloaders`.
+class DataLoaderResult(TypedDict):
+    """Return type for :func:`create_dataloader`.
 
     Attributes:
-        train_dataloader: DataLoader iterating over shuffled training batches.
-        test_dataloader: DataLoader iterating over ordered test batches.
+        dataloader: DataLoader iterating over batches from the dataset.
         class_names: Ordered list of class labels derived from subdirectory names.
     """
 
-    train_dataloader: DataLoader
-    test_dataloader: DataLoader
+    dataloader: DataLoader
     class_names: list[str]
 
 
-def create_dataloaders(
-    train_dir: str,
-    test_dir: str,
+def create_dataloader(
+    data_dir: str,
     transform: transforms.Compose,
     batch_size: int,
+    shuffle: bool = False,
     num_workers: int = NUM_WORKERS or 1,
-) -> DataLoadersResult:
-    """Create training and test DataLoaders from directory-structured image data.
+) -> DataLoaderResult:
+    """Create a single DataLoader from directory-structured image data.
 
     Expects data organised as::
 
@@ -120,50 +118,49 @@ def create_dataloaders(
     from subdirectory names.
 
     Args:
-        train_dir: Path to the training image directory.
-        test_dir: Path to the test image directory.
+        data_dir: Path to the image directory.
         transform: Torchvision transforms applied to every image.
         batch_size: Number of samples per batch.
+        shuffle: Whether to shuffle the data each epoch.
+            Use ``True`` for training, ``False`` for validation/testing.
+            Defaults to ``False``.
         num_workers: Subprocess count for data loading. Defaults to
             ``os.cpu_count()`` or 1.
 
     Returns:
-        A :class:`DataLoadersResult` dict with keys
-        ``"train_dataloader"``, ``"test_dataloader"``, and ``"class_names"``.
+        A :class:`DataLoaderResult` dict with keys
+        ``"dataloader"`` and ``"class_names"``.
 
     Example::
 
-        result = create_dataloaders(
-            train_dir="data/train",
-            test_dir="data/test",
-            transform=some_transform,
+        # Training loader (shuffled)
+        train_result = create_dataloader(
+            data_dir="data/train",
+            transform=train_transform,
             batch_size=32,
-            num_workers=4,
+            shuffle=True,
         )
-        train_dl = result["train_dataloader"]
+        train_dl = train_result["dataloader"]
+
+        # Test loader (ordered)
+        test_result = create_dataloader(
+            data_dir="data/test",
+            transform=test_transform,
+            batch_size=32,
+        )
+        test_dl = test_result["dataloader"]
     """
-    train_data = datasets.ImageFolder(root=train_dir, transform=transform)
-    test_data = datasets.ImageFolder(root=test_dir, transform=transform)
+    dataset = datasets.ImageFolder(root=data_dir, transform=transform)
 
-    class_names: list[str] = train_data.classes
-
-    train_dataloader = DataLoader(
-        train_data,
+    dataloader = DataLoader(
+        dataset,
         batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-    )
-    test_dataloader = DataLoader(
-        test_data,
-        batch_size=batch_size,
-        shuffle=False,
+        shuffle=shuffle,
         num_workers=num_workers,
         pin_memory=True,
     )
 
-    return DataLoadersResult(
-        train_dataloader=train_dataloader,
-        test_dataloader=test_dataloader,
-        class_names=class_names,
+    return DataLoaderResult(
+        dataloader=dataloader,
+        class_names=dataset.classes,
     )
