@@ -103,6 +103,30 @@
     line-height: 1.5;
   }
 
+  /* ── Dark scrollbar — warm near-black, no light flash ── */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-opencode-border-outline) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-opencode-border-outline);
+    border-radius: 3px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--color-opencode-mid-gray);
+  }
+
   ::selection {
     background-color: var(--color-opencode-accent-blue);
     color: #ffffff;
@@ -456,10 +480,21 @@
   transition: border-color var(--duration-fast) var(--ease-in-out);
 }
 
+.auth-form input::placeholder,
+.register-form input::placeholder {
+  color: var(--color-opencode-text-muted);
+  opacity: 1;
+}
+
 .dark .auth-form input,
 .dark .register-form input {
   background: var(--color-opencode-dark-surface);
   border-color: rgba(253, 252, 252, 0.12);
+}
+
+.dark .auth-form input::placeholder,
+.dark .register-form input::placeholder {
+  color: var(--color-opencode-mid-gray);
 }
 
 .auth-form input:focus,
@@ -469,6 +504,11 @@
 
 .register-form input:focus {
   border-color: var(--accent);
+}
+
+/* ── Checkbox accent in dark mode ── */
+.dark .checkbox input {
+  accent-color: var(--color-opencode-accent-blue);
 }
 
 .field-error {

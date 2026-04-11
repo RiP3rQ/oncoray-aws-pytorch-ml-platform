@@ -34,7 +34,7 @@ function DashboardInner() {
               <button
                 type="button"
                 onClick={logout}
-                className="flat-card px-4 py-2 text-sm font-mono transition-colors hover:opacity-80"
+                className="px-5 py-1 text-sm font-mono font-medium leading-[2] rounded border transition-colors duration-[var(--duration-fast)] bg-transparent border-[var(--color-opencode-border-outline)] text-[var(--color-opencode-mid-gray)] hover:border-[var(--color-opencode-accent-blue)] hover:text-[var(--color-opencode-light)] focus-visible:outline-2 focus-visible:outline-[var(--color-opencode-accent-blue)] focus-visible:outline-offset-2"
               >
                 Log out
               </button>

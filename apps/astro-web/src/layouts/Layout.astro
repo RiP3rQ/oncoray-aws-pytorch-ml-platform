@@ -14,7 +14,7 @@ const {
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -24,6 +24,13 @@ const {
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
+
+		<!-- Prevent FOUC: ensure dark class is set before paint -->
+		<script is:inline>
+			if (!document.documentElement.classList.contains('dark')) {
+				document.documentElement.classList.add('dark');
+			}
+		</script>
 
 		<!-- Preload critical fonts (IBM Plex Mono — Berkeley Mono open-source fallback) -->
 		<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
