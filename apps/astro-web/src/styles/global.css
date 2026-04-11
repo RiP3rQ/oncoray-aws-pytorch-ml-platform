@@ -1,48 +1,61 @@
 /* ============================================================
-   OncoRay — Global Styles & Design Token Overrides
+   OncoRay — Global Styles (OpenCode Design System)
+   
+   Design system: terminal-native, monospace-first, warm darks,
+   flat surfaces, no shadows, no gradients, no blur.
    ============================================================ */
 
-/* Shared shadcn/zag design system */
+/* Shared OpenCode design system tokens */
 @import "@repo/ui/globals.css";
 
 /* ============================================================
-   Font Faces — Syne (headings) + Inter (body)
+   Font — IBM Plex Mono (Berkeley Mono fallback)
+   Berkeley Mono is the primary; IBM Plex Mono is the
+   open-source fallback with nearly identical metrics.
    ============================================================ */
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/syne";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/700.css";
 
 /* ============================================================
-   Design Token Overrides — OncoRay Medical AI Theme
+   Design Token Overrides — OpenCode Terminal Aesthetic
    ============================================================ */
 :root {
-  /* ── Radius ── */
-  --radius: 0.75rem;
+  /* ── Radius: 4px default, 6px for inputs ── */
+  --radius: 0.25rem;
 
-  /* ── Font overrides ── */
-  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Inter Variable", system-ui, -apple-system, sans-serif;
-  --font-heading: "Syne", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  /* ── Font overrides: monospace everywhere ── */
+  --font-display:
+    "Berkeley Mono", "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Monaco, Consolas, monospace;
+  --font-body:
+    "Berkeley Mono", "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Monaco, Consolas, monospace;
+  --font-heading:
+    "Berkeley Mono", "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Monaco, Consolas, monospace;
+  --font-mono:
+    "Berkeley Mono", "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Monaco, Consolas, monospace;
 
-  /* ── App-specific semantic tokens ──
-     These bridge the gap between the shared zag theme
-     and classes used throughout OncoRay components. */
+  /* ── App-specific semantic tokens ── */
   --text: var(--foreground);
   --muted: var(--muted-foreground);
   --line: var(--border);
-  --accent: oklch(0.72 0.14 200);
-  --accent-warm: oklch(0.72 0.16 28);
 
-  /* ── Glass morphism ── */
-  --glass-bg: rgba(255, 255, 255, 0.04);
-  --glass-blur: 20px;
-  --glass-border: rgba(255, 255, 255, 0.08);
+  /* ── OpenCode accent ── */
+  --accent: var(--color-opencode-accent-blue);
+  --accent-hover: var(--color-opencode-accent-blue-hover);
+  --accent-active: var(--color-opencode-accent-blue-active);
 
-  /* ── Surface levels ── */
-  --surface-raised: rgba(255, 255, 255, 0.06);
-  --surface-overlay: rgba(0, 0, 0, 0.4);
+  /* ── OpenCode semantic ── */
+  --danger: var(--color-opencode-danger);
+  --danger-hover: var(--color-opencode-danger-hover);
+  --danger-active: var(--color-opencode-danger-active);
+  --success: var(--color-opencode-success);
+  --warning: var(--color-opencode-warning);
 
-  /* ── Spacing scale (for layout) ── */
+  /* ── Spacing scale (8px base) ── */
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
   --space-md: 1rem;
@@ -51,10 +64,10 @@
   --space-2xl: 3rem;
   --space-3xl: 4rem;
 
-  /* ── Animation ── */
-  --duration-fast: 150ms;
-  --duration-normal: 250ms;
-  --duration-slow: 400ms;
+  /* ── Animation: minimal, terminal-inspired ── */
+  --duration-fast: 120ms;
+  --duration-normal: 150ms;
+  --duration-slow: 250ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -63,15 +76,14 @@
   --text: var(--foreground);
   --muted: var(--muted-foreground);
   --line: var(--border);
-  --accent: oklch(0.79 0.146 162.48);
-  --accent-warm: oklch(0.75 0.14 28);
-
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-blur: 24px;
-  --glass-border: rgba(255, 255, 255, 0.06);
-
-  --surface-raised: rgba(255, 255, 255, 0.05);
-  --surface-overlay: rgba(0, 0, 0, 0.6);
+  --accent: var(--color-opencode-accent-blue);
+  --accent-hover: var(--color-opencode-accent-blue-hover);
+  --accent-active: var(--color-opencode-accent-blue-active);
+  --danger: var(--color-opencode-danger);
+  --danger-hover: var(--color-opencode-danger-hover);
+  --danger-active: var(--color-opencode-danger-active);
+  --success: var(--color-opencode-success);
+  --warning: var(--color-opencode-warning);
 }
 
 /* ============================================================
@@ -88,19 +100,18 @@
   body {
     background: var(--background);
     color: var(--text);
-    font-family: var(--font-body);
+    font-family: var(--font-mono);
     min-height: 100dvh;
-    line-height: 1.6;
+    line-height: 1.5;
   }
 
   ::selection {
-    background-color: var(--accent);
-    color: oklch(0.15 0 0);
+    background-color: var(--color-opencode-accent-blue);
+    color: #ffffff;
   }
 
-  /* Remove default focus outlines; custom rings added per-component */
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--color-opencode-accent-blue);
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -119,48 +130,45 @@
   padding: var(--space-lg) var(--space-lg);
 }
 
-/* Inner frame — constrains content width */
+/* Inner frame — constrains content width to ~800-900px (OpenCode spec) */
 .frame {
   width: 100%;
-  max-width: 1080px;
+  max-width: 56rem; /* 896px — narrow, reading-optimized per OpenCode */
 }
 
 /* ============================================================
-   Glass Morphism — .glass-card
-   Frosted-glass card used across dashboard & auth pages
+   Flat Card — replaces glass-card
+   OpenCode: flat borders, no shadows, no blur
    ============================================================ */
-.glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  border-radius: calc(var(--radius) * 2.5);
-  transition:
-    background var(--duration-fast) var(--ease-in-out),
-    border-color var(--duration-fast) var(--ease-in-out),
-    box-shadow var(--duration-fast) var(--ease-in-out);
+.flat-card {
+  background: var(--color-opencode-dark-surface);
+  border: 1px solid var(--color-opencode-border-warm);
+  border-radius: 4px;
+  transition: border-color var(--duration-fast) var(--ease-in-out);
 }
 
-.glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 8px 32px rgba(0, 0, 0, 0.18);
+.dark .flat-card {
+  background: var(--color-opencode-dark-surface);
+  border-color: rgba(253, 252, 252, 0.12);
+}
+
+.flat-card:hover {
+  border-color: var(--color-opencode-border-outline);
 }
 
 /* ============================================================
-   Typography Utilities
+   Typography Utilities — OpenCode monospace hierarchy
    ============================================================ */
 
-/* Uppercase micro-label used for section headings */
+/* Uppercase micro-label for section headings */
 .section-label {
   margin: 0;
   color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  font-family: var(--font-heading);
+  font-family: var(--font-mono);
 }
 
 /* Small eyebrow above headlines */
@@ -168,63 +176,67 @@
   display: block;
   margin-bottom: var(--space-sm);
   color: var(--accent);
-  font-size: 0.72rem;
+  font-size: 0.875rem;
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  font-family: var(--font-heading);
+  font-family: var(--font-mono);
 }
 
-/* Bold display headline */
+/* Primary heading — 38px/700 per OpenCode H1 */
 .headline {
   margin: 0;
-  font-family: var(--font-heading);
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 800;
-  line-height: 0.98;
-  letter-spacing: -0.04em;
+  font-family: var(--font-mono);
+  font-size: clamp(1.5rem, 5vw, 2.375rem);
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0;
   color: var(--text);
 }
 
-/* Supporting paragraph below headline */
+/* Supporting paragraph — 16px/400 per OpenCode body */
 .lede {
   margin-top: var(--space-md);
   color: var(--muted);
-  font-size: 0.95rem;
-  line-height: 1.7;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
   max-width: 42ch;
+  font-family: var(--font-mono);
 }
 
 /* Brand text in topbar */
 .brand {
   margin: 0;
-  font-family: var(--font-heading);
-  font-size: 1.15rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
   color: var(--text);
 }
 
 .topnote {
   margin: 2px 0 0;
   color: var(--muted);
-  font-size: 0.68rem;
-  letter-spacing: 0.16em;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0;
   text-transform: uppercase;
+  font-family: var(--font-mono);
+  line-height: 1;
 }
 
 /* ============================================================
-   Animations
+   Animations — minimal, terminal-inspired
    ============================================================ */
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(24px) scale(0.98);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -246,22 +258,12 @@
   }
 }
 
-@keyframes pulse-glow {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 .animate-rise {
-  animation: rise var(--duration-slow) var(--ease-out) both;
+  animation: rise var(--duration-normal) var(--ease-out) both;
 }
 
 .animate-fade-in {
-  animation: fade-in var(--duration-normal) var(--ease-in-out) both;
+  animation: fade-in var(--duration-fast) var(--ease-in-out) both;
 }
 
 .delay-1 {
@@ -275,13 +277,13 @@
 }
 
 /* ============================================================
-   Skeleton Loader
+   Skeleton Loader — flat, no gradients
    ============================================================ */
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: var(--surface-raised);
-  border-radius: var(--radius);
+  background: var(--color-opencode-dark-surface);
+  border-radius: 4px;
   color: transparent !important;
 }
 
@@ -289,13 +291,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.06) 50%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
+  background: rgba(253, 252, 252, 0.04);
   animation: shimmer 1.8s var(--ease-in-out) infinite;
 }
 
@@ -305,7 +301,7 @@
 .auth-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(360px, 460px);
-  gap: 28px;
+  gap: 24px;
   align-items: center;
   min-height: calc(100dvh - var(--space-3xl));
 }
@@ -313,165 +309,178 @@
 .register-layout {
   display: grid;
   grid-template-columns: minmax(360px, 470px) minmax(0, 1fr);
-  gap: 30px;
+  gap: 24px;
   align-items: center;
   min-height: calc(100dvh - var(--space-3xl));
 }
 
 .auth-card {
   padding: 28px;
-  border-radius: calc(var(--radius) * 2.5);
+  border-radius: 4px;
 }
 
 .register-card {
-  padding: 30px;
-  border-radius: calc(var(--radius) * 2.5);
+  padding: 28px;
+  border-radius: 4px;
 }
 
 .card-top h2 {
   margin: 8px 0 0;
-  font-family: var(--font-heading);
-  font-size: clamp(2rem, 5vw, 2.7rem);
-  line-height: 0.98;
-  letter-spacing: -0.05em;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0;
 }
 
 .card-header h1 {
   margin: 10px 0 14px;
-  font-family: var(--font-heading);
-  font-size: clamp(2.2rem, 5vw, 3.2rem);
-  line-height: 0.95;
-  letter-spacing: -0.06em;
+  font-family: var(--font-mono);
+  font-size: clamp(1.5rem, 5vw, 2.375rem);
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0;
 }
 
 .card-header p:last-child {
   margin: 0;
   color: var(--muted);
-  line-height: 1.7;
+  line-height: 1.5;
+  font-family: var(--font-mono);
 }
 
-/* ── Signal strip (auth page feature callouts) ── */
+/* ── Signal strip (auth page feature callouts) — flat bordered rows ── */
 .signal-strip {
-  display: grid;
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   margin-top: var(--space-xl);
 }
 
 .signal-strip div {
-  padding: 18px 20px;
-  border-radius: calc(var(--radius) * 2);
-  background: var(--surface-raised);
-  border: 1px solid var(--line);
-  transition:
-    border-color var(--duration-fast) var(--ease-in-out),
-    background var(--duration-fast) var(--ease-in-out);
+  padding: 16px 20px;
+  border-radius: 4px;
+  background: var(--color-opencode-dark-surface);
+  border: 1px solid var(--color-opencode-border-warm);
+  transition: border-color var(--duration-fast) var(--ease-in-out);
+}
+
+.dark .signal-strip div {
+  background: var(--color-opencode-dark-surface);
+  border-color: rgba(253, 252, 252, 0.12);
 }
 
 .signal-strip div:hover {
-  border-color: var(--accent);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--color-opencode-border-outline);
 }
 
 .signal-strip strong {
-  font-family: var(--font-heading);
+  font-family: var(--font-mono);
+  font-weight: 700;
 }
 
 .signal-strip span {
   display: block;
-  margin-top: 6px;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
-/* ── Feature grid (register page) ── */
+/* ── Feature grid (register page) — flat bordered cards ── */
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
-  margin-top: 34px;
+  margin-top: 24px;
 }
 
 .feature-grid div {
   padding: 20px;
-  border-radius: calc(var(--radius) * 2);
-  border: 1px solid var(--line);
-  background: var(--surface-raised);
-  transition:
-    border-color var(--duration-fast) var(--ease-in-out),
-    background var(--duration-fast) var(--ease-in-out);
+  border-radius: 4px;
+  border: 1px solid var(--color-opencode-border-warm);
+  background: var(--color-opencode-dark-surface);
+  transition: border-color var(--duration-fast) var(--ease-in-out);
+}
+
+.dark .feature-grid div {
+  background: var(--color-opencode-dark-surface);
+  border-color: rgba(253, 252, 252, 0.12);
 }
 
 .feature-grid div:hover {
-  border-color: var(--accent-warm);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--color-opencode-border-outline);
 }
 
 .feature-grid strong {
-  font-family: var(--font-heading);
+  font-family: var(--font-mono);
+  font-weight: 700;
 }
 
 .feature-grid span {
   display: block;
-  margin-top: 8px;
+  margin-top: 6px;
   color: var(--muted);
-  line-height: 1.6;
+  line-height: 1.5;
+  font-size: 0.875rem;
 }
 
 /* ── Form styles (global for both login & register) ── */
 .auth-form,
 .register-form {
   display: grid;
-  gap: 18px;
-  margin-top: 26px;
+  gap: 16px;
+  margin-top: 24px;
 }
 
 .auth-form label span,
 .register-form label span {
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 500;
+  font-family: var(--font-mono);
+  line-height: 1;
 }
 
 .auth-form input,
 .register-form input {
   width: 100%;
-  padding: 14px 18px;
-  border: 1px solid var(--line);
-  border-radius: calc(var(--radius) * 1.6);
-  background: var(--surface-raised);
+  padding: 20px;
+  border: 1px solid var(--color-opencode-border-warm);
+  border-radius: 6px;
+  background: var(--color-opencode-input-bg);
   color: var(--text);
-  font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-family: var(--font-mono);
+  font-size: 1rem;
   outline: none;
-  transition:
-    border-color var(--duration-fast) var(--ease-in-out),
-    background var(--duration-fast) var(--ease-in-out),
-    transform var(--duration-fast) var(--ease-in-out),
-    box-shadow var(--duration-fast) var(--ease-in-out);
+  transition: border-color var(--duration-fast) var(--ease-in-out);
+}
+
+.dark .auth-form input,
+.dark .register-form input {
+  background: var(--color-opencode-dark-surface);
+  border-color: rgba(253, 252, 252, 0.12);
 }
 
 .auth-form input:focus,
 .register-form input:focus {
   border-color: var(--accent);
-  background: rgba(142, 226, 255, 0.06);
-  box-shadow: 0 0 0 3px rgba(142, 226, 255, 0.12);
-  transform: translateY(-1px);
 }
 
 .register-form input:focus {
-  border-color: var(--accent-warm);
-  background: rgba(255, 132, 104, 0.06);
-  box-shadow: 0 0 0 3px rgba(255, 132, 104, 0.12);
+  border-color: var(--accent);
 }
 
 .field-error {
   display: block;
-  margin-top: 6px;
-  font-size: 0.8rem;
-  color: #f87171;
+  margin-top: 4px;
+  font-size: 0.875rem;
+  color: var(--danger);
   font-weight: 500;
+  font-family: var(--font-mono);
+  line-height: 2;
 }
 
 .form-footer {
@@ -484,7 +493,9 @@
 .form-footer a,
 .checkbox span {
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.875rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
   transition: color var(--duration-fast) var(--ease-in-out);
 }
 
@@ -495,39 +506,37 @@
 .checkbox {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .checkbox input {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   margin: 0;
   accent-color: var(--accent);
 }
 
+/* ── Buttons: OpenCode dark fill style (4px 20px, 4px radius) ── */
 .auth-form button {
-  padding: 16px 18px;
+  padding: 4px 20px;
   border: 0;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent) 0%, #b8e6ff 100%);
-  color: #04111b;
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 0.95rem;
+  border-radius: 4px;
+  background: var(--color-opencode-dark);
+  color: var(--color-opencode-light);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 2;
   cursor: pointer;
-  transition:
-    transform var(--duration-fast) var(--ease-in-out),
-    box-shadow var(--duration-fast) var(--ease-in-out),
-    opacity var(--duration-fast) var(--ease-in-out);
+  transition: background var(--duration-fast) var(--ease-in-out);
 }
 
 .auth-form button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(142, 226, 255, 0.3);
+  background: var(--color-opencode-border-outline);
 }
 
 .auth-form button:active:not(:disabled) {
-  transform: translateY(0);
+  background: var(--color-opencode-mid-gray);
 }
 
 .auth-form button:disabled {
@@ -535,29 +544,35 @@
   cursor: not-allowed;
 }
 
+.dark .auth-form button {
+  background: var(--color-opencode-light);
+  color: var(--color-opencode-dark);
+}
+
+.dark .auth-form button:hover:not(:disabled) {
+  background: var(--color-opencode-mid-gray);
+}
+
 .register-form button {
-  padding: 16px 18px;
+  padding: 4px 20px;
   border: 0;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent-warm) 0%, #ffd3c9 100%);
-  color: #1f0d08;
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 0.95rem;
+  border-radius: 4px;
+  background: var(--color-opencode-dark);
+  color: var(--color-opencode-light);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 2;
   cursor: pointer;
-  transition:
-    transform var(--duration-fast) var(--ease-in-out),
-    box-shadow var(--duration-fast) var(--ease-in-out),
-    opacity var(--duration-fast) var(--ease-in-out);
+  transition: background var(--duration-fast) var(--ease-in-out);
 }
 
 .register-form button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(255, 132, 104, 0.3);
+  background: var(--color-opencode-border-outline);
 }
 
 .register-form button:active:not(:disabled) {
-  transform: translateY(0);
+  background: var(--color-opencode-mid-gray);
 }
 
 .register-form button:disabled {
@@ -565,21 +580,35 @@
   cursor: not-allowed;
 }
 
+.dark .register-form button {
+  background: var(--color-opencode-light);
+  color: var(--color-opencode-dark);
+}
+
+.dark .register-form button:hover:not(:disabled) {
+  background: var(--color-opencode-mid-gray);
+}
+
 .footnote {
   display: flex;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 8px;
+  margin-top: 16px;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.875rem;
+  font-family: var(--font-mono);
+  line-height: 2;
 }
 
 .footnote a {
   color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
   transition: color var(--duration-fast) var(--ease-in-out);
 }
 
 .footnote a:hover {
-  color: var(--accent-warm);
+  color: var(--accent);
 }
 
 /* ============================================================
@@ -589,8 +618,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 22px;
-  border-radius: calc(var(--radius) * 2.5);
+  padding: 16px 20px;
+  border-radius: 4px;
+  border: 1px solid var(--color-opencode-border-warm);
+  background: var(--color-opencode-dark-surface);
+}
+
+.dark .topbar {
+  background: var(--color-opencode-dark-surface);
+  border-color: rgba(253, 252, 252, 0.12);
 }
 
 .app-frame {
@@ -601,7 +637,7 @@
 }
 
 /* ============================================================
-   Dropzone (Image Upload)
+   Dropzone (Image Upload) — flat borders, no gradients
    ============================================================ */
 .dropzone-shell {
   display: flex;
@@ -617,31 +653,29 @@
   justify-content: center;
   min-height: 260px;
   padding: var(--space-2xl);
-  border: 2px dashed var(--line);
-  border-radius: calc(var(--radius) * 2.5);
-  background: var(--surface-raised);
+  border: 1px solid var(--color-opencode-border-warm);
+  border-radius: 4px;
+  background: var(--color-opencode-dark-surface);
   cursor: pointer;
-  transition:
-    border-color var(--duration-fast) var(--ease-in-out),
-    background var(--duration-fast) var(--ease-in-out),
-    transform var(--duration-fast) var(--ease-in-out);
-  overflow: hidden;
+  transition: border-color var(--duration-fast) var(--ease-in-out);
+}
+
+.dark .dropzone {
+  background: var(--color-opencode-dark-surface);
+  border-color: rgba(253, 252, 252, 0.12);
 }
 
 .dropzone:hover {
-  border-color: var(--accent);
-  background: rgba(142, 226, 255, 0.04);
+  border-color: var(--color-opencode-border-outline);
 }
 
 .dropzone.is-dragging {
   border-color: var(--accent);
-  background: rgba(142, 226, 255, 0.08);
-  transform: scale(1.01);
 }
 
 .dropzone.has-file {
   border-style: solid;
-  border-color: oklch(0.72 0.14 145);
+  border-color: var(--success);
 }
 
 .dropzone input[type="file"] {
@@ -661,25 +695,28 @@
 .dropzone-kicker {
   margin: 0 0 4px;
   color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-family: var(--font-heading);
+  font-family: var(--font-mono);
+  line-height: 1;
 }
 
 .dropzone-copy h2 {
   margin: 0;
-  font-family: var(--font-heading);
-  font-size: 1.2rem;
+  font-family: var(--font-mono);
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text);
+  line-height: 1.5;
 }
 
 .dropzone-copy p {
   margin: var(--space-sm) 0 0;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 .dropzone-actions {
@@ -687,25 +724,35 @@
   z-index: 1;
 }
 
+/* OpenCode-style button: dark bg, light text, 4px radius, 4px 20pxpadding */
 .dropzone-button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
-  border-radius: 999px;
-  background: var(--surface-raised);
-  border: 1px solid var(--line);
-  color: var(--text);
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition:
-    background var(--duration-fast) var(--ease-in-out),
-    border-color var(--duration-fast) var(--ease-in-out);
+  padding: 4px 20px;
+  border-radius: 4px;
+  background: var(--color-opencode-dark);
+  border: 1px solid var(--color-opencode-border-outline);
+  color: var(--color-opencode-light);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 2;
+  transition: background var(--duration-fast) var(--ease-in-out);
+}
+
+.dark .dropzone-button {
+  background: var(--color-opencode-light);
+  color: var(--color-opencode-dark);
+  border-color: var(--color-opencode-mid-gray);
+}
+
+.dark .dropzone-button:hover {
+  background: var(--color-opencode-mid-gray);
 }
 
 .dropzone:hover .dropzone-button {
-  background: rgba(142, 226, 255, 0.08);
-  border-color: var(--accent);
+  background: var(--color-opencode-border-outline);
 }
 
 .dropzone-preview {
@@ -722,7 +769,7 @@
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: var(--radius);
+  border-radius: 4px;
   opacity: 0.3;
   filter: blur(2px);
 }
@@ -739,34 +786,41 @@
 .dropzone-placeholder div {
   width: 120px;
   height: 120px;
-  border: 3px solid var(--muted);
-  border-radius: var(--radius);
+  border: 1px solid var(--muted);
+  border-radius: 4px;
 }
 
 .dropzone-placeholder div + div {
   position: absolute;
   width: 60px;
   height: 60px;
-  border: 3px solid var(--muted);
-  border-radius: var(--radius);
+  border: 1px solid var(--muted);
+  border-radius: 4px;
 }
 
 .dropzone-meta {
   display: flex;
   align-items: center;
   gap: var(--space-lg);
-  padding: 14px 18px;
-  border-radius: calc(var(--radius) * 2);
-  background: var(--surface-raised);
-  border: 1px solid var(--line);
-  font-size: 0.85rem;
+  padding: 14px 20px;
+  border-radius: 4px;
+  background: var(--color-opencode-dark-surface);
+  border: 1px solid var(--color-opencode-border-warm);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.dark .dropzone-meta {
+  background: var(--color-opencode-dark-surface);
+  border-color: rgba(253, 252, 252, 0.12);
 }
 
 .dropzone-meta span {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  line-height: 1;
 }
 
 .dropzone-meta strong {
@@ -777,13 +831,14 @@
 
 .dropzone-meta button {
   margin-left: auto;
-  padding: 8px 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(248, 113, 113, 0.3);
-  background: rgba(248, 113, 113, 0.08);
-  color: #f87171;
-  font-size: 0.82rem;
-  font-weight: 600;
+  padding: 4px 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  background: rgba(255, 59, 48, 0.08);
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
   transition:
     background var(--duration-fast) var(--ease-in-out),
@@ -791,46 +846,56 @@
 }
 
 .dropzone-meta button:hover {
-  background: rgba(248, 113, 113, 0.15);
-  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(255, 59, 48, 0.15);
+  border-color: var(--danger);
 }
 
 .dropzone-upload-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 14px 28px;
+  padding: 4px 20px;
   border: 0;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent) 0%, #b8e6ff 100%);
-  color: #04111b;
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 0.9rem;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.875rem;
+  line-height: 2;
   cursor: pointer;
-  transition:
-    transform var(--duration-fast) var(--ease-in-out),
-    box-shadow var(--duration-fast) var(--ease-in-out);
+  transition: background var(--duration-fast) var(--ease-in-out);
 }
 
 .dropzone-upload-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(142, 226, 255, 0.3);
+  background: var(--accent-hover);
+}
+
+.dropzone-upload-btn:active {
+  background: var(--accent-active);
 }
 
 .dropzone-error {
-  color: #f87171;
-  font-size: 0.85rem;
+  color: var(--danger);
+  font-size: 0.875rem;
   font-weight: 500;
+  font-family: var(--font-mono);
 }
 
 /* ============================================================
-   Prediction Result
+   Prediction Result — flat bordered rows
    ============================================================ */
 .prediction-card {
   padding: 24px;
   margin-top: 20px;
-  border-radius: calc(var(--radius) * 2.5);
+  border-radius: 4px;
+  border: 1px solid var(--color-opencode-border-warm);
+  background: var(--color-opencode-dark-surface);
+}
+
+.dark .prediction-card {
+  background: var(--color-opencode-dark-surface);
+  border-color: rgba(253, 252, 252, 0.12);
 }
 
 .prediction-grid {
@@ -842,37 +907,42 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 18px;
-  border-radius: calc(var(--radius) * 1.6);
-  border: 1px solid var(--line);
-  background: var(--surface-raised);
-  transition:
-    border-color var(--duration-fast) var(--ease-in-out),
-    background var(--duration-fast) var(--ease-in-out);
+  padding: 16px 20px;
+  border-radius: 4px;
+  border: 1px solid var(--color-opencode-border-warm);
+  background: var(--color-opencode-dark-surface);
+  transition: border-color var(--duration-fast) var(--ease-in-out);
+}
+
+.dark .prediction-row {
+  background: var(--color-opencode-dark-surface);
+  border-color: rgba(253, 252, 252, 0.12);
 }
 
 .prediction-row:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--color-opencode-border-outline);
 }
 
 .prediction-label {
   color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  line-height: 1;
 }
 
 .prediction-value {
   font-size: 1rem;
   font-weight: 700;
   color: var(--text);
+  font-family: var(--font-mono);
 }
 
 .prediction-value.mono {
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
@@ -884,15 +954,19 @@
 
 .confidence-bar {
   flex: 1;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--surface-raised);
+  height: 4px;
+  border-radius: 4px;
+  background: var(--color-opencode-border-warm);
   overflow: hidden;
+}
+
+.dark .confidence-bar {
+  background: rgba(253, 252, 252, 0.12);
 }
 
 .confidence-bar-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: 4px;
   transition: width var(--duration-slow) var(--ease-out);
 }
 
@@ -913,11 +987,11 @@
 
 @media (max-width: 640px) {
   .auth-card {
-    padding: 22px 18px;
+    padding: 20px 16px;
   }
 
   .register-card {
-    padding: 22px 18px;
+    padding: 20px 16px;
   }
 
   .form-footer {
@@ -927,5 +1001,9 @@
 
   .feature-grid {
     grid-template-columns: 1fr;
+  }
+
+  .headline {
+    font-size: 1.5rem;
   }
 }
