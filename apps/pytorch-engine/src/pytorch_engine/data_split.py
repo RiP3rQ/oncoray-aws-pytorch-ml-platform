@@ -97,6 +97,32 @@ def split_csv_metadata(
         candidates=IMAGE_ID_COLUMN_CANDIDATES,
     )
     df, resolved_label_col = _maybe_create_label_column(df, label_col)
+    df[resolved_image_id_col] = df[resolved_image_id_col].astype(str).str.strip()
+    df = df[df[resolved_image_id_col] != ""].copy()
+
+    conflicting_ids = (
+        df.groupby(resolved_image_id_col)[resolved_label_col]
+        .nunique(dropna=True)
+        .loc[lambda unique_counts: unique_counts > 1]
+        .index
+    )
+    conflicting_count = len(conflicting_ids)
+    if conflicting_count:
+        logger.warning(
+            "Dropping %d image ids with conflicting duplicate labels before split.",
+            conflicting_count,
+        )
+        df = df.loc[~df[resolved_image_id_col].isin(conflicting_ids)].copy()
+
+    duplicate_mask = df.duplicated(subset=[resolved_image_id_col], keep="first")
+    duplicate_count = int(duplicate_mask.sum())
+    if duplicate_count:
+        logger.warning(
+            "Dropping %d duplicate rows before split using image id column '%s'.",
+            duplicate_count,
+            resolved_image_id_col,
+        )
+        df = df.loc[~duplicate_mask].copy()
 
     original_len = len(df)
     logger.info("Loaded CSV with %d rows from '%s'", original_len, csv_path)

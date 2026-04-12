@@ -89,8 +89,20 @@ def _maybe_create_label_column(df: pd.DataFrame, label_col: str | None) -> tuple
             f"Could not infer label column. Provide label_col or include one of {LABEL_COLUMN_CANDIDATES} in CSV."
         )
 
+    numeric_one_hot = df[one_hot_columns].apply(pd.to_numeric, errors="coerce").fillna(0.0)
+    active_per_row = (numeric_one_hot > 0.5).sum(axis=1)
+    valid_mask = active_per_row == 1
+    invalid_rows = int((~valid_mask).sum())
+    if invalid_rows > 0:
+        logger.warning(
+            "Dropping %d rows with invalid one-hot labels (need exactly one active class).",
+            invalid_rows,
+        )
+        df = df[valid_mask].copy()
+        numeric_one_hot = numeric_one_hot.loc[df.index]
+
     df = df.copy()
-    df["label"] = df[one_hot_columns].astype(float).idxmax(axis=1)
+    df["label"] = numeric_one_hot.idxmax(axis=1).astype(str).str.lower()
     return df, "label"
 
 
@@ -99,6 +111,57 @@ def _to_image_filename(image_id: Any, file_extension: str) -> str:
     if Path(image_id_str).suffix:
         return image_id_str
     return f"{image_id_str}{file_extension}"
+
+
+def _sanitize_dataset_dataframe(
+    df: pd.DataFrame,
+    image_id_col: str,
+    label_col: str,
+    image_dir: Path,
+    file_extension: str,
+) -> pd.DataFrame:
+    sanitized = df.copy()
+    sanitized[image_id_col] = sanitized[image_id_col].astype(str).str.strip()
+    sanitized = sanitized[sanitized[image_id_col] != ""].copy()
+
+    conflicting_ids = (
+        sanitized.groupby(image_id_col)[label_col]
+        .nunique(dropna=True)
+        .loc[lambda unique_counts: unique_counts > 1]
+        .index
+    )
+    conflicting_count = len(conflicting_ids)
+    if conflicting_count:
+        logger.warning(
+            "Dropping %d image ids with conflicting duplicate labels.",
+            conflicting_count,
+        )
+        sanitized = sanitized[~sanitized[image_id_col].isin(conflicting_ids)].copy()
+
+    duplicate_mask = sanitized.duplicated(subset=[image_id_col], keep="first")
+    duplicate_count = int(duplicate_mask.sum())
+    if duplicate_count:
+        logger.warning(
+            "Dropping %d duplicate rows by image id column '%s'.",
+            duplicate_count,
+            image_id_col,
+        )
+        sanitized = sanitized.loc[~duplicate_mask].copy()
+
+    sanitized["__image_filename__"] = sanitized[image_id_col].map(
+        lambda value: _to_image_filename(value, file_extension)
+    )
+    existing_mask = sanitized["__image_filename__"].map(lambda filename: (image_dir / filename).is_file())
+    missing_count = int((~existing_mask).sum())
+    if missing_count:
+        logger.warning(
+            "Dropping %d rows because image file is missing under '%s'.",
+            missing_count,
+            image_dir,
+        )
+        sanitized = sanitized.loc[existing_mask].copy()
+
+    return sanitized.drop(columns=["__image_filename__"])
 
 
 class CSVDataset(Dataset):
@@ -167,6 +230,16 @@ class CSVDataset(Dataset):
         )
         self.dataframe, self.label_col = _maybe_create_label_column(loaded_df, label_col)
 
+        self.dataframe = _sanitize_dataset_dataframe(
+            df=self.dataframe,
+            image_id_col=self.image_id_col,
+            label_col=self.label_col,
+            image_dir=self.image_dir,
+            file_extension=self.file_extension,
+        ).reset_index(drop=True)
+        if self.dataframe.empty:
+            raise ValueError("No valid rows left after sanitizing CSV dataset.")
+
         # Build sorted class list and class-to-index mapping
         unique_labels = sorted(self.dataframe[self.label_col].astype(str).unique().tolist())
         self._class_names: list[str] = unique_labels
@@ -208,24 +281,30 @@ class CSVDataset(Dataset):
             A tuple ``(image, label_index)`` where *image* is a transformed
             image tensor and *label_index* is the integer class index.
         """
-        row = self.dataframe.iloc[index]
-        label_value = str(row[self.label_col])
+        max_attempts = len(self.dataframe)
+        for attempt in range(max_attempts):
+            row = self.dataframe.iloc[(index + attempt) % max_attempts]
+            label_value = str(row[self.label_col])
+            image_filename = _to_image_filename(row[self.image_id_col], self.file_extension)
+            image_path = self.image_dir / image_filename
 
-        image_filename = _to_image_filename(row[self.image_id_col], self.file_extension)
-        image_path = self.image_dir / image_filename
-        if not image_path.is_file():
-            raise FileNotFoundError(f"Image file not found: {image_path}")
-        image = Image.open(image_path).convert("RGB")
+            if not image_path.is_file():
+                logger.warning("Missing image at load time, skipping row: %s", image_path)
+                continue
 
-        if self.transform is not None:
-            image = self.transform(image)
-        else:
-            from torchvision.transforms import ToTensor
+            image = Image.open(image_path).convert("RGB")
 
-            image = ToTensor()(image)
+            if self.transform is not None:
+                image = self.transform(image)
+            else:
+                from torchvision.transforms import ToTensor
 
-        label_index = self._class_to_idx[label_value]
-        return image, label_index
+                image = ToTensor()(image)
+
+            label_index = self._class_to_idx[label_value]
+            return image, label_index
+
+        raise FileNotFoundError("Could not load any image from dataset rows. Verify image directory and CSV paths.")
 
 
 def create_csv_dataloader(

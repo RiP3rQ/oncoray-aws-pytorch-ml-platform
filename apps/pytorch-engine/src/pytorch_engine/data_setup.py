@@ -3,6 +3,7 @@
 import logging
 import os
 import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 from typing import TypedDict
@@ -14,6 +15,70 @@ from torchvision import datasets, transforms
 NUM_WORKERS: int | None = os.cpu_count()
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_KAGGLE_HAM10000_URL = (
+    "https://www.kaggle.com/api/v1/datasets/download/surajghuwalewala/ham1000-segmentation-and-classification"
+)
+
+
+def download_with_curl(
+    url: str,
+    output_path: str | Path,
+) -> Path:
+    """Download file from internet using curl."""
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    command = ["curl", "-L", "-o", str(output), url]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            raise RuntimeError(
+                "curl download failed. "
+                f"Command: {' '.join(command)}\n"
+                f"stderr: {result.stderr.strip()}\n"
+                "Ensure Kaggle API authentication is configured."
+            )
+    except FileNotFoundError:
+        logger.warning("curl not found in PATH. Falling back to requests download.")
+        response = requests.get(url, timeout=120)
+        if response.status_code != 200:
+            raise RuntimeError(
+                "HTTP download failed. "
+                f"status={response.status_code} url={url}. "
+                "Ensure Kaggle API authentication is configured."
+            ) from None
+        output.write_bytes(response.content)
+
+    return output
+
+
+def download_and_prepare_kaggle_ham10000_dataset(
+    destination: str | Path,
+    download_url: str = DEFAULT_KAGGLE_HAM10000_URL,
+    zip_name: str = "ham1000-segmentation-and-classification.zip",
+    remove_masks_dir: bool = True,
+    remove_zip: bool = True,
+) -> Path:
+    """Download HAM10000 Kaggle dataset zip from internet, extract, clean masks."""
+    destination_path = Path(destination)
+    destination_path.mkdir(parents=True, exist_ok=True)
+    zip_path = destination_path / zip_name
+
+    images_path = destination_path / "images"
+    csv_path = destination_path / "GroundTruth.csv"
+    if images_path.is_dir() and csv_path.is_file():
+        if remove_masks_dir and (destination_path / "masks").exists():
+            shutil.rmtree(destination_path / "masks")
+        logger.info("Dataset already prepared in '%s'; skipping download.", destination_path)
+        return destination_path
+
+    download_with_curl(url=download_url, output_path=zip_path)
+    return prepare_kaggle_ham10000_dataset(
+        zip_path=zip_path,
+        destination=destination_path,
+        remove_masks_dir=remove_masks_dir,
+        remove_zip=remove_zip,
+    )
 
 
 def prepare_kaggle_ham10000_dataset(

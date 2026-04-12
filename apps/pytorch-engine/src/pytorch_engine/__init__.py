@@ -4,6 +4,8 @@ from pytorch_engine.csv_dataset import CSVDataset, create_csv_dataloader
 from pytorch_engine.data_setup import (
     DataLoaderResult,
     create_dataloader,
+    download_and_prepare_kaggle_ham10000_dataset,
+    download_with_curl,
     prepare_kaggle_ham10000_dataset,
 )
 from pytorch_engine.data_split import split_csv_metadata
@@ -23,6 +25,8 @@ __all__ = [
     "accuracy_fn",
     "create_csv_dataloader",
     "create_dataloader",
+    "download_and_prepare_kaggle_ham10000_dataset",
+    "download_with_curl",
     "get_current_device",
     "get_train_transform",
     "prepare_kaggle_ham10000_dataset",
