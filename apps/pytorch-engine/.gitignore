@@ -6,3 +6,6 @@ __pycache__/
 
 # Training data
 data/*
+
+# Env variables
+.env
