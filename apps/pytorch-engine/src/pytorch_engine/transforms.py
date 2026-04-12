@@ -54,6 +54,8 @@ def get_train_transform(
                 interpolation=interpolation,
                 antialias=True,
             ),
+            # Dermoscopy images are not orientation-sensitive in the same way as
+            # natural scenes, so flips and small rotations are usually safe.
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.RandomRotation(15, interpolation=interpolation),
@@ -64,7 +66,8 @@ def get_train_transform(
                 mean=normalize_mean if normalize_mean is not None else IMAGENET_MEAN,
                 std=normalize_std if normalize_std is not None else IMAGENET_STD,
             ),
-            # RandomErasing encourages robustness to small occlusions and local artifacts.
-            transforms.RandomErasing(p=0.15, scale=(0.02, 0.08), value="random"),
+            # Avoid RandomErasing here because lesions are the diagnostic target;
+            # masking them can destroy clinically relevant structure.
+            # transforms.RandomErasing(p=0.15, scale=(0.02, 0.08), value="random"),
         ]
     )
