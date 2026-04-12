@@ -47,15 +47,15 @@ def plot_decision_boundary(
         logits = model(x_to_pred)
 
     if len(torch.unique(y)) > 2:
-        preds = torch.softmax(logits, dim=1).argmax(dim=1)
+        preds_tensor = torch.softmax(logits, dim=1).argmax(dim=1)
     else:
-        preds = torch.round(torch.sigmoid(logits))
+        preds_tensor = torch.round(torch.sigmoid(logits))
 
-    preds = preds.reshape(xx.shape).detach().numpy()
+    preds_array = preds_tensor.reshape(xx.shape).detach().numpy()
 
     fig, ax = plt.subplots()
-    ax.contourf(xx, yy, preds, cmap=plt.cm.RdYlBu, alpha=0.7)
-    ax.scatter(x[:, 0], x[:, 1], c=y, s=40, cmap=plt.cm.RdYlBu)
+    ax.contourf(xx, yy, preds_array, cmap="RdYlBu", alpha=0.7)
+    ax.scatter(x[:, 0], x[:, 1], c=y, s=40, cmap="RdYlBu")
     ax.set_xlim(xx.min(), xx.max())
     ax.set_ylim(yy.min(), yy.max())
     return fig

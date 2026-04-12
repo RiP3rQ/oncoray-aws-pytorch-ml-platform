@@ -3,6 +3,7 @@
 import logging
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -112,7 +113,7 @@ def create_milestone_checkpoint_callback(
     hf_token: str | None = None,
     hf_repo_subdir: str = "",
     upload_best_checkpoint: bool = False,
-) -> Callable[[int, torch.nn.Module, dict, dict], None]:
+) -> Callable[[int, torch.nn.Module, dict[str, Any], dict[str, Any]], None]:
     """Create epoch-end callback that saves milestone checkpoints.
 
     Saves checkpoints every *every_n_epochs* and on final epoch. Optionally
@@ -126,8 +127,8 @@ def create_milestone_checkpoint_callback(
     def callback(
         epoch: int,
         model: torch.nn.Module,
-        _train_result: dict,
-        test_result: dict,
+        _train_result: dict[str, Any],
+        test_result: dict[str, Any],
     ) -> None:
         nonlocal best_test_accuracy
         is_milestone = epoch % every_n_epochs == 0

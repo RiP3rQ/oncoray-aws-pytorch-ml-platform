@@ -164,7 +164,7 @@ def _sanitize_dataset_dataframe(
     return sanitized.drop(columns=["__image_filename__"])
 
 
-class CSVDataset(Dataset):
+class CSVDataset(Dataset[tuple[Any, int]]):
     """CSV-backed image dataset for flat-directory image structures.
 
     Reads images from a **flat** directory (no class sub-directories) and
@@ -271,7 +271,7 @@ class CSVDataset(Dataset):
         """Return the number of samples in the dataset."""
         return len(self.dataframe)
 
-    def __getitem__(self, index: int) -> tuple:
+    def __getitem__(self, index: int) -> tuple[Any, int]:
         """Return the transformed image and label index for *index*.
 
         Args:
@@ -375,11 +375,13 @@ def create_csv_dataloader(
 
     from torch.utils.data import DataLoader
 
+    resolved_num_workers = num_workers if num_workers is not None else 0
+
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        num_workers=num_workers,
+        num_workers=resolved_num_workers,
         pin_memory=True,
     )
 

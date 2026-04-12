@@ -7,7 +7,7 @@ per-epoch metrics.
 
 import logging
 from collections.abc import Callable
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import torch
 from torch.utils.data import DataLoader
@@ -61,7 +61,7 @@ class TrainResult(TypedDict):
 
 def train_step(
     model: torch.nn.Module,
-    dataloader: DataLoader,
+    dataloader: DataLoader[Any],
     loss_fn: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
     device: str | torch.device = "auto",
@@ -128,7 +128,7 @@ def train_step(
 
 def test_step(
     model: torch.nn.Module,
-    dataloader: DataLoader,
+    dataloader: DataLoader[Any],
     loss_fn: torch.nn.Module,
     device: str | torch.device = "auto",
 ) -> StepResult:
@@ -190,8 +190,8 @@ def test_step(
 
 def train_model(
     model: torch.nn.Module,
-    train_dataloader: DataLoader,
-    test_dataloader: DataLoader,
+    train_dataloader: DataLoader[Any],
+    test_dataloader: DataLoader[Any],
     optimizer: torch.optim.Optimizer,
     loss_fn: torch.nn.Module,
     epochs: int,

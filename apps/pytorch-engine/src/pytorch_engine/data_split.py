@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import cast
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -163,4 +162,4 @@ def split_csv_metadata(
         len(test_df),
     )
 
-    return cast(tuple[pd.DataFrame, pd.DataFrame], (train_df, test_df))
+    return train_df, test_df

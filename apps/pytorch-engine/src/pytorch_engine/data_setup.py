@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import zipfile
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import requests
 from torch.utils.data import DataLoader
@@ -206,7 +206,7 @@ class DataLoaderResult(TypedDict):
         class_names: Ordered list of class labels derived from subdirectory names.
     """
 
-    dataloader: DataLoader
+    dataloader: DataLoader[Any]
     class_names: list[str]
 
 
