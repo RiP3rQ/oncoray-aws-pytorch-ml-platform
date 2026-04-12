@@ -520,7 +520,8 @@ def train_model(
         acc_gap = train_result["accuracy"] - test_result["accuracy"]
 
         logger.info(
-            "Epoch %d/%d - train_loss=%.4f train_acc=%.4f test_loss=%.4f test_acc=%.4f loss_gap=%.4f acc_gap=%.4f lr=%.6g",
+            "Epoch %d/%d - train_loss=%.4f train_acc=%.4f test_loss=%.4f "
+            "test_acc=%.4f loss_gap=%.4f acc_gap=%.4f lr=%.6g",
             epoch,
             epochs,
             train_result["loss"],
