@@ -9,7 +9,11 @@ from pytorch_engine.data_setup import (
     prepare_kaggle_ham10000_dataset,
 )
 from pytorch_engine.data_split import split_csv_metadata
-from pytorch_engine.save_model import save_model
+from pytorch_engine.save_model import (
+    create_milestone_checkpoint_callback,
+    save_model,
+    upload_model_file_to_huggingface,
+)
 from pytorch_engine.transforms import get_train_transform
 from pytorch_engine.utils import (
     accuracy_fn,
@@ -25,6 +29,7 @@ __all__ = [
     "accuracy_fn",
     "create_csv_dataloader",
     "create_dataloader",
+    "create_milestone_checkpoint_callback",
     "download_and_prepare_kaggle_ham10000_dataset",
     "download_with_curl",
     "get_current_device",
@@ -35,4 +40,5 @@ __all__ = [
     "save_model",
     "set_seeds",
     "split_csv_metadata",
+    "upload_model_file_to_huggingface",
 ]

@@ -6,6 +6,7 @@ per-epoch metrics.
 """
 
 import logging
+from collections.abc import Callable
 from typing import TypedDict
 
 import torch
@@ -195,6 +196,7 @@ def train_model(
     loss_fn: torch.nn.Module,
     epochs: int,
     device: str | torch.device = "auto",
+    epoch_end_callback: Callable[[int, torch.nn.Module, StepResult, StepResult], None] | None = None,
 ) -> TrainResult:
     """Train and evaluate a model for multiple epochs.
 
@@ -209,6 +211,9 @@ def train_model(
         loss_fn: Loss function to minimise.
         epochs: Number of training epochs.
         device: ``"auto"`` resolves to CUDA when available.
+        epoch_end_callback: Optional callback called after each epoch with
+            ``(epoch_number_1_based, model, train_result, test_result)``.
+            Callback failures are logged and training continues.
 
     Returns:
         A :class:`TrainResult` dict with per-epoch metric lists.
@@ -275,6 +280,12 @@ def train_model(
         results["train_acc"].append(train_result["accuracy"])
         results["test_loss"].append(test_result["loss"])
         results["test_acc"].append(test_result["accuracy"])
+
+        if epoch_end_callback is not None:
+            try:
+                epoch_end_callback(epoch + 1, model, train_result, test_result)
+            except Exception as error:  # pragma: no cover - callback runtime dependent
+                logger.warning("Epoch-end callback failed at epoch %d: %s", epoch + 1, error)
 
     logger.info("Training complete — %d epochs finished", epochs)
     return results
