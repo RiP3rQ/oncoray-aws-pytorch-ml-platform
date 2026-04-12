@@ -357,7 +357,7 @@ def train_model(
     lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     grad_clip_max_norm: float | None = None,
     use_channels_last: bool | None = None,
-    early_stopping_patience: int | None = 3,
+    early_stopping_patience: int | None = 5,
     early_stopping_min_delta: float = 0.0,
 ) -> TrainResult:
     """Train and evaluate a model for multiple epochs.
