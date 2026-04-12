@@ -18,6 +18,7 @@ from tqdm.auto import tqdm
 from pytorch_engine.utils import resolve_device
 
 logger = logging.getLogger(__name__)
+MAX_AUTOTUNE_MIN_TRAIN_STEPS = 1024
 
 
 def _unwrap_model(model: torch.nn.Module) -> torch.nn.Module:
@@ -28,6 +29,30 @@ def _unwrap_model(model: torch.nn.Module) -> torch.nn.Module:
     if isinstance(original_model, torch.nn.Module):
         return original_model
     return model
+
+
+def _resolve_compile_mode(
+    device: torch.device,
+    compile_mode: str,
+    train_dataloader: DataLoader[Any],
+    epochs: int,
+) -> str:
+    """Downgrade expensive compile modes when startup cost dominates runtime."""
+    if device.type != "cuda" or compile_mode != "max-autotune":
+        return compile_mode
+
+    train_batches = len(train_dataloader)
+    total_train_steps = train_batches * epochs
+    if total_train_steps < MAX_AUTOTUNE_MIN_TRAIN_STEPS:
+        logger.info(
+            "Downgrading torch.compile mode from max-autotune to reduce-overhead "
+            "for short CUDA run (%d train steps across %d epochs, %d batches/epoch).",
+            total_train_steps,
+            epochs,
+            train_batches,
+        )
+        return "reduce-overhead"
+    return compile_mode
 
 
 def _autocast_context(
@@ -404,6 +429,12 @@ def train_model(
     # Keep a handle to the real nn.Module so checkpoint callbacks do not need
     # to understand compile wrappers.
     base_model = _unwrap_model(model)
+    resolved_compile_mode = _resolve_compile_mode(
+        device=computed_device,
+        compile_mode=compile_mode,
+        train_dataloader=train_dataloader,
+        epochs=epochs,
+    )
 
     if compile_model:
         if not hasattr(torch, "compile"):
@@ -417,9 +448,9 @@ def train_model(
         else:
             # Compile after model construction but before the first epoch so the
             # training loop uses the optimized graph from the start.
-            model = cast(torch.nn.Module, torch.compile(model, mode=compile_mode, options=compile_options))
+            model = cast(torch.nn.Module, torch.compile(model, mode=resolved_compile_mode, options=compile_options))
             base_model = _unwrap_model(model)
-            logger.info("Compiled model with torch.compile(mode=%s).", compile_mode)
+            logger.info("Compiled model with torch.compile(mode=%s).", resolved_compile_mode)
 
     # Default AMP behavior tracks CUDA availability, so callers do not need to
     # remember separate notebook flags for CPU vs GPU execution.
@@ -427,11 +458,12 @@ def train_model(
     scaler = torch.amp.GradScaler(device="cuda", enabled=resolved_use_amp and computed_device.type == "cuda")
 
     logger.info(
-        "Training started - model=%s epochs=%d device=%s compile=%s amp=%s channels_last=%s",
+        "Training started - model=%s epochs=%d device=%s compile=%s compile_mode=%s amp=%s channels_last=%s",
         model.__class__.__name__,
         epochs,
         computed_device,
         model is not base_model,
+        resolved_compile_mode if model is not base_model else "n/a",
         resolved_use_amp and computed_device.type == "cuda",
         resolved_use_channels_last,
     )

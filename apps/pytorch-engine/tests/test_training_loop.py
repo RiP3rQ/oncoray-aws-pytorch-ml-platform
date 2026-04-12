@@ -5,7 +5,7 @@ from typing import Any, cast
 from unittest.mock import patch
 
 import torch
-from pytorch_engine.training_loop import train_model
+from pytorch_engine.training_loop import _resolve_compile_mode, train_model
 from torch.utils.data import DataLoader, TensorDataset
 
 
@@ -92,6 +92,32 @@ class TrainModelMetricTests(unittest.TestCase):
         self.assertEqual(len(results["test_loss"]), 4)
         self.assertEqual(results["test_loss"], test_losses)
         self.assertAlmostEqual(model.weight.item(), 2.0, places=6)
+
+
+class TrainModelCudaTuningTests(unittest.TestCase):
+    def test_short_cuda_run_downgrades_max_autotune(self) -> None:
+        dataloader = DataLoader(TensorDataset(torch.zeros((32, 1))), batch_size=8, shuffle=False)
+
+        compile_mode = _resolve_compile_mode(
+            device=torch.device("cuda"),
+            compile_mode="max-autotune",
+            train_dataloader=dataloader,
+            epochs=30,
+        )
+
+        self.assertEqual(compile_mode, "reduce-overhead")
+
+    def test_long_cuda_run_keeps_max_autotune(self) -> None:
+        dataloader = DataLoader(TensorDataset(torch.zeros((4096, 1))), batch_size=4, shuffle=False)
+
+        compile_mode = _resolve_compile_mode(
+            device=torch.device("cuda"),
+            compile_mode="max-autotune",
+            train_dataloader=dataloader,
+            epochs=2,
+        )
+
+        self.assertEqual(compile_mode, "max-autotune")
 
 
 if __name__ == "__main__":
