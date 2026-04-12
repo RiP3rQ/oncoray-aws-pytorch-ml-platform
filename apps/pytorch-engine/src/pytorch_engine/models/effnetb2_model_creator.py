@@ -27,8 +27,8 @@ class EfficientNetB2Model:
     """Return type for :func:`create_effnetb2_model`.
 
     Attributes:
-        model: EffNetB2 feature extractor with frozen backbone and
-            a fresh classifier head.
+        model: EffNetB2 model with a fresh classifier head and optional
+            partial fine-tuning.
         transforms: Image transforms matching the pre-trained weights.
     """
 
@@ -46,46 +46,41 @@ def create_effnetb2_model(
     transforms: torchvision.transforms.Compose | None = None,
     seed: int = 42,
     dropout_p: float = 0.3,
+    trainable_feature_blocks: int = 0,
 ) -> EfficientNetB2Model:
     """Create an EfficientNetB2 feature extractor model and transforms.
 
-    Loads pre-trained ImageNet weights, freezes the backbone, and replaces
-    the classifier head with a dropout → linear layer suitable for
-    fine-tuning on *num_classes* target classes.
+    Loads pre-trained ImageNet weights, freezes the backbone, replaces the
+    classifier head, and optionally unfreezes the last feature blocks for
+    partial fine-tuning.
 
     Args:
         num_classes: Number of output classes in the classifier head.
-            Defaults to 3.
         transforms: Image transforms to apply. When ``None``, uses the
             default transforms that correspond to the pre-trained weights.
         seed: Random seed for reproducible classifier head initialisation.
-            Defaults to 42.
         dropout_p: Dropout probability in the classifier head.
-            Defaults to 0.3.
+        trainable_feature_blocks: Number of trailing EfficientNet feature
+            blocks to unfreeze for fine-tuning.
 
     Returns:
         An :class:`EfficientNetB2Model` instance containing the model
         and its matching transforms.
-
-    Example::
-
-        result = create_effnetb2_model(num_classes=10, seed=0)
-        model = result.model
-        transforms = result.transforms
     """
     logger.info(
-        "Creating EffNetB2 model — num_classes=%d seed=%d dropout_p=%.2f",
+        "Creating EffNetB2 model - num_classes=%d seed=%d dropout_p=%.2f trainable_feature_blocks=%d",
         num_classes,
         seed,
         dropout_p,
+        trainable_feature_blocks,
     )
 
     # 1. Load pre-trained EffNetB2 weights
     weights = torchvision.models.EfficientNet_B2_Weights.IMAGENET1K_V1
     logger.info("Loaded pre-trained %s", weights.__class__.__name__)
+
     # 2. Get image transforms from weights, or use custom transforms if provided
     image_transforms = transforms or weights.transforms()
-
     # 3. Build model from pre-trained weights
     model = torchvision.models.efficientnet_b2(weights=weights)
 
@@ -106,6 +101,7 @@ def create_effnetb2_model(
         f"Expected nn.Linear as last classifier layer, got {type(classifier_head)}"
     )
     in_features = classifier_head.in_features
+    # Replace the ImageNet classifier head with one sized for HAM10000 labels.
     model.classifier = nn.Sequential(
         nn.Dropout(p=dropout_p, inplace=True),
         nn.Linear(in_features=in_features, out_features=num_classes),
@@ -117,10 +113,26 @@ def create_effnetb2_model(
     )
 
     # 7. Count trainable vs total parameters
+    feature_blocks = list(model.features.children())
+    if trainable_feature_blocks < 0:
+        raise ValueError("trainable_feature_blocks must be >= 0")
+    if trainable_feature_blocks > len(feature_blocks):
+        raise ValueError(
+            f"trainable_feature_blocks={trainable_feature_blocks} exceeds available blocks={len(feature_blocks)}"
+        )
+
+    if trainable_feature_blocks:
+        # Unfreezing only the last blocks is a common transfer-learning middle
+        # ground: more flexibility than head-only training, less overfitting
+        # risk than unfreezing the full backbone immediately.
+        for block in feature_blocks[-trainable_feature_blocks:]:
+            for param in block.parameters():
+                param.requires_grad = True
+
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total = sum(p.numel() for p in model.parameters())
     logger.info(
-        "EffNetB2 model ready — %d trainable / %d total parameters",
+        "EffNetB2 model ready - %d trainable / %d total parameters",
         trainable,
         total,
     )

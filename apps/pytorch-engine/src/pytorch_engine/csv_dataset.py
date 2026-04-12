@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
@@ -89,6 +90,8 @@ def _maybe_create_label_column(df: pd.DataFrame, label_col: str | None) -> tuple
             f"Could not infer label column. Provide label_col or include one of {LABEL_COLUMN_CANDIDATES} in CSV."
         )
 
+    # HAM10000 exports class labels as one-hot columns. Convert them into a
+    # single string label column because classifiers expect one target class per row.
     numeric_one_hot = df[one_hot_columns].apply(pd.to_numeric, errors="coerce").fillna(0.0)
     active_per_row = (numeric_one_hot > 0.5).sum(axis=1)
     valid_mask = active_per_row == 1
@@ -124,6 +127,8 @@ def _sanitize_dataset_dataframe(
     sanitized[image_id_col] = sanitized[image_id_col].astype(str).str.strip()
     sanitized = sanitized[sanitized[image_id_col] != ""].copy()
 
+    # Remove ambiguous duplicate ids before training so one image never maps
+    # to two different labels.
     conflicting_ids = (
         sanitized.groupby(image_id_col)[label_col]
         .nunique(dropna=True)
@@ -151,6 +156,8 @@ def _sanitize_dataset_dataframe(
     sanitized["__image_filename__"] = sanitized[image_id_col].map(
         lambda value: _to_image_filename(value, file_extension)
     )
+    # Filter missing files early so DataLoader workers do not fail halfway
+    # through an epoch with a path error.
     existing_mask = sanitized["__image_filename__"].map(lambda filename: (image_dir / filename).is_file())
     missing_count = int((~existing_mask).sum())
     if missing_count:
@@ -240,7 +247,8 @@ class CSVDataset(Dataset[tuple[Any, int]]):
         if self.dataframe.empty:
             raise ValueError("No valid rows left after sanitizing CSV dataset.")
 
-        # Build sorted class list and class-to-index mapping
+        # Keep class ordering deterministic so saved models and reports use the
+        # same integer-to-class mapping every run.
         unique_labels = sorted(self.dataframe[self.label_col].astype(str).unique().tolist())
         self._class_names: list[str] = unique_labels
         self._class_to_idx: dict[str, int] = {label: idx for idx, label in enumerate(unique_labels)}
@@ -317,6 +325,7 @@ def create_csv_dataloader(
     batch_size: int = 32,
     shuffle: bool = False,
     num_workers: int | None = os.cpu_count(),
+    pin_memory: bool | None = None,
     dataframe: pd.DataFrame | None = None,
 ) -> DataLoaderResult:
     """Factory that creates a DataLoader from a CSV-described flat image directory.
@@ -376,13 +385,17 @@ def create_csv_dataloader(
     from torch.utils.data import DataLoader
 
     resolved_num_workers = num_workers if num_workers is not None else 0
+    # Pinned memory helps host->GPU transfer speed, but brings no benefit on CPU.
+    resolved_pin_memory = torch.cuda.is_available() if pin_memory is None else pin_memory
 
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=resolved_num_workers,
-        pin_memory=True,
+        pin_memory=resolved_pin_memory,
+        # Reuse worker processes across epochs when multiprocessing is enabled.
+        persistent_workers=resolved_num_workers > 0,
     )
 
     return DataLoaderResult(

@@ -14,6 +14,16 @@ _DEFAULT_SAVE_DIR = "packages/pytorch-saved-models"
 _VALID_EXTENSIONS = (".pt", ".pth")
 
 
+def _unwrap_model(model: torch.nn.Module) -> torch.nn.Module:
+    """Return original module when *model* comes from ``torch.compile``."""
+    # Saving the wrapped compiled object directly can create confusing
+    # checkpoint names/keys. Save the underlying model weights instead.
+    original_model = getattr(model, "_orig_mod", None)
+    if isinstance(original_model, torch.nn.Module):
+        return original_model
+    return model
+
+
 def save_model(
     model: torch.nn.Module,
     model_name: str,
@@ -51,8 +61,10 @@ def save_model(
     save_path = Path(target_dir) / model_name
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Normal and compiled models share the same checkpoint format once unwrapped.
+    model_to_save = _unwrap_model(model)
     logger.info("Saving model to %s", save_path)
-    torch.save(model.state_dict(), save_path)
+    torch.save(model_to_save.state_dict(), save_path)
 
     return save_path
 
@@ -131,6 +143,8 @@ def create_milestone_checkpoint_callback(
         test_result: dict[str, Any],
     ) -> None:
         nonlocal best_test_accuracy
+        # Save on fixed milestones so long training runs still produce
+        # recoverable checkpoints even if later epochs fail.
         is_milestone = epoch % every_n_epochs == 0
         is_final = epoch == total_epochs
         test_accuracy = float(test_result.get("accuracy", 0.0))
