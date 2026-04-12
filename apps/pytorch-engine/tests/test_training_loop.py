@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 
 class TrainModelMetricTests(unittest.TestCase):
-    def test_train_accuracy_uses_eval_mode_final_epoch_model(self) -> None:
+    def test_train_accuracy_comes_from_online_training_pass(self) -> None:
         features = torch.tensor(
             [
                 [1.0, 0.0],
@@ -42,7 +42,7 @@ class TrainModelMetricTests(unittest.TestCase):
             device="cpu",
         )
 
-        self.assertAlmostEqual(results["train_acc"][0], 1.0, places=6)
+        self.assertAlmostEqual(results["train_acc"][0], 0.5, places=6)
         self.assertAlmostEqual(results["test_acc"][0], 1.0, places=6)
 
 

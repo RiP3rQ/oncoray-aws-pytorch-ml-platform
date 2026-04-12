@@ -271,9 +271,7 @@ def _evaluate_step(
 ) -> StepResult:
     """Run a single eval-mode pass over *dataloader*.
 
-    Used for both validation/test metrics and post-epoch training metrics so
-    reported accuracies come from the final epoch model state in ``eval()``
-    mode rather than a mix of intermediate training states.
+    Used for validation/test metrics with gradients disabled.
     """
     computed_device = resolve_device(device)
     use_non_blocking = computed_device.type == "cuda"
@@ -358,15 +356,12 @@ def train_model(
     lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     grad_clip_max_norm: float | None = None,
     use_channels_last: bool | None = None,
-    train_metrics_dataloader: DataLoader[Any] | None = None,
 ) -> TrainResult:
     """Train and evaluate a model for multiple epochs.
 
-    Runs :func:`train_step` followed by :func:`test_step` for each epoch,
-    then recomputes training metrics in ``eval()`` mode using the final model
-    state for that epoch. This makes ``train_acc`` directly comparable to
-    ``test_acc`` instead of mixing together intermediate in-training model
-    states.
+    Runs :func:`train_step` followed by :func:`test_step` for each epoch.
+    Reported training metrics come from the online optimization pass, while
+    test metrics come from a separate eval-mode pass.
 
     Args:
         model: Model to train and evaluate.
@@ -387,10 +382,6 @@ def train_model(
         lr_scheduler: Optional epoch-level learning-rate scheduler.
         grad_clip_max_norm: Optional gradient clipping threshold.
         use_channels_last: Enable channels-last memory format for CUDA conv nets.
-        train_metrics_dataloader: Optional deterministic loader used only for
-            reporting ``train_loss``/``train_acc``. When ``None``, the
-            training loader is reused in ``eval()`` mode, which still reflects
-            any stochastic dataset transforms or ``drop_last`` behavior.
 
     Returns:
         A :class:`TrainResult` dict with per-epoch metric lists.
@@ -442,19 +433,12 @@ def train_model(
         "test_loss": [],
         "test_acc": [],
     }
-    reported_train_dataloader = train_metrics_dataloader or train_dataloader
-    if train_metrics_dataloader is None:
-        logger.info(
-            "Using train_dataloader for reported train metrics. "
-            "Pass train_metrics_dataloader with deterministic transforms and drop_last=False "
-            "for fully comparable train/test curves."
-        )
 
     for epoch_idx in tqdm(range(epochs), desc="Epochs"):
         epoch = epoch_idx + 1
 
-        # One full epoch = one optimization pass + eval-mode metric passes.
-        online_train_result = train_step(
+        # One full epoch = one optimization pass + one eval-mode test pass.
+        train_result = train_step(
             epoch=epoch,
             model=model,
             dataloader=train_dataloader,
@@ -465,17 +449,6 @@ def train_model(
             use_amp=resolved_use_amp,
             amp_dtype=amp_dtype,
             grad_clip_max_norm=grad_clip_max_norm,
-            use_channels_last=resolved_use_channels_last,
-        )
-        train_result = _evaluate_step(
-            epoch=epoch,
-            phase_name="TrainEval",
-            model=model,
-            dataloader=reported_train_dataloader,
-            loss_fn=loss_fn,
-            device=computed_device,
-            use_amp=resolved_use_amp,
-            amp_dtype=amp_dtype,
             use_channels_last=resolved_use_channels_last,
         )
         test_result = test_step(
@@ -504,10 +477,10 @@ def train_model(
             current_lr,
         )
         logger.debug(
-            "Epoch %d online train metrics - loss=%.4f accuracy=%.4f",
+            "Epoch %d train metrics - loss=%.4f accuracy=%.4f",
             epoch,
-            online_train_result["loss"],
-            online_train_result["accuracy"],
+            train_result["loss"],
+            train_result["accuracy"],
         )
 
         results["train_loss"].append(train_result["loss"])
