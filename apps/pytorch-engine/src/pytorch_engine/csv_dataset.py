@@ -120,7 +120,7 @@ def _sanitize_dataset_dataframe(
     df: pd.DataFrame,
     image_id_col: str,
     label_col: str,
-    image_dir: Path,
+    image_dirs: list[Path],
     file_extension: str,
 ) -> pd.DataFrame:
     sanitized = df.copy()
@@ -158,13 +158,15 @@ def _sanitize_dataset_dataframe(
     )
     # Filter missing files early so DataLoader workers do not fail halfway
     # through an epoch with a path error.
-    existing_mask = sanitized["__image_filename__"].map(lambda filename: (image_dir / filename).is_file())
+    existing_mask = sanitized["__image_filename__"].map(
+        lambda filename: any((directory / filename).is_file() for directory in image_dirs)
+    )
     missing_count = int((~existing_mask).sum())
     if missing_count:
         logger.warning(
-            "Dropping %d rows because image file is missing under '%s'.",
+            "Dropping %d rows because image file is missing under %d image directories.",
             missing_count,
-            image_dir,
+            len(image_dirs),
         )
         sanitized = sanitized.loc[existing_mask].copy()
 
@@ -218,6 +220,7 @@ class CSVDataset(Dataset[tuple[Any, int]]):
         self,
         image_dir: str | Path,
         csv_path: str | Path,
+        image_dirs: list[str | Path] | None = None,
         image_id_col: str | None = None,
         label_col: str | None = None,
         file_extension: str = ".jpg",
@@ -225,6 +228,7 @@ class CSVDataset(Dataset[tuple[Any, int]]):
         dataframe: pd.DataFrame | None = None,
     ) -> None:
         self.image_dir = Path(image_dir)
+        self.image_dirs = [Path(directory) for directory in image_dirs] if image_dirs else [self.image_dir]
         self.csv_path = Path(csv_path)
         self.file_extension = file_extension
         self.transform = transform
@@ -241,7 +245,7 @@ class CSVDataset(Dataset[tuple[Any, int]]):
             df=self.dataframe,
             image_id_col=self.image_id_col,
             label_col=self.label_col,
-            image_dir=self.image_dir,
+            image_dirs=self.image_dirs,
             file_extension=self.file_extension,
         ).reset_index(drop=True)
         if self.dataframe.empty:
@@ -264,6 +268,7 @@ class CSVDataset(Dataset[tuple[Any, int]]):
             self.image_id_col,
             self.label_col,
         )
+        logger.info("Image search roots: %s", [str(directory) for directory in self.image_dirs])
 
     @property
     def class_names(self) -> list[str]:
@@ -294,10 +299,17 @@ class CSVDataset(Dataset[tuple[Any, int]]):
             row = self.dataframe.iloc[(index + attempt) % max_attempts]
             label_value = str(row[self.label_col])
             image_filename = _to_image_filename(row[self.image_id_col], self.file_extension)
-            image_path = self.image_dir / image_filename
+            image_path = next(
+                (
+                    directory / image_filename
+                    for directory in self.image_dirs
+                    if (directory / image_filename).is_file()
+                ),
+                None,
+            )
 
-            if not image_path.is_file():
-                logger.warning("Missing image at load time, skipping row: %s", image_path)
+            if image_path is None:
+                logger.warning("Missing image at load time, skipping row: %s", image_filename)
                 continue
 
             image = Image.open(image_path).convert("RGB")
@@ -318,12 +330,14 @@ class CSVDataset(Dataset[tuple[Any, int]]):
 def create_csv_dataloader(
     image_dir: str | Path,
     csv_path: str | Path,
+    image_dirs: list[str | Path] | None = None,
     image_id_col: str | None = None,
     label_col: str | None = None,
     file_extension: str = ".jpg",
     transform: transforms.Compose | None = None,
     batch_size: int = 32,
     shuffle: bool = False,
+    sampler: Any | None = None,
     num_workers: int | None = os.cpu_count(),
     pin_memory: bool | None = None,
     drop_last: bool = False,
@@ -340,6 +354,8 @@ def create_csv_dataloader(
         image_dir: Directory containing the image files.
         csv_path: Path to the CSV file with at least an image-ID column and a
             label column.
+        image_dirs: Optional list of image directories. Images are resolved
+            from the first matching path across these roots.
         image_id_col: Optional CSV image-ID column name.
         label_col: Optional CSV label column name.
         file_extension: File extension to append when resolving filenames.
@@ -351,6 +367,8 @@ def create_csv_dataloader(
         shuffle: Whether to shuffle the data each epoch.
             Use ``True`` for training, ``False`` for validation/testing.
             Defaults to ``False``.
+        sampler: Optional sampler. When provided, DataLoader shuffling is
+            disabled and the sampler controls sample order.
         num_workers: Subprocess count for data loading.  Defaults to
             ``os.cpu_count()`` or ``1`` if that returns ``None``.
         pin_memory: Whether to pin host memory for faster CUDA transfer.
@@ -383,6 +401,7 @@ def create_csv_dataloader(
     dataset = CSVDataset(
         image_dir=image_dir,
         csv_path=csv_path,
+        image_dirs=image_dirs,
         image_id_col=image_id_col,
         label_col=label_col,
         file_extension=file_extension,
@@ -398,7 +417,8 @@ def create_csv_dataloader(
     dataloader_kwargs: dict[str, Any] = {
         "dataset": dataset,
         "batch_size": batch_size,
-        "shuffle": shuffle,
+        "shuffle": shuffle if sampler is None else False,
+        "sampler": sampler,
         "num_workers": resolved_num_workers,
         "pin_memory": resolved_pin_memory,
         "drop_last": drop_last,

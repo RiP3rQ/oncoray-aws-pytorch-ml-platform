@@ -23,6 +23,7 @@ def split_csv_metadata(
     test_size: float = 0.2,
     random_state: int = 42,
     image_dir: str | Path | None = None,
+    image_dirs: list[str | Path] | None = None,
     image_id_col: str | None = None,
     label_col: str | None = None,
     file_extension: str = ".jpg",
@@ -45,6 +46,10 @@ def split_csv_metadata(
             splitting. The image path is constructed as
             ``image_dir / {image_id}{file_extension}``.
             Defaults to ``None`` (no filtering).
+        image_dirs: Optional list of root directories containing images. When
+            provided, a row is kept if the image exists in any directory from
+            this list. If both ``image_dir`` and ``image_dirs`` are provided,
+            ``image_dirs`` takes precedence.
         image_id_col: Optional image-ID column name. If ``None`` or not found,
             the function auto-detects common names (e.g. ``image_id``,
             ``image``, ``filename``).
@@ -126,18 +131,27 @@ def split_csv_metadata(
     original_len = len(df)
     logger.info("Loaded CSV with %d rows from '%s'", original_len, csv_path)
 
-    if image_dir is not None:
-        image_dir = Path(image_dir)
+    resolved_image_dirs: list[Path] = []
+    if image_dirs:
+        resolved_image_dirs = [Path(directory) for directory in image_dirs]
+    elif image_dir is not None:
+        resolved_image_dirs = [Path(image_dir)]
+
+    if resolved_image_dirs:
         mask = df[resolved_image_id_col].map(
-            lambda image_id: (image_dir / _to_image_filename(image_id, file_extension)).is_file()
+            lambda image_id: any(
+                (directory / _to_image_filename(image_id, file_extension)).is_file()
+                for directory in resolved_image_dirs
+            )
         )
         df = df[mask].reset_index(drop=True)
         filtered_len = len(df)
         dropped = original_len - filtered_len
         logger.info(
-            "Filtered out %d rows with missing images (kept %d rows)",
+            "Filtered out %d rows with missing images (kept %d rows) using %d image directories",
             dropped,
             filtered_len,
+            len(resolved_image_dirs),
         )
 
     if df.empty:

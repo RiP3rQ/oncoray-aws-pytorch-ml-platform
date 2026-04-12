@@ -516,15 +516,19 @@ def train_model(
         if lr_scheduler is not None:
             lr_scheduler.step()
         current_lr = optimizer.param_groups[0]["lr"]
+        loss_gap = test_result["loss"] - train_result["loss"]
+        acc_gap = train_result["accuracy"] - test_result["accuracy"]
 
         logger.info(
-            "Epoch %d/%d - train_loss=%.4f train_acc=%.4f test_loss=%.4f test_acc=%.4f lr=%.6g",
+            "Epoch %d/%d - train_loss=%.4f train_acc=%.4f test_loss=%.4f test_acc=%.4f loss_gap=%.4f acc_gap=%.4f lr=%.6g",
             epoch,
             epochs,
             train_result["loss"],
             train_result["accuracy"],
             test_result["loss"],
             test_result["accuracy"],
+            loss_gap,
+            acc_gap,
             current_lr,
         )
         logger.debug(

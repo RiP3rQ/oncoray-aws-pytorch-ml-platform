@@ -35,6 +35,7 @@ def create_effnetb0_model(
     transforms: torchvision.transforms.Compose | None = None,
     seed: int = 42,
     dropout_p: float = 0.3,
+    trainable_feature_blocks: int = 0,
 ) -> EfficientNetB0Model:
     """Create an EfficientNetB0 feature extractor model and transforms.
 
@@ -47,16 +48,19 @@ def create_effnetb0_model(
             default transforms that correspond to the pre-trained weights.
         seed: Random seed for reproducible classifier head initialisation.
         dropout_p: Dropout probability in the classifier head.
+        trainable_feature_blocks: Number of final EfficientNet feature blocks
+            to unfreeze for fine-tuning. ``0`` keeps the full backbone frozen.
 
     Returns:
         An :class:`EfficientNetB0Model` instance containing the model
         and its matching transforms.
     """
     logger.info(
-        "Creating EffNetB0 model - num_classes=%d seed=%d dropout_p=%.2f classifier_only=True",
+        "Creating EffNetB0 model - num_classes=%d seed=%d dropout_p=%.2f trainable_feature_blocks=%d",
         num_classes,
         seed,
         dropout_p,
+        trainable_feature_blocks,
     )
 
     weights = torchvision.models.EfficientNet_B0_Weights.IMAGENET1K_V1
@@ -82,6 +86,14 @@ def create_effnetb0_model(
         nn.Dropout(p=dropout_p, inplace=True),
         nn.Linear(in_features=in_features, out_features=num_classes),
     )
+
+    if trainable_feature_blocks > 0:
+        available_blocks = len(model.features)
+        blocks_to_unfreeze = min(trainable_feature_blocks, available_blocks)
+        for feature_block in model.features[-blocks_to_unfreeze:]:
+            for param in feature_block.parameters():
+                param.requires_grad = True
+        logger.info("Unfroze last %d/%d EfficientNet feature blocks", blocks_to_unfreeze, available_blocks)
     logger.info(
         "Replaced classifier head: in_features=%d -> out_features=%d",
         in_features,
