@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from PIL import Image
@@ -17,6 +17,88 @@ if TYPE_CHECKING:
 from pytorch_engine.data_setup import DataLoaderResult
 
 logger = logging.getLogger(__name__)
+
+HAM10000_ONE_HOT_COLUMNS = ("akiec", "bcc", "bkl", "df", "mel", "nv", "vasc")
+IMAGE_ID_COLUMN_CANDIDATES = (
+    "image_id",
+    "image",
+    "image_name",
+    "isic_id",
+    "img_id",
+    "id",
+    "filename",
+)
+LABEL_COLUMN_CANDIDATES = (
+    "dx",
+    "label",
+    "class",
+    "diagnosis",
+    "lesion_type",
+    "target",
+)
+
+
+def _pick_existing_column(
+    columns: list[str],
+    preferred: str | None,
+    candidates: tuple[str, ...],
+) -> str:
+    if preferred and preferred in columns:
+        return preferred
+
+    lowered = {column.lower(): column for column in columns}
+    if preferred:
+        preferred_lower = preferred.lower()
+        if preferred_lower in lowered:
+            return lowered[preferred_lower]
+
+    for candidate in candidates:
+        if candidate in lowered:
+            return lowered[candidate]
+
+    if preferred:
+        raise ValueError(f"Column '{preferred}' not found in CSV columns: {', '.join(columns)}")
+    raise ValueError(f"Could not infer column from CSV columns: {', '.join(columns)}")
+
+
+def _infer_one_hot_label_columns(df: pd.DataFrame) -> list[str]:
+    lowered_map = {column.lower(): column for column in df.columns}
+    preferred = [lowered_map[name] for name in HAM10000_ONE_HOT_COLUMNS if name in lowered_map]
+    if len(preferred) >= 2:
+        return preferred
+    return []
+
+
+def _maybe_create_label_column(df: pd.DataFrame, label_col: str | None) -> tuple[pd.DataFrame, str]:
+    resolved_label_col = (
+        _pick_existing_column(
+            columns=df.columns.tolist(),
+            preferred=label_col,
+            candidates=LABEL_COLUMN_CANDIDATES,
+        )
+        if label_col
+        else None
+    )
+
+    if resolved_label_col is not None:
+        return df, resolved_label_col
+
+    one_hot_columns = _infer_one_hot_label_columns(df)
+    if len(one_hot_columns) < 2:
+        raise ValueError(
+            f"Could not infer label column. Provide label_col or include one of {LABEL_COLUMN_CANDIDATES} in CSV."
+        )
+
+    df = df.copy()
+    df["label"] = df[one_hot_columns].astype(float).idxmax(axis=1)
+    return df, "label"
+
+
+def _to_image_filename(image_id: Any, file_extension: str) -> str:
+    image_id_str = str(image_id).strip()
+    if Path(image_id_str).suffix:
+        return image_id_str
+    return f"{image_id_str}{file_extension}"
 
 
 class CSVDataset(Dataset):
@@ -36,10 +118,11 @@ class CSVDataset(Dataset):
         image_dir: Directory containing the image files.
         csv_path: Path to the CSV file with at least an image-ID column and a
             label column.
-        image_id_col: Name of the CSV column containing the image identifier
-            (filename without extension).  Defaults to ``"image_id"``.
-        label_col: Name of the CSV column containing the class label.
-            Defaults to ``"dx"``.
+        image_id_col: Optional CSV column containing the image identifier.
+            If omitted, common column names are auto-detected.
+        label_col: Optional CSV column containing class labels.
+            If omitted, common names are auto-detected or derived from
+            HAM10000 one-hot columns.
         file_extension: File extension to append when resolving filenames.
             Defaults to ``".jpg"``.
         transform: Optional torchvision transform pipeline to apply to each
@@ -65,32 +148,40 @@ class CSVDataset(Dataset):
         self,
         image_dir: str | Path,
         csv_path: str | Path,
-        image_id_col: str = "image_id",
-        label_col: str = "dx",
+        image_id_col: str | None = None,
+        label_col: str | None = None,
         file_extension: str = ".jpg",
         transform: transforms.Compose | None = None,
+        dataframe: pd.DataFrame | None = None,
     ) -> None:
         self.image_dir = Path(image_dir)
         self.csv_path = Path(csv_path)
-        self.image_id_col = image_id_col
-        self.label_col = label_col
         self.file_extension = file_extension
         self.transform = transform
 
-        self.dataframe = pd.read_csv(self.csv_path)
+        loaded_df = dataframe.copy() if dataframe is not None else pd.read_csv(self.csv_path)
+        self.image_id_col = _pick_existing_column(
+            columns=loaded_df.columns.tolist(),
+            preferred=image_id_col,
+            candidates=IMAGE_ID_COLUMN_CANDIDATES,
+        )
+        self.dataframe, self.label_col = _maybe_create_label_column(loaded_df, label_col)
 
         # Build sorted class list and class-to-index mapping
-        unique_labels = sorted(self.dataframe[label_col].unique().tolist())
+        unique_labels = sorted(self.dataframe[self.label_col].astype(str).unique().tolist())
         self._class_names: list[str] = unique_labels
-        self._class_to_idx: dict[str, int] = {
-            label: idx for idx, label in enumerate(unique_labels)
-        }
+        self._class_to_idx: dict[str, int] = {label: idx for idx, label in enumerate(unique_labels)}
 
         logger.info(
             "CSVDataset initialised — %d samples, %d classes from '%s'.",
             len(self.dataframe),
             len(self._class_names),
             self.csv_path,
+        )
+        logger.info(
+            "Using CSV columns image_id_col='%s', label_col='%s'.",
+            self.image_id_col,
+            self.label_col,
         )
 
     @property
@@ -118,10 +209,12 @@ class CSVDataset(Dataset):
             image tensor and *label_index* is the integer class index.
         """
         row = self.dataframe.iloc[index]
-        image_id = str(row[self.image_id_col])
-        label_value = row[self.label_col]
+        label_value = str(row[self.label_col])
 
-        image_path = self.image_dir / f"{image_id}{self.file_extension}"
+        image_filename = _to_image_filename(row[self.image_id_col], self.file_extension)
+        image_path = self.image_dir / image_filename
+        if not image_path.is_file():
+            raise FileNotFoundError(f"Image file not found: {image_path}")
         image = Image.open(image_path).convert("RGB")
 
         if self.transform is not None:
@@ -138,13 +231,14 @@ class CSVDataset(Dataset):
 def create_csv_dataloader(
     image_dir: str | Path,
     csv_path: str | Path,
-    image_id_col: str = "image_id",
-    label_col: str = "dx",
+    image_id_col: str | None = None,
+    label_col: str | None = None,
     file_extension: str = ".jpg",
     transform: transforms.Compose | None = None,
     batch_size: int = 32,
     shuffle: bool = False,
     num_workers: int | None = os.cpu_count(),
+    dataframe: pd.DataFrame | None = None,
 ) -> DataLoaderResult:
     """Factory that creates a DataLoader from a CSV-described flat image directory.
 
@@ -156,10 +250,8 @@ def create_csv_dataloader(
         image_dir: Directory containing the image files.
         csv_path: Path to the CSV file with at least an image-ID column and a
             label column.
-        image_id_col: Name of the CSV column containing the image identifier
-            (filename without extension).  Defaults to ``"image_id"``.
-        label_col: Name of the CSV column containing the class label.
-            Defaults to ``"dx"``.
+        image_id_col: Optional CSV image-ID column name.
+        label_col: Optional CSV label column name.
         file_extension: File extension to append when resolving filenames.
             Defaults to ``".jpg"``.
         transform: Optional torchvision transform pipeline to apply to each
@@ -199,6 +291,7 @@ def create_csv_dataloader(
         label_col=label_col,
         file_extension=file_extension,
         transform=transform,
+        dataframe=dataframe,
     )
 
     from torch.utils.data import DataLoader

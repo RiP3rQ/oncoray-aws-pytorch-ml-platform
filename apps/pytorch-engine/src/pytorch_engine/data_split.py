@@ -9,6 +9,13 @@ from typing import cast
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+from pytorch_engine.csv_dataset import (
+    IMAGE_ID_COLUMN_CANDIDATES,
+    _maybe_create_label_column,
+    _pick_existing_column,
+    _to_image_filename,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,9 +24,10 @@ def split_csv_metadata(
     test_size: float = 0.2,
     random_state: int = 42,
     image_dir: str | Path | None = None,
-    image_id_col: str = "image_id",
-    label_col: str = "dx",
+    image_id_col: str | None = None,
+    label_col: str | None = None,
     file_extension: str = ".jpg",
+    stratify: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split a CSV metadata file into train and test DataFrames.
 
@@ -38,14 +46,17 @@ def split_csv_metadata(
             splitting. The image path is constructed as
             ``image_dir / {image_id}{file_extension}``.
             Defaults to ``None`` (no filtering).
-        image_id_col: Name of the column in *csv_path* that contains the image
-            base name (without extension). Defaults to ``"image_id"``.
-        label_col: Name of the column containing the label. This parameter
-            is accepted for API consistency but is not used for stratification.
-            Defaults to ``"dx"``.
+        image_id_col: Optional image-ID column name. If ``None`` or not found,
+            the function auto-detects common names (e.g. ``image_id``,
+            ``image``, ``filename``).
+        label_col: Optional class-label column name. If ``None``, function
+            auto-detects common names or derives ``label`` from HAM10000
+            one-hot columns.
         file_extension: File extension appended to each image ID to locate
             the image file on disk. Must include the leading dot.
             Defaults to ``".jpg"``.
+        stratify: Whether to stratify the train/test split by labels when
+            label distribution allows it. Defaults to ``True``.
 
     Returns:
         A two-element tuple containing ``(train_df, test_df)``, each a
@@ -80,16 +91,21 @@ def split_csv_metadata(
         raise ValueError(f"test_size must be in (0, 1), got {test_size}")
 
     df = pd.read_csv(csv_path)
+    resolved_image_id_col = _pick_existing_column(
+        columns=df.columns.tolist(),
+        preferred=image_id_col,
+        candidates=IMAGE_ID_COLUMN_CANDIDATES,
+    )
+    df, resolved_label_col = _maybe_create_label_column(df, label_col)
+
     original_len = len(df)
     logger.info("Loaded CSV with %d rows from '%s'", original_len, csv_path)
 
     if image_dir is not None:
         image_dir = Path(image_dir)
-        image_paths = {
-            row[image_id_col]: image_dir / f"{row[image_id_col]}{file_extension}"
-            for _, row in df.iterrows()
-        }
-        mask = pd.Series([p.is_file() for p in image_paths.values()], index=df.index)
+        mask = df[resolved_image_id_col].map(
+            lambda image_id: (image_dir / _to_image_filename(image_id, file_extension)).is_file()
+        )
         df = df[mask].reset_index(drop=True)
         filtered_len = len(df)
         dropped = original_len - filtered_len
@@ -102,10 +118,17 @@ def split_csv_metadata(
     if df.empty:
         raise ValueError("No rows remaining after filtering; cannot split.")
 
+    stratify_col = None
+    if stratify and resolved_label_col in df.columns:
+        label_counts = df[resolved_label_col].astype(str).value_counts()
+        if not label_counts.empty and label_counts.min() >= 2:
+            stratify_col = df[resolved_label_col].astype(str)
+
     train_df, test_df = train_test_split(
         df,
         test_size=test_size,
         random_state=random_state,
+        stratify=stratify_col,
     )
 
     logger.info(

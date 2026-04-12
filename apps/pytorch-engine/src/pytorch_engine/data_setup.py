@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shutil
 import zipfile
 from pathlib import Path
 from typing import TypedDict
@@ -13,6 +14,50 @@ from torchvision import datasets, transforms
 NUM_WORKERS: int | None = os.cpu_count()
 
 logger = logging.getLogger(__name__)
+
+
+def prepare_kaggle_ham10000_dataset(
+    zip_path: str | Path,
+    destination: str | Path,
+    remove_masks_dir: bool = True,
+    remove_zip: bool = False,
+) -> Path:
+    """Extract Kaggle HAM10000 archive and normalize expected structure.
+
+    Expected result inside *destination*:
+      - ``images/`` (required for training)
+      - ``GroundTruth.csv`` (metadata labels)
+      - optional ``ATTRIBUTION.txt``
+      - optional ``masks/`` (deleted when *remove_masks_dir* is True)
+    """
+    zip_path = Path(zip_path)
+    destination_path = Path(destination)
+
+    if not zip_path.is_file():
+        raise FileNotFoundError(f"Dataset zip not found: {zip_path}")
+
+    destination_path.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        logger.info("Extracting dataset '%s' to '%s'", zip_path, destination_path)
+        zip_ref.extractall(destination_path)
+
+    masks_path = destination_path / "masks"
+    if remove_masks_dir and masks_path.exists():
+        shutil.rmtree(masks_path)
+        logger.info("Removed unused masks directory: %s", masks_path)
+
+    images_path = destination_path / "images"
+    csv_path = destination_path / "GroundTruth.csv"
+    if not images_path.is_dir():
+        raise FileNotFoundError(f"Expected images directory not found: {images_path}")
+    if not csv_path.is_file():
+        raise FileNotFoundError(f"Expected metadata CSV not found: {csv_path}")
+
+    if remove_zip:
+        zip_path.unlink(missing_ok=True)
+
+    return destination_path
 
 
 def walk_through_dir(dir_path: str | Path) -> None:
