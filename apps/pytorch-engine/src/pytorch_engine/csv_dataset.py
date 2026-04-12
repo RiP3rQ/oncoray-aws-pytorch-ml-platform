@@ -326,6 +326,8 @@ def create_csv_dataloader(
     shuffle: bool = False,
     num_workers: int | None = os.cpu_count(),
     pin_memory: bool | None = None,
+    drop_last: bool = False,
+    prefetch_factor: int | None = None,
     dataframe: pd.DataFrame | None = None,
 ) -> DataLoaderResult:
     """Factory that creates a DataLoader from a CSV-described flat image directory.
@@ -351,6 +353,12 @@ def create_csv_dataloader(
             Defaults to ``False``.
         num_workers: Subprocess count for data loading.  Defaults to
             ``os.cpu_count()`` or ``1`` if that returns ``None``.
+        pin_memory: Whether to pin host memory for faster CUDA transfer.
+            Defaults to ``True`` only when CUDA is available.
+        drop_last: Drop the final partial batch. Useful for keeping static
+            batch shapes during compiled training. Defaults to ``False``.
+        prefetch_factor: Number of batches each worker should prefetch.
+            Only used when ``num_workers > 0``.
 
     Returns:
         A :class:`DataLoaderResult` dict with keys
@@ -387,16 +395,22 @@ def create_csv_dataloader(
     resolved_num_workers = num_workers if num_workers is not None else 0
     # Pinned memory helps host->GPU transfer speed, but brings no benefit on CPU.
     resolved_pin_memory = torch.cuda.is_available() if pin_memory is None else pin_memory
-
-    dataloader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=resolved_num_workers,
-        pin_memory=resolved_pin_memory,
+    dataloader_kwargs: dict[str, Any] = {
+        "dataset": dataset,
+        "batch_size": batch_size,
+        "shuffle": shuffle,
+        "num_workers": resolved_num_workers,
+        "pin_memory": resolved_pin_memory,
+        "drop_last": drop_last,
         # Reuse worker processes across epochs when multiprocessing is enabled.
-        persistent_workers=resolved_num_workers > 0,
-    )
+        "persistent_workers": resolved_num_workers > 0,
+    }
+    if resolved_num_workers > 0 and prefetch_factor is not None:
+        # Prefetching keeps worker queues warm so GPU training spends less time
+        # waiting on image decoding and transforms.
+        dataloader_kwargs["prefetch_factor"] = prefetch_factor
+
+    dataloader = DataLoader(**dataloader_kwargs)
 
     return DataLoaderResult(
         dataloader=dataloader,

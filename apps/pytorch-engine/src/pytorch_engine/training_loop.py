@@ -14,7 +14,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from pytorch_engine.utils import accuracy_fn, resolve_device
+from pytorch_engine.utils import resolve_device
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,21 @@ def _autocast_context(
     return torch.autocast(device_type=device.type, dtype=amp_dtype)
 
 
+def _prepare_inputs(
+    X: torch.Tensor,
+    y: torch.Tensor,
+    device: torch.device,
+    use_non_blocking: bool,
+    use_channels_last: bool,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Move a batch to the target device and memory format."""
+    X = X.to(device, non_blocking=use_non_blocking)
+    y = y.to(device, non_blocking=use_non_blocking)
+    if use_channels_last and X.ndim == 4:
+        X = X.contiguous(memory_format=torch.channels_last)
+    return X, y
+
+
 # ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------
@@ -51,8 +66,8 @@ class StepResult(TypedDict):
     """Return type for :func:`train_step` and :func:`test_step`.
 
     Attributes:
-        loss: Average loss over all batches in the epoch.
-        accuracy: Average accuracy (0-1) over all batches in the epoch.
+        loss: Average loss over all samples in the epoch.
+        accuracy: Average accuracy (0-1) over all samples in the epoch.
     """
 
     loss: float
@@ -93,14 +108,17 @@ def train_step(
     scaler: torch.amp.GradScaler | None = None,
     use_amp: bool = False,
     amp_dtype: torch.dtype = torch.float16,
+    grad_clip_max_norm: float | None = None,
+    use_channels_last: bool = False,
 ) -> StepResult:
     """Run a single training epoch.
 
     Sets *model* to training mode, iterates every batch in *dataloader*
     (forward -> loss -> backward -> optimizer step), and returns the average
-    loss and accuracy across all batches.
+    loss and accuracy across all samples.
 
     Args:
+        epoch: One-based epoch number for progress display.
         model: Model to train.
         dataloader: Training data loader.
         loss_fn: Loss function to minimise.
@@ -109,34 +127,46 @@ def train_step(
         scaler: Optional gradient scaler used for AMP training.
         use_amp: Whether to enable AMP autocast during forward/loss.
         amp_dtype: AMP dtype to use when autocast is enabled.
+        grad_clip_max_norm: Optional gradient clipping threshold.
+        use_channels_last: Whether to convert image batches to channels-last.
 
     Returns:
         A :class:`StepResult` with average ``loss`` and ``accuracy``.
     """
     computed_device = resolve_device(device)
     use_non_blocking = computed_device.type == "cuda"
-    # Put model in train mode
-    model.to(computed_device).train()
 
-    # Initialize running loss and accuracy
+    if use_channels_last:
+        model.to(computed_device, memory_format=torch.channels_last).train()
+    else:
+        model.to(computed_device).train()
+
+    # Track sample-weighted metrics so the final partial batch does not distort
+    # epoch averages.
     running_loss: float = 0.0
-    running_acc: float = 0.0
+    running_correct: int = 0
+    running_examples: int = 0
     num_batches = len(dataloader)
 
     logger.info("Train step started on %s (%d batches)", computed_device, num_batches)
 
-    # Loop through data loader data batches
+    # Wrap the dataloader directly so progress and iteration stay in sync.
     progress_bar = tqdm(
-        enumerate(dataloader),
-        desc=f"Training Epoch {epoch}",
-        total=len(dataloader),
+        dataloader,
+        desc=f"Train {epoch}",
+        total=num_batches,
+        leave=False,
     )
 
-    # Loop through data loader data batches
-    for batch_idx, (X, y) in enumerate(dataloader):
-        # ``non_blocking=True`` only matters when CUDA + pinned memory are in use.
-        X = X.to(computed_device, non_blocking=use_non_blocking)
-        y = y.to(computed_device, non_blocking=use_non_blocking)
+    for X, y in progress_bar:
+        X, y = _prepare_inputs(
+            X=X,
+            y=y,
+            device=computed_device,
+            use_non_blocking=use_non_blocking,
+            use_channels_last=use_channels_last,
+        )
+        batch_size = y.size(0)
 
         # ``set_to_none=True`` avoids writing zeroes into every gradient tensor
         # and is the recommended modern PyTorch reset pattern.
@@ -152,31 +182,36 @@ def train_step(
             y_pred = model(X)
             loss = loss_fn(y_pred, y)
 
-        running_loss += loss.item()
+        running_loss += loss.item() * batch_size
 
         if scaler is not None and scaler.is_enabled():
             # Gradient scaling prevents small float16 gradients from underflowing.
             scaler.scale(loss).backward()
+            if grad_clip_max_norm is not None:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_max_norm)
             scaler.step(optimizer)
             scaler.update()
         else:
             loss.backward()
+            if grad_clip_max_norm is not None:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_max_norm)
             optimizer.step()
 
         # ``argmax`` on raw logits is enough for top-1 classification.
         y_pred_class = y_pred.argmax(dim=1)
-        running_acc += accuracy_fn(y_true=y, y_pred=y_pred_class)
+        running_correct += int(torch.eq(y, y_pred_class).sum().item())
+        running_examples += batch_size
 
-        # Update progress bar
         progress_bar.set_postfix(
             {
-                "train_loss": running_loss / (batch_idx + 1),
-                "train_acc": running_acc / (batch_idx + 1),
+                "loss": running_loss / running_examples,
+                "acc": running_correct / running_examples,
             }
         )
 
-    avg_loss = running_loss / num_batches
-    avg_acc = running_acc / num_batches
+    avg_loss = running_loss / running_examples
+    avg_acc = running_correct / running_examples
 
     logger.info("Train step complete - loss=%.4f accuracy=%.4f", avg_loss, avg_acc)
     return StepResult(loss=avg_loss, accuracy=avg_acc)
@@ -190,6 +225,7 @@ def test_step(
     device: str | torch.device = "auto",
     use_amp: bool = False,
     amp_dtype: torch.dtype = torch.float16,
+    use_channels_last: bool = False,
 ) -> StepResult:
     """Run a single evaluation epoch.
 
@@ -197,36 +233,50 @@ def test_step(
     computes average loss and accuracy over *dataloader*.
 
     Args:
+        epoch: One-based epoch number for progress display.
         model: Model to evaluate.
         dataloader: Test/validation data loader.
         loss_fn: Loss function used for evaluation.
         device: ``"auto"`` resolves to CUDA when available.
         use_amp: Whether to enable AMP autocast during evaluation.
         amp_dtype: AMP dtype to use when autocast is enabled.
+        use_channels_last: Whether to convert image batches to channels-last.
 
     Returns:
         A :class:`StepResult` with average ``loss`` and ``accuracy``.
     """
     computed_device = resolve_device(device)
     use_non_blocking = computed_device.type == "cuda"
-    model.to(computed_device).eval()
+
+    if use_channels_last:
+        model.to(computed_device, memory_format=torch.channels_last).eval()
+    else:
+        model.to(computed_device).eval()
 
     running_loss: float = 0.0
-    running_acc: float = 0.0
+    running_correct: int = 0
+    running_examples: int = 0
     num_batches = len(dataloader)
 
     logger.info("Test step started on %s (%d batches)", computed_device, num_batches)
 
     progress_bar = tqdm(
-        enumerate(dataloader),
-        desc=f"Testing Epoch {epoch}",
-        total=len(dataloader),
+        dataloader,
+        desc=f"Eval {epoch}",
+        total=num_batches,
+        leave=False,
     )
 
     with torch.inference_mode():
-        for batch_idx, (X, y) in enumerate(dataloader):
-            X = X.to(computed_device, non_blocking=use_non_blocking)
-            y = y.to(computed_device, non_blocking=use_non_blocking)
+        for X, y in progress_bar:
+            X, y = _prepare_inputs(
+                X=X,
+                y=y,
+                device=computed_device,
+                use_non_blocking=use_non_blocking,
+                use_channels_last=use_channels_last,
+            )
+            batch_size = y.size(0)
 
             with _autocast_context(
                 device=computed_device,
@@ -236,21 +286,21 @@ def test_step(
                 # Evaluation uses same forward path, but gradients stay disabled.
                 test_pred_logits = model(X)
                 loss = loss_fn(test_pred_logits, y)
-            running_loss += loss.item()
 
+            running_loss += loss.item() * batch_size
             test_pred_labels = test_pred_logits.argmax(dim=1)
-            running_acc += accuracy_fn(y_true=y, y_pred=test_pred_labels)
+            running_correct += int(torch.eq(y, test_pred_labels).sum().item())
+            running_examples += batch_size
 
-            # Update progress bar
             progress_bar.set_postfix(
                 {
-                    "test_loss": running_loss / (batch_idx + 1),
-                    "test_acc": running_acc / (batch_idx + 1),
+                    "loss": running_loss / running_examples,
+                    "acc": running_correct / running_examples,
                 }
             )
 
-    avg_loss = running_loss / num_batches
-    avg_acc = running_acc / num_batches
+    avg_loss = running_loss / running_examples
+    avg_acc = running_correct / running_examples
 
     logger.info("Test step complete - loss=%.4f accuracy=%.4f", avg_loss, avg_acc)
     return StepResult(loss=avg_loss, accuracy=avg_acc)
@@ -275,6 +325,9 @@ def train_model(
     compile_options: dict[str, Any] | None = None,
     use_amp: bool | None = None,
     amp_dtype: torch.dtype = torch.float16,
+    lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+    grad_clip_max_norm: float | None = None,
+    use_channels_last: bool | None = None,
 ) -> TrainResult:
     """Train and evaluate a model for multiple epochs.
 
@@ -297,12 +350,20 @@ def train_model(
         compile_options: Optional ``torch.compile`` backend options.
         use_amp: Enable automatic mixed precision. Defaults to CUDA-only.
         amp_dtype: AMP dtype to use when autocast is enabled.
+        lr_scheduler: Optional epoch-level learning-rate scheduler.
+        grad_clip_max_norm: Optional gradient clipping threshold.
+        use_channels_last: Enable channels-last memory format for CUDA conv nets.
 
     Returns:
         A :class:`TrainResult` dict with per-epoch metric lists.
     """
     computed_device = resolve_device(device)
-    model.to(computed_device)
+    resolved_use_channels_last = computed_device.type == "cuda" if use_channels_last is None else use_channels_last
+    if resolved_use_channels_last:
+        model.to(computed_device, memory_format=torch.channels_last)
+    else:
+        model.to(computed_device)
+
     # Keep a handle to the real nn.Module so checkpoint callbacks do not need
     # to understand compile wrappers.
     base_model = _unwrap_model(model)
@@ -329,12 +390,13 @@ def train_model(
     scaler = torch.amp.GradScaler(device="cuda", enabled=resolved_use_amp and computed_device.type == "cuda")
 
     logger.info(
-        "Training started - model=%s epochs=%d device=%s compile=%s amp=%s",
+        "Training started - model=%s epochs=%d device=%s compile=%s amp=%s channels_last=%s",
         model.__class__.__name__,
         epochs,
         computed_device,
         model is not base_model,
         resolved_use_amp and computed_device.type == "cuda",
+        resolved_use_channels_last,
     )
 
     results: TrainResult = {
@@ -344,7 +406,9 @@ def train_model(
         "test_acc": [],
     }
 
-    for epoch in tqdm(range(epochs), desc="Epochs"):
+    for epoch_idx in tqdm(range(epochs), desc="Epochs"):
+        epoch = epoch_idx + 1
+
         # One full epoch = one training pass + one evaluation pass.
         train_result = train_step(
             epoch=epoch,
@@ -356,6 +420,8 @@ def train_model(
             scaler=scaler,
             use_amp=resolved_use_amp,
             amp_dtype=amp_dtype,
+            grad_clip_max_norm=grad_clip_max_norm,
+            use_channels_last=resolved_use_channels_last,
         )
         test_result = test_step(
             epoch=epoch,
@@ -365,16 +431,22 @@ def train_model(
             device=computed_device,
             use_amp=resolved_use_amp,
             amp_dtype=amp_dtype,
+            use_channels_last=resolved_use_channels_last,
         )
 
+        if lr_scheduler is not None:
+            lr_scheduler.step()
+        current_lr = optimizer.param_groups[0]["lr"]
+
         logger.info(
-            "Epoch %d/%d - train_loss=%.4f train_acc=%.4f test_loss=%.4f test_acc=%.4f",
-            epoch + 1,
+            "Epoch %d/%d - train_loss=%.4f train_acc=%.4f test_loss=%.4f test_acc=%.4f lr=%.6g",
+            epoch,
             epochs,
             train_result["loss"],
             train_result["accuracy"],
             test_result["loss"],
             test_result["accuracy"],
+            current_lr,
         )
 
         results["train_loss"].append(train_result["loss"])
@@ -384,9 +456,9 @@ def train_model(
 
         if epoch_end_callback is not None:
             try:
-                epoch_end_callback(epoch + 1, base_model, train_result, test_result)
+                epoch_end_callback(epoch, base_model, train_result, test_result)
             except Exception as error:  # pragma: no cover - callback runtime dependent
-                logger.warning("Epoch-end callback failed at epoch %d: %s", epoch + 1, error)
+                logger.warning("Epoch-end callback failed at epoch %d: %s", epoch, error)
 
     logger.info("Training complete - %d epochs finished", epochs)
     return results
