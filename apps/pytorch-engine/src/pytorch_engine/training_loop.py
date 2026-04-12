@@ -8,6 +8,7 @@ per-epoch metrics.
 import logging
 from collections.abc import Callable
 from contextlib import nullcontext
+from copy import deepcopy
 from typing import Any, TypedDict, cast
 
 import torch
@@ -78,7 +79,7 @@ class TrainResult(TypedDict):
     """Return type for :func:`train_model`.
 
     Each value is a list of per-epoch measurements whose length equals
-    the number of training epochs.
+    the number of executed epochs.
 
     Attributes:
         train_loss: Training loss per epoch.
@@ -356,12 +357,16 @@ def train_model(
     lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     grad_clip_max_norm: float | None = None,
     use_channels_last: bool | None = None,
+    early_stopping_patience: int | None = 3,
+    early_stopping_min_delta: float = 0.0,
 ) -> TrainResult:
     """Train and evaluate a model for multiple epochs.
 
     Runs :func:`train_step` followed by :func:`test_step` for each epoch.
     Reported training metrics come from the online optimization pass, while
-    test metrics come from a separate eval-mode pass.
+    test metrics come from a separate eval-mode pass. When early stopping is
+    enabled, training stops once test loss stops improving and the best model
+    weights are restored before returning.
 
     Args:
         model: Model to train and evaluate.
@@ -382,6 +387,10 @@ def train_model(
         lr_scheduler: Optional epoch-level learning-rate scheduler.
         grad_clip_max_norm: Optional gradient clipping threshold.
         use_channels_last: Enable channels-last memory format for CUDA conv nets.
+        early_stopping_patience: Number of consecutive non-improving epochs to
+            tolerate before stopping. Set to ``None`` to disable early stopping.
+        early_stopping_min_delta: Minimum required decrease in test loss to
+            count as an improvement for early stopping.
 
     Returns:
         A :class:`TrainResult` dict with per-epoch metric lists.
@@ -433,6 +442,16 @@ def train_model(
         "test_loss": [],
         "test_acc": [],
     }
+    early_stopping_enabled = early_stopping_patience is not None
+    best_test_loss: float | None = None
+    best_epoch: int | None = None
+    best_model_state: dict[str, Any] | None = None
+    epochs_without_improvement = 0
+
+    if early_stopping_enabled and early_stopping_patience < 1:
+        raise ValueError("early_stopping_patience must be >= 1 or None")
+    if early_stopping_min_delta < 0:
+        raise ValueError("early_stopping_min_delta must be >= 0")
 
     for epoch_idx in tqdm(range(epochs), desc="Epochs"):
         epoch = epoch_idx + 1
@@ -488,11 +507,34 @@ def train_model(
         results["test_loss"].append(test_result["loss"])
         results["test_acc"].append(test_result["accuracy"])
 
+        if early_stopping_enabled:
+            if best_test_loss is None or test_result["loss"] < (best_test_loss - early_stopping_min_delta):
+                best_test_loss = test_result["loss"]
+                best_epoch = epoch
+                best_model_state = deepcopy(base_model.state_dict())
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+
         if epoch_end_callback is not None:
             try:
                 epoch_end_callback(epoch, base_model, train_result, test_result)
             except Exception as error:  # pragma: no cover - callback runtime dependent
                 logger.warning("Epoch-end callback failed at epoch %d: %s", epoch, error)
 
-    logger.info("Training complete - %d epochs finished", epochs)
+        if early_stopping_enabled and epochs_without_improvement >= early_stopping_patience:
+            logger.info(
+                "Early stopping at epoch %d/%d - best test_loss=%.4f at epoch %d",
+                epoch,
+                epochs,
+                best_test_loss,
+                best_epoch,
+            )
+            break
+
+    if early_stopping_enabled and best_model_state is not None and best_epoch is not None:
+        base_model.load_state_dict(best_model_state)
+        logger.info("Restored best model weights from epoch %d (test_loss=%.4f).", best_epoch, best_test_loss)
+
+    logger.info("Training complete - %d epochs finished", len(results["train_loss"]))
     return results
