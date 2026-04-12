@@ -1,7 +1,7 @@
-"""EfficientNetB2 model creator for transfer learning image classification.
+"""ViT model creator for transfer learning image classification.
 
-Provides :func:`create_effnetb2_model` which builds a pre-trained
-EfficientNetB2 feature extractor with a configurable classifier head.
+Provides :func:`create_vit_model` which builds a pre-trained
+ViT feature extractor with a configurable classifier head.
 """
 
 from __future__ import annotations
@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class EfficientNetB2Model:
-    """Return type for :func:`create_effnetb2_model`.
+class VitB16Model:
+    """Return type for :func:`create_vit_model`.
 
     Attributes:
-        model: EffNetB2 feature extractor with frozen backbone and
+        model: ViTB16 feature extractor with frozen backbone and
             a fresh classifier head.
         transforms: Image transforms matching the pre-trained weights.
     """
@@ -41,13 +41,13 @@ class EfficientNetB2Model:
 # ---------------------------------------------------------------------------
 
 
-def create_effnetb2_model(
+def create_vit_model(
     num_classes: int = 3,
     transforms: torchvision.transforms.Compose | None = None,
     seed: int = 42,
     dropout_p: float = 0.3,
-) -> EfficientNetB2Model:
-    """Create an EfficientNetB2 feature extractor model and transforms.
+) -> VitB16Model:
+    """Create a ViTB16 feature extractor model and transforms.
 
     Loads pre-trained ImageNet weights, freezes the backbone, and replaces
     the classifier head with a dropout → linear layer suitable for
@@ -64,30 +64,30 @@ def create_effnetb2_model(
             Defaults to 0.3.
 
     Returns:
-        An :class:`EfficientNetB2Model` instance containing the model
+        An :class:`VitB16Model` instance containing the model
         and its matching transforms.
 
     Example::
 
-        result = create_effnetb2_model(num_classes=10, seed=0)
+        result = create_vit_model(num_classes=10, seed=0)
         model = result.model
         transforms = result.transforms
     """
     logger.info(
-        "Creating EffNetB2 model — num_classes=%d seed=%d dropout_p=%.2f",
+        "Creating VitB16Model model — num_classes=%d seed=%d dropout_p=%.2f",
         num_classes,
         seed,
         dropout_p,
     )
 
-    # 1. Load pre-trained EffNetB2 weights
-    weights = torchvision.models.EfficientNet_B2_Weights.IMAGENET1K_V1
+    # 1. Load pre-trained ViTB16 weights
+    weights = torchvision.models.ViT_B_16_Weights.IMAGENET1K_SWAG_LINEAR_V1
     logger.info("Loaded pre-trained %s", weights.__class__.__name__)
     # 2. Get image transforms from weights, or use custom transforms if provided
     image_transforms = transforms or weights.transforms()
 
     # 3. Build model from pre-trained weights
-    model = torchvision.models.efficientnet_b2(weights=weights)
+    model = torchvision.models.vit_b_16(weights=weights)
 
     # 4. Freeze all backbone layers (only classifier trains during fine-tuning)
     frozen_count = 0
@@ -120,9 +120,9 @@ def create_effnetb2_model(
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total = sum(p.numel() for p in model.parameters())
     logger.info(
-        "EffNetB2 model ready — %d trainable / %d total parameters",
+        "VitB16Model model ready — %d trainable / %d total parameters",
         trainable,
         total,
     )
 
-    return EfficientNetB2Model(model=model, transforms=image_transforms)
+    return VitB16Model(model=model, transforms=image_transforms)
