@@ -1,8 +1,8 @@
 """PyTorch model persistence utilities."""
 
-import datetime
 import logging
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -59,8 +59,8 @@ def save_model(
         msg = f"model_name must end with one of {_VALID_EXTENSIONS}, got {model_name!r}"
         raise ValueError(msg)
 
-    currentDateWithTime = datetime.now().strftime("%Y-%m-%d_%H-%M")
-    save_path = Path(target_dir) / f"{model_name}_{currentDateWithTime}"
+    current_date_with_time: str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    save_path = Path(target_dir) / f"{model_name}_{current_date_with_time}"
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Normal and compiled models share the same checkpoint format once unwrapped.

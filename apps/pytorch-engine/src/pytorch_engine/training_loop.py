@@ -8,7 +8,7 @@ per-epoch metrics.
 import logging
 from collections.abc import Callable
 from contextlib import nullcontext
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 import torch
 from torch.utils.data import DataLoader
@@ -105,7 +105,7 @@ def train_step(
     loss_fn: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
     device: str | torch.device = "auto",
-    scaler: torch.amp.GradScaler | None = None,
+    scaler: Any | None = None,
     use_amp: bool = False,
     amp_dtype: torch.dtype = torch.float16,
     grad_clip_max_norm: float | None = None,
@@ -136,10 +136,10 @@ def train_step(
     computed_device = resolve_device(device)
     use_non_blocking = computed_device.type == "cuda"
 
+    model = cast(torch.nn.Module, model.to(computed_device))
     if use_channels_last:
-        model.to(computed_device, memory_format=torch.channels_last).train()
-    else:
-        model.to(computed_device).train()
+        model = cast(torch.nn.Module, model.to(memory_format=torch.channels_last))  # type: ignore[call-overload]
+    model.train()
 
     # Track sample-weighted metrics so the final partial batch does not distort
     # epoch averages.
@@ -245,24 +245,54 @@ def test_step(
     Returns:
         A :class:`StepResult` with average ``loss`` and ``accuracy``.
     """
+    return _evaluate_step(
+        epoch=epoch,
+        phase_name="Eval",
+        model=model,
+        dataloader=dataloader,
+        loss_fn=loss_fn,
+        device=device,
+        use_amp=use_amp,
+        amp_dtype=amp_dtype,
+        use_channels_last=use_channels_last,
+    )
+
+
+def _evaluate_step(
+    epoch: int,
+    phase_name: str,
+    model: torch.nn.Module,
+    dataloader: DataLoader[Any],
+    loss_fn: torch.nn.Module,
+    device: str | torch.device = "auto",
+    use_amp: bool = False,
+    amp_dtype: torch.dtype = torch.float16,
+    use_channels_last: bool = False,
+) -> StepResult:
+    """Run a single eval-mode pass over *dataloader*.
+
+    Used for both validation/test metrics and post-epoch training metrics so
+    reported accuracies come from the final epoch model state in ``eval()``
+    mode rather than a mix of intermediate training states.
+    """
     computed_device = resolve_device(device)
     use_non_blocking = computed_device.type == "cuda"
 
+    model = cast(torch.nn.Module, model.to(computed_device))
     if use_channels_last:
-        model.to(computed_device, memory_format=torch.channels_last).eval()
-    else:
-        model.to(computed_device).eval()
+        model = cast(torch.nn.Module, model.to(memory_format=torch.channels_last))  # type: ignore[call-overload]
+    model.eval()
 
     running_loss: float = 0.0
     running_correct: int = 0
     running_examples: int = 0
     num_batches = len(dataloader)
 
-    logger.info("Test step started on %s (%d batches)", computed_device, num_batches)
+    logger.info("%s step started on %s (%d batches)", phase_name, computed_device, num_batches)
 
     progress_bar = tqdm(
         dataloader,
-        desc=f"Eval {epoch}",
+        desc=f"{phase_name} {epoch}",
         total=num_batches,
         leave=False,
     )
@@ -302,7 +332,7 @@ def test_step(
     avg_loss = running_loss / running_examples
     avg_acc = running_correct / running_examples
 
-    logger.info("Test step complete - loss=%.4f accuracy=%.4f", avg_loss, avg_acc)
+    logger.info("%s step complete - loss=%.4f accuracy=%.4f", phase_name, avg_loss, avg_acc)
     return StepResult(loss=avg_loss, accuracy=avg_acc)
 
 
@@ -328,11 +358,15 @@ def train_model(
     lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     grad_clip_max_norm: float | None = None,
     use_channels_last: bool | None = None,
+    train_metrics_dataloader: DataLoader[Any] | None = None,
 ) -> TrainResult:
     """Train and evaluate a model for multiple epochs.
 
     Runs :func:`train_step` followed by :func:`test_step` for each epoch,
-    logging per-epoch metrics and returning the full history.
+    then recomputes training metrics in ``eval()`` mode using the final model
+    state for that epoch. This makes ``train_acc`` directly comparable to
+    ``test_acc`` instead of mixing together intermediate in-training model
+    states.
 
     Args:
         model: Model to train and evaluate.
@@ -353,16 +387,19 @@ def train_model(
         lr_scheduler: Optional epoch-level learning-rate scheduler.
         grad_clip_max_norm: Optional gradient clipping threshold.
         use_channels_last: Enable channels-last memory format for CUDA conv nets.
+        train_metrics_dataloader: Optional deterministic loader used only for
+            reporting ``train_loss``/``train_acc``. When ``None``, the
+            training loader is reused in ``eval()`` mode, which still reflects
+            any stochastic dataset transforms or ``drop_last`` behavior.
 
     Returns:
         A :class:`TrainResult` dict with per-epoch metric lists.
     """
     computed_device = resolve_device(device)
     resolved_use_channels_last = computed_device.type == "cuda" if use_channels_last is None else use_channels_last
+    model = cast(torch.nn.Module, model.to(computed_device))
     if resolved_use_channels_last:
-        model.to(computed_device, memory_format=torch.channels_last)
-    else:
-        model.to(computed_device)
+        model = cast(torch.nn.Module, model.to(memory_format=torch.channels_last))  # type: ignore[call-overload]
 
     # Keep a handle to the real nn.Module so checkpoint callbacks do not need
     # to understand compile wrappers.
@@ -380,7 +417,7 @@ def train_model(
         else:
             # Compile after model construction but before the first epoch so the
             # training loop uses the optimized graph from the start.
-            model = torch.compile(model, mode=compile_mode, options=compile_options)
+            model = cast(torch.nn.Module, torch.compile(model, mode=compile_mode, options=compile_options))
             base_model = _unwrap_model(model)
             logger.info("Compiled model with torch.compile(mode=%s).", compile_mode)
 
@@ -405,12 +442,19 @@ def train_model(
         "test_loss": [],
         "test_acc": [],
     }
+    reported_train_dataloader = train_metrics_dataloader or train_dataloader
+    if train_metrics_dataloader is None:
+        logger.info(
+            "Using train_dataloader for reported train metrics. "
+            "Pass train_metrics_dataloader with deterministic transforms and drop_last=False "
+            "for fully comparable train/test curves."
+        )
 
     for epoch_idx in tqdm(range(epochs), desc="Epochs"):
         epoch = epoch_idx + 1
 
-        # One full epoch = one training pass + one evaluation pass.
-        train_result = train_step(
+        # One full epoch = one optimization pass + eval-mode metric passes.
+        online_train_result = train_step(
             epoch=epoch,
             model=model,
             dataloader=train_dataloader,
@@ -421,6 +465,17 @@ def train_model(
             use_amp=resolved_use_amp,
             amp_dtype=amp_dtype,
             grad_clip_max_norm=grad_clip_max_norm,
+            use_channels_last=resolved_use_channels_last,
+        )
+        train_result = _evaluate_step(
+            epoch=epoch,
+            phase_name="TrainEval",
+            model=model,
+            dataloader=reported_train_dataloader,
+            loss_fn=loss_fn,
+            device=computed_device,
+            use_amp=resolved_use_amp,
+            amp_dtype=amp_dtype,
             use_channels_last=resolved_use_channels_last,
         )
         test_result = test_step(
@@ -447,6 +502,12 @@ def train_model(
             test_result["loss"],
             test_result["accuracy"],
             current_lr,
+        )
+        logger.debug(
+            "Epoch %d online train metrics - loss=%.4f accuracy=%.4f",
+            epoch,
+            online_train_result["loss"],
+            online_train_result["accuracy"],
         )
 
         results["train_loss"].append(train_result["loss"])
