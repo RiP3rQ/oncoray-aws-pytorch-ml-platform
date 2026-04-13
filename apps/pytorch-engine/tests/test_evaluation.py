@@ -45,6 +45,41 @@ class EvaluateClassificationModelTests(unittest.TestCase):
         self.assertEqual(metrics["y_true"], [0, 1, 2, 1])
         self.assertEqual(metrics["y_pred"], [0, 1, 2, 0])
 
+    def test_tta_runs_multiple_forward_passes_per_batch(self) -> None:
+        features = torch.tensor(
+            [
+                [[[1.0, 0.0], [0.0, 0.0]]],
+                [[[0.0, 1.0], [0.0, 0.0]]],
+            ]
+        )
+        labels = torch.tensor([0, 1])
+        dataloader = DataLoader(TensorDataset(features, labels), batch_size=2, shuffle=False)
+
+        class CountingModel(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.forward_calls = 0
+
+            def forward(self, X: torch.Tensor) -> torch.Tensor:
+                self.forward_calls += 1
+                left_score = X[..., 0].sum(dim=(-2, -1))
+                right_score = X[..., 1].sum(dim=(-2, -1))
+                return torch.stack([left_score, right_score], dim=1)
+
+        model = CountingModel()
+
+        metrics = evaluate_classification_model(
+            model=model,
+            dataloader=dataloader,
+            class_names=["left", "right"],
+            device="cpu",
+            tta_transforms=("identity", "hflip"),
+        )
+
+        self.assertEqual(model.forward_calls, 2)
+        self.assertEqual(metrics["y_true"], [0, 1])
+        self.assertEqual(len(metrics["y_pred"]), 2)
+
 
 class PlotConfusionMatrixTests(unittest.TestCase):
     def test_returns_figure(self) -> None:

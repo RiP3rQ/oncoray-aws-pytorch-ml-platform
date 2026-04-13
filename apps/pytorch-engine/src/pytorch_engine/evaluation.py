@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from contextlib import nullcontext
 from typing import Any, TypedDict
 
@@ -49,6 +50,50 @@ def _autocast_context(
     return torch.autocast(device_type=device.type, dtype=amp_dtype)
 
 
+def _apply_tta_transform(X: torch.Tensor, transform_name: str) -> torch.Tensor:
+    """Apply a named deterministic test-time augmentation."""
+    if transform_name == "identity":
+        return X
+    if transform_name == "hflip":
+        return torch.flip(X, dims=(-1,))
+    if transform_name == "vflip":
+        return torch.flip(X, dims=(-2,))
+    if transform_name == "rot90":
+        return torch.rot90(X, k=1, dims=(-2, -1))
+    if transform_name == "rot180":
+        return torch.rot90(X, k=2, dims=(-2, -1))
+    if transform_name == "rot270":
+        return torch.rot90(X, k=3, dims=(-2, -1))
+    raise ValueError(f"Unsupported TTA transform: {transform_name}")
+
+
+def _predict_logits_with_tta(
+    model: torch.nn.Module,
+    X: torch.Tensor,
+    *,
+    tta_transforms: Sequence[str],
+    use_amp: bool,
+    amp_dtype: torch.dtype,
+    device: torch.device,
+    use_channels_last: bool,
+) -> torch.Tensor:
+    """Average logits across deterministic TTA variants."""
+    logits_sum: torch.Tensor | None = None
+    for transform_name in tta_transforms:
+        transformed_batch = _apply_tta_transform(X, transform_name)
+        if use_channels_last and transformed_batch.ndim == 4:
+            transformed_batch = transformed_batch.contiguous(memory_format=torch.channels_last)
+        with _autocast_context(
+            device=device,
+            use_amp=use_amp,
+            amp_dtype=amp_dtype,
+        ):
+            logits = model(transformed_batch)
+        logits_sum = logits if logits_sum is None else logits_sum + logits
+    assert logits_sum is not None
+    return logits_sum / len(tta_transforms)
+
+
 def evaluate_classification_model(
     model: torch.nn.Module,
     dataloader: DataLoader[Any],
@@ -57,6 +102,7 @@ def evaluate_classification_model(
     use_amp: bool = False,
     amp_dtype: torch.dtype = torch.float16,
     use_channels_last: bool = False,
+    tta_transforms: Sequence[str] | None = None,
 ) -> ClassificationMetrics:
     """Evaluate a classifier on a dataloader with balanced metrics.
 
@@ -68,6 +114,9 @@ def evaluate_classification_model(
         use_amp: Enable autocast during forward pass on CUDA.
         amp_dtype: AMP dtype when autocast is enabled.
         use_channels_last: Use channels-last memory format for image batches.
+        tta_transforms: Optional deterministic test-time augmentations whose
+            logits will be averaged per batch. Use names such as
+            ``("identity", "hflip", "vflip", "rot90")``.
 
     Returns:
         Aggregate and per-class metrics, confusion matrices, and raw labels.
@@ -79,6 +128,14 @@ def evaluate_classification_model(
     if use_channels_last:
         model = model.to(memory_format=torch.channels_last)  # type: ignore[call-overload]
     model.eval()
+    if tta_transforms is None:
+        resolved_tta_transforms: tuple[str, ...] = ("identity",)
+    else:
+        if isinstance(tta_transforms, str):
+            raise ValueError("tta_transforms must be a sequence of transform names, not a single string")
+        resolved_tta_transforms = tuple(tta_transforms)
+        if len(resolved_tta_transforms) == 0:
+            raise ValueError("tta_transforms must not be empty")
 
     true_batches: list[torch.Tensor] = []
     pred_batches: list[torch.Tensor] = []
@@ -89,13 +146,15 @@ def evaluate_classification_model(
             y = y.to(computed_device, non_blocking=use_non_blocking)
             if use_channels_last and X.ndim == 4:
                 X = X.contiguous(memory_format=torch.channels_last)
-
-            with _autocast_context(
-                device=computed_device,
+            logits = _predict_logits_with_tta(
+                model=model,
+                X=X,
+                tta_transforms=resolved_tta_transforms,
                 use_amp=use_amp,
                 amp_dtype=amp_dtype,
-            ):
-                logits = model(X)
+                device=computed_device,
+                use_channels_last=use_channels_last,
+            )
 
             pred_batches.append(logits.argmax(dim=1).cpu())
             true_batches.append(y.cpu())
