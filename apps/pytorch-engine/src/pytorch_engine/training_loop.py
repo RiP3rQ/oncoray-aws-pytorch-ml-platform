@@ -19,6 +19,10 @@ from pytorch_engine.utils import resolve_device
 
 logger = logging.getLogger(__name__)
 MAX_AUTOTUNE_MIN_TRAIN_STEPS = 1024
+TrainBatchTransform = Callable[
+    [torch.Tensor, torch.Tensor],
+    tuple[torch.Tensor, torch.Tensor, Callable[[torch.Tensor], float] | None],
+]
 
 
 def _unwrap_model(model: torch.nn.Module) -> torch.nn.Module:
@@ -161,6 +165,7 @@ def train_step(
     amp_dtype: torch.dtype = torch.float16,
     grad_clip_max_norm: float | None = None,
     use_channels_last: bool = False,
+    train_batch_transform: TrainBatchTransform | None = None,
 ) -> StepResult:
     """Run a single training epoch.
 
@@ -180,6 +185,8 @@ def train_step(
         amp_dtype: AMP dtype to use when autocast is enabled.
         grad_clip_max_norm: Optional gradient clipping threshold.
         use_channels_last: Whether to convert image batches to channels-last.
+        train_batch_transform: Optional training-only batch transform such as
+            MixUp. Must return ``(X, y, accuracy_fn)`` after device transfer.
 
     Returns:
         A :class:`StepResult` with average ``loss`` and ``accuracy``.
@@ -196,7 +203,7 @@ def train_step(
     # Track sample-weighted metrics so the final partial batch does not distort
     # epoch averages.
     running_loss: float = 0.0
-    running_correct: int = 0
+    running_correct: float = 0.0
     running_examples: int = 0
     num_batches = len(dataloader)
 
@@ -218,6 +225,9 @@ def train_step(
             use_non_blocking=use_non_blocking,
             use_channels_last=use_channels_last,
         )
+        batch_accuracy_fn: Callable[[torch.Tensor], float] | None = None
+        if train_batch_transform is not None:
+            X, y, batch_accuracy_fn = train_batch_transform(X, y)
         batch_size = y.size(0)
 
         # ``set_to_none=True`` avoids writing zeroes into every gradient tensor
@@ -251,8 +261,12 @@ def train_step(
             optimizer.step()
 
         # ``argmax`` on raw logits is enough for top-1 classification.
-        y_pred_class = y_pred.argmax(dim=1)
-        running_correct += int(torch.eq(y, y_pred_class).sum().item())
+        if batch_accuracy_fn is not None:
+            running_correct += batch_accuracy_fn(y_pred)
+        else:
+            y_pred_class = y_pred.argmax(dim=1)
+            y_metric = y.argmax(dim=1) if y.ndim > 1 else y
+            running_correct += float(torch.eq(y_metric, y_pred_class).sum().item())
         running_examples += batch_size
 
         progress_bar.set_postfix(
@@ -410,6 +424,7 @@ def train_model(
     use_channels_last: bool | None = None,
     early_stopping_patience: int | None = 5,
     early_stopping_min_delta: float = 0.0,
+    train_batch_transform: TrainBatchTransform | None = None,
 ) -> TrainResult:
     """Train and evaluate a model for multiple epochs.
 
@@ -443,6 +458,8 @@ def train_model(
             tolerate before stopping. Set to ``None`` to disable early stopping.
         early_stopping_min_delta: Minimum required decrease in test loss to
             count as an improvement for early stopping.
+        train_batch_transform: Optional training-only batch transform such as
+            MixUp. Validation/test data stays unchanged.
 
     Returns:
         A :class:`TrainResult` dict with per-epoch metric lists.
@@ -528,6 +545,7 @@ def train_model(
             amp_dtype=amp_dtype,
             grad_clip_max_norm=grad_clip_max_norm,
             use_channels_last=resolved_use_channels_last,
+            train_batch_transform=train_batch_transform,
         )
         test_result = test_step(
             epoch=epoch,

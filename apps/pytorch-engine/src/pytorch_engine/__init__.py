@@ -9,6 +9,8 @@ from pytorch_engine.data_setup import (
     prepare_kaggle_ham10000_dataset,
 )
 from pytorch_engine.data_split import split_csv_metadata
+from pytorch_engine.evaluation import ClassificationMetrics, evaluate_classification_model
+from pytorch_engine.regularization import MixUpBatchTransform, SoftTargetCrossEntropyLoss
 from pytorch_engine.save_model import (
     create_milestone_checkpoint_callback,
     save_model,
@@ -25,6 +27,7 @@ from pytorch_engine.utils import (
 
 __all__ = [
     "CSVDataset",
+    "ClassificationMetrics",
     "DataLoaderResult",
     "accuracy_fn",
     "create_csv_dataloader",
@@ -32,13 +35,16 @@ __all__ = [
     "create_milestone_checkpoint_callback",
     "download_and_prepare_kaggle_ham10000_dataset",
     "download_with_curl",
+    "evaluate_classification_model",
     "get_current_device",
     "get_train_transform",
+    "MixUpBatchTransform",
     "prepare_kaggle_ham10000_dataset",
     "print_train_time",
     "resolve_device",
     "save_model",
     "set_seeds",
     "split_csv_metadata",
+    "SoftTargetCrossEntropyLoss",
     "upload_model_file_to_huggingface",
 ]

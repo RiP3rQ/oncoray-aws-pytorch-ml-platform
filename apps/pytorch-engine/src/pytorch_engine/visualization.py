@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -118,4 +119,50 @@ def plot_loss_curves(results: dict[str, list[float]]) -> Figure:
     ax2.set_xlabel("Epochs")
     ax2.legend()
 
+    return fig
+
+
+def plot_confusion_matrix(
+    confusion_matrix_values: Sequence[Sequence[float]],
+    class_names: Sequence[str],
+    normalize: bool = True,
+) -> Figure:
+    """Plot a confusion-matrix heatmap.
+
+    Args:
+        confusion_matrix_values: Raw or normalized confusion matrix.
+        class_names: Axis labels in class-index order.
+        normalize: Whether the matrix values are normalized fractions.
+
+    Returns:
+        The :class:`matplotlib.figure.Figure`.
+    """
+    matrix = np.asarray(confusion_matrix_values, dtype=np.float64)
+    fig, ax = plt.subplots(figsize=(10, 8))
+    image = ax.imshow(matrix, cmap="Blues")
+    fig.colorbar(image, ax=ax)
+
+    ax.set_title("Normalized Confusion Matrix" if normalize else "Confusion Matrix")
+    ax.set_xlabel("Predicted Label")
+    ax.set_ylabel("True Label")
+    ax.set_xticks(range(len(class_names)))
+    ax.set_xticklabels(class_names, rotation=45, ha="right")
+    ax.set_yticks(range(len(class_names)))
+    ax.set_yticklabels(class_names)
+
+    value_format = ".2f" if normalize else "d"
+    threshold = matrix.max() / 2 if matrix.size else 0.0
+    for row_idx in range(matrix.shape[0]):
+        for col_idx in range(matrix.shape[1]):
+            value = matrix[row_idx, col_idx]
+            ax.text(
+                col_idx,
+                row_idx,
+                format(value, value_format),
+                ha="center",
+                va="center",
+                color="white" if value > threshold else "black",
+            )
+
+    fig.tight_layout()
     return fig
