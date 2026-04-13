@@ -5,7 +5,7 @@ from typing import Any, cast
 from unittest.mock import patch
 
 import torch
-from pytorch_engine.training_loop import _resolve_compile_mode, train_model
+from pytorch_engine.training_loop import _resolve_compile_mode, train_model, train_step
 from torch.utils.data import DataLoader, TensorDataset
 
 
@@ -118,6 +118,94 @@ class TrainModelCudaTuningTests(unittest.TestCase):
         )
 
         self.assertEqual(compile_mode, "max-autotune")
+
+
+class TrainModelSchedulerTests(unittest.TestCase):
+    @patch("pytorch_engine.training_loop.test_step")
+    @patch("pytorch_engine.training_loop.train_step")
+    def test_reduce_lr_on_plateau_steps_with_validation_loss(
+        self,
+        mock_train_step: Any,
+        mock_test_step: Any,
+    ) -> None:
+        features = torch.zeros((1, 1))
+        labels = torch.zeros((1,), dtype=torch.long)
+        dataloader = DataLoader(TensorDataset(features, labels), batch_size=1, shuffle=False)
+
+        model = torch.nn.Linear(1, 2)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        loss_fn = torch.nn.CrossEntropyLoss()
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode="min",
+            factor=0.1,
+            patience=0,
+        )
+
+        mock_train_step.return_value = {"loss": 0.1, "accuracy": 1.0}
+        validation_losses = [0.5, 0.7]
+
+        def fake_test_step(*args: object, **kwargs: object) -> dict[str, float]:
+            epoch = cast(int, kwargs["epoch"])
+            return {"loss": validation_losses[epoch - 1], "accuracy": 0.0}
+
+        mock_test_step.side_effect = fake_test_step
+
+        with patch.object(scheduler, "step", wraps=scheduler.step) as mock_scheduler_step:
+            train_model(
+                model=model,
+                train_dataloader=dataloader,
+                test_dataloader=dataloader,
+                optimizer=optimizer,
+                loss_fn=loss_fn,
+                epochs=2,
+                device="cpu",
+                lr_scheduler=scheduler,
+                early_stopping_patience=None,
+            )
+
+        self.assertEqual(mock_scheduler_step.call_args_list[0].args, (0.5,))
+        self.assertEqual(mock_scheduler_step.call_args_list[1].args, (0.7,))
+
+
+class TrainStepBatchNormTests(unittest.TestCase):
+    def test_frozen_batchnorm_running_stats_do_not_update(self) -> None:
+        features = torch.tensor(
+            [
+                [10.0, -10.0],
+                [12.0, -12.0],
+                [14.0, -14.0],
+                [16.0, -16.0],
+            ]
+        )
+        labels = torch.tensor([0, 1, 0, 1])
+        dataloader = DataLoader(TensorDataset(features, labels), batch_size=2, shuffle=False)
+
+        model = torch.nn.Sequential(
+            torch.nn.BatchNorm1d(2),
+            torch.nn.Linear(2, 2),
+        )
+        batchnorm = cast(torch.nn.BatchNorm1d, model[0])
+        for parameter in batchnorm.parameters():
+            parameter.requires_grad = False
+
+        initial_running_mean = batchnorm.running_mean.detach().clone()
+        initial_running_var = batchnorm.running_var.detach().clone()
+
+        optimizer = torch.optim.SGD([parameter for parameter in model.parameters() if parameter.requires_grad], lr=0.1)
+        loss_fn = torch.nn.CrossEntropyLoss()
+
+        train_step(
+            epoch=1,
+            model=model,
+            dataloader=dataloader,
+            loss_fn=loss_fn,
+            optimizer=optimizer,
+            device="cpu",
+        )
+
+        self.assertTrue(torch.equal(batchnorm.running_mean, initial_running_mean))
+        self.assertTrue(torch.equal(batchnorm.running_var, initial_running_var))
 
 
 if __name__ == "__main__":

@@ -31,6 +31,31 @@ def _unwrap_model(model: torch.nn.Module) -> torch.nn.Module:
     return model
 
 
+def _set_frozen_batchnorm_eval(model: torch.nn.Module) -> None:
+    """Keep frozen BatchNorm layers in eval mode during transfer learning.
+
+    Frozen BatchNorm affine params are not enough: calling ``model.train()``
+    would still update running mean/variance on tiny datasets, which often
+    hurts validation performance for pretrained backbones.
+    """
+    for module in model.modules():
+        if not isinstance(module, torch.nn.modules.batchnorm._BatchNorm):
+            continue
+        if all(not param.requires_grad for param in module.parameters(recurse=False)):
+            module.eval()
+
+
+def _step_lr_scheduler(
+    lr_scheduler: torch.optim.lr_scheduler.LRScheduler | torch.optim.lr_scheduler.ReduceLROnPlateau,
+    validation_loss: float,
+) -> None:
+    """Advance the LR scheduler using validation loss when required."""
+    if isinstance(lr_scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+        lr_scheduler.step(validation_loss)
+        return
+    lr_scheduler.step()
+
+
 def _resolve_compile_mode(
     device: torch.device,
     compile_mode: str,
@@ -166,6 +191,7 @@ def train_step(
     if use_channels_last:
         model = cast(torch.nn.Module, model.to(memory_format=torch.channels_last))  # type: ignore[call-overload]
     model.train()
+    _set_frozen_batchnorm_eval(model)
 
     # Track sample-weighted metrics so the final partial batch does not distort
     # epoch averages.
@@ -379,7 +405,7 @@ def train_model(
     compile_options: dict[str, Any] | None = None,
     use_amp: bool | None = None,
     amp_dtype: torch.dtype = torch.float16,
-    lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+    lr_scheduler: (torch.optim.lr_scheduler.LRScheduler | torch.optim.lr_scheduler.ReduceLROnPlateau | None) = None,
     grad_clip_max_norm: float | None = None,
     use_channels_last: bool | None = None,
     early_stopping_patience: int | None = 5,
@@ -409,7 +435,8 @@ def train_model(
         compile_options: Optional ``torch.compile`` backend options.
         use_amp: Enable automatic mixed precision. Defaults to CUDA-only.
         amp_dtype: AMP dtype to use when autocast is enabled.
-        lr_scheduler: Optional epoch-level learning-rate scheduler.
+        lr_scheduler: Optional epoch-level learning-rate scheduler. Metric-based
+            schedulers such as ``ReduceLROnPlateau`` receive validation loss.
         grad_clip_max_norm: Optional gradient clipping threshold.
         use_channels_last: Enable channels-last memory format for CUDA conv nets.
         early_stopping_patience: Number of consecutive non-improving epochs to
@@ -514,7 +541,10 @@ def train_model(
         )
 
         if lr_scheduler is not None:
-            lr_scheduler.step()
+            _step_lr_scheduler(
+                lr_scheduler=lr_scheduler,
+                validation_loss=test_result["loss"],
+            )
         current_lr = optimizer.param_groups[0]["lr"]
         loss_gap = test_result["loss"] - train_result["loss"]
         acc_gap = train_result["accuracy"] - test_result["accuracy"]
