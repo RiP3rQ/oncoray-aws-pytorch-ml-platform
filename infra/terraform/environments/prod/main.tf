@@ -95,6 +95,7 @@ module "eks" {
 resource "aws_ecr_repository" "api" {
   name                 = local.api_repository_name
   image_tag_mutability = "IMMUTABLE"
+  force_delete = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -104,6 +105,7 @@ resource "aws_ecr_repository" "api" {
 resource "aws_ecr_repository" "model_service" {
   name                 = local.model_service_repository_name
   image_tag_mutability = "IMMUTABLE"
+  force_delete = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -172,7 +174,8 @@ resource "aws_sqs_queue" "worker" {
 }
 
 resource "aws_s3_bucket" "frontend" {
-  bucket = local.frontend_bucket_name
+  bucket        = local.frontend_bucket_name
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_public_access_block" "frontend" {

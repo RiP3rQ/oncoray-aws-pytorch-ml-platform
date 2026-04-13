@@ -8,6 +8,8 @@ Contents:
 - `helm/charts/backend-stack/` for Kubernetes workloads
 - `helm/values/prod.example.yaml` for production overrides
 - `scripts/deploy-prod.ps1` to wrap `helm upgrade --install`
+- `scripts/destroy-prod.ps1` to wrap teardown
+- `../docs/DEPLOYMENT_RUNBOOK.md` for end-to-end operator steps
 
 Recommended flow later:
 
@@ -16,6 +18,7 @@ Recommended flow later:
 3. Copy `infra/helm/values/prod.example.yaml` to a real prod values file
 4. Build and push backend images
 5. Run `infra/scripts/deploy-prod.ps1` with real image repos and tags
+6. Use `infra/scripts/destroy-prod.ps1` when environment teardown is required
 
 Current status:
 
