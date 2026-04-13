@@ -1,0 +1,124 @@
+{ { - $root := . - } }
+  { { - range $name, $workload := .Values.workloads } }
+  { { - if $workload.enabled } }
+  { { - $labels := merge (dict) (default (dict) $root.Values.global.commonLabels) (default (dict) $workload.extraLabels) - } }
+  { { - $podAnnotations := merge (dict) (default (dict) $root.Values.global.podAnnotations) (default (dict) $workload.podAnnotations) - } }
+  { { - $podSecurityContext := merge (dict) (default (dict) $root.Values.global.podSecurityContext) (default (dict) $workload.podSecurityContext) - } }
+  { { - $containerSecurityContext := merge (dict) (default (dict) $root.Values.global.containerSecurityContext) (default (dict) $workload.securityContext) - } }
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: { { include "backend-stack.componentName" (dict "root" $root "component" $name) } }
+  labels:
+    { { - include "backend-stack.labels" $root | nindent 4 } }
+    app.kubernetes.io/component: { { $name } }
+    { { - with $labels } }
+    { { - toYaml . | nindent 4 } }
+    { { - end } }
+spec:
+  { { - if not $workload.autoscaling.enabled } }
+  replicas: { { $workload.replicaCount } }
+  { { - end } }
+  selector:
+    matchLabels:
+      { { - include "backend-stack.selectorLabels" $root | nindent 6 } }
+      app.kubernetes.io/component: { { $name } }
+  template:
+    metadata:
+      labels:
+        { { - include "backend-stack.selectorLabels" $root | nindent 8 } }
+        app.kubernetes.io/component: { { $name } }
+        { { - with $labels } }
+        { { - toYaml . | nindent 8 } }
+        { { - end } }
+      { { - with $podAnnotations } }
+      annotations:
+        { { - toYaml . | nindent 8 } }
+      { { - end } }
+    spec:
+      serviceAccountName: { { include "backend-stack.serviceAccountName" (dict "root" $root "component" $name "workload" $workload) } }
+      { { - with $root.Values.global.imagePullSecrets } }
+      imagePullSecrets:
+        { { - range . } }
+        - name: { { . } }
+        { { - end } }
+      { { - end } }
+      { { - with $podSecurityContext } }
+      securityContext:
+        { { - toYaml . | nindent 8 } }
+      { { - end } }
+      containers:
+        - name: { { $name } }
+          image: "{{ $workload.image.repository }}:{{ default $root.Values.global.defaultImageTag $workload.image.tag }}"
+          imagePullPolicy: { { $workload.image.pullPolicy } }
+          { { - with $containerSecurityContext } }
+          securityContext:
+            { { - toYaml . | nindent 12 } }
+          { { - end } }
+          { { - with $workload.command } }
+          command:
+            { { - toYaml . | nindent 12 } }
+          { { - end } }
+          { { - with $workload.args } }
+          args:
+            { { - toYaml . | nindent 12 } }
+          { { - end } }
+          { { - if $workload.containerPort } }
+          ports:
+            - name: http
+              containerPort: { { $workload.containerPort } }
+              protocol: TCP
+          { { - end } }
+          { { - with $workload.env } }
+          env:
+            { { - range $envName, $envValue := . } }
+            - name: { { $envName } }
+              value: { { $envValue | quote } }
+            { { - end } }
+          { { - end } }
+          { { - with $workload.envFromSecrets } }
+          envFrom:
+            { { - range . } }
+            - secretRef:
+                name: { { . } }
+            { { - end } }
+          { { - end } }
+          { { - with $workload.probes.liveness } }
+          livenessProbe:
+            { { - toYaml . | nindent 12 } }
+          { { - end } }
+          { { - with $workload.probes.readiness } }
+          readinessProbe:
+            { { - toYaml . | nindent 12 } }
+          { { - end } }
+          { { - with $workload.probes.startup } }
+          startupProbe:
+            { { - toYaml . | nindent 12 } }
+          { { - end } }
+          { { - with $workload.resources } }
+          resources:
+            { { - toYaml . | nindent 12 } }
+          { { - end } }
+          { { - with $workload.volumeMounts } }
+          volumeMounts:
+            { { - toYaml . | nindent 12 } }
+          { { - end } }
+      { { - with $workload.volumes } }
+      volumes:
+        { { - toYaml . | nindent 8 } }
+      { { - end } }
+      { { - with $workload.nodeSelector } }
+      nodeSelector:
+        { { - toYaml . | nindent 8 } }
+      { { - end } }
+      { { - with $workload.affinity } }
+      affinity:
+        { { - toYaml . | nindent 8 } }
+      { { - end } }
+      { { - with $workload.tolerations } }
+      tolerations:
+        { { - toYaml . | nindent 8 } }
+      { { - end } }
+---
+{ { - end } }
+  { { - end } }

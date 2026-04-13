@@ -1,0 +1,40 @@
+{ { - $root := . - } }
+  { { - range $name, $workload := .Values.workloads } }
+  { { - if and $workload.enabled $workload.ingress.enabled $workload.service.enabled } }
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: { { include "backend-stack.componentName" (dict "root" $root "component" $name) } }
+  labels:
+    { { - include "backend-stack.labels" $root | nindent 4 } }
+    app.kubernetes.io/component: { { $name } }
+  { { - with $workload.ingress.annotations } }
+  annotations:
+    { { - toYaml . | nindent 4 } }
+  { { - end } }
+spec:
+  { { - with $workload.ingress.className } }
+  ingressClassName: { { . } }
+  { { - end } }
+  rules:
+    { { - range $host := $workload.ingress.hosts } }
+    - host: { { $host.host } }
+      http:
+        paths:
+          { { - range $path := $host.paths } }
+          - path: { { $path.path } }
+            pathType: { { $path.pathType } }
+            backend:
+              service:
+                name: { { include "backend-stack.componentName" (dict "root" $root "component" $name) } }
+                port:
+                  number: { { $workload.service.port } }
+          { { - end } }
+    { { - end } }
+  { { - with $workload.ingress.tls } }
+  tls:
+    { { - toYaml . | nindent 4 } }
+  { { - end } }
+---
+{ { - end } }
+  { { - end } }
