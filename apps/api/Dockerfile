@@ -1,13 +1,18 @@
 FROM python:3.11-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_LINK_MODE=copy
+
 WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml alembic.ini README.md ./
-COPY app ./app
-COPY alembic ./alembic
+COPY pyproject.toml uv.lock alembic.ini main.py ./
+COPY src ./src
 
-RUN uv sync
+RUN uv sync --frozen --no-dev
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8000
+
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

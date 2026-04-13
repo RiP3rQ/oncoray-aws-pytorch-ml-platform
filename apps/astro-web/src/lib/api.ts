@@ -1,6 +1,9 @@
 import { getStoredToken, removeToken } from "./auth.js";
 
-const API_BASE_URL = "http://localhost:8000";
+const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "")
+  .trim()
+  .replace(/\/$/, "");
+const API_BASE_URL = configuredApiBaseUrl || "http://localhost:8000";
 
 // Paths that should bypass the 401 auto-redirect (they handle errors themselves)
 const AUTH_PATHS = ["/user/token", "/user/signup"];
