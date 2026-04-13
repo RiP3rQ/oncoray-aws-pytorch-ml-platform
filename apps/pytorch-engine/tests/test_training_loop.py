@@ -5,6 +5,7 @@ from typing import Any, cast
 from unittest.mock import patch
 
 import torch
+from pytorch_engine.regularization import MixUpBatchTransform, SoftTargetCrossEntropyLoss
 from pytorch_engine.training_loop import _resolve_compile_mode, train_model, train_step
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -45,6 +46,39 @@ class TrainModelMetricTests(unittest.TestCase):
 
         self.assertAlmostEqual(results["train_acc"][0], 0.5, places=6)
         self.assertAlmostEqual(results["test_acc"][0], 1.0, places=6)
+
+    def test_train_model_logs_warning_when_batch_transform_active(self) -> None:
+        features = torch.tensor(
+            [
+                [1.0, 0.0],
+                [0.0, 1.0],
+            ],
+            dtype=torch.float32,
+        )
+        labels = torch.tensor([0, 1], dtype=torch.long)
+        dataloader = DataLoader(TensorDataset(features, labels), batch_size=2, shuffle=False)
+
+        model = torch.nn.Linear(2, 2, bias=False)
+        with torch.no_grad():
+            model.weight.copy_(torch.eye(2))
+
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+        loss_fn = SoftTargetCrossEntropyLoss()
+        mixup = MixUpBatchTransform(num_classes=2, alpha=0.2, p=0.0)
+
+        with self.assertLogs("pytorch_engine.training_loop", level="WARNING") as log_output:
+            train_model(
+                model=model,
+                train_dataloader=dataloader,
+                test_dataloader=dataloader,
+                optimizer=optimizer,
+                loss_fn=loss_fn,
+                epochs=1,
+                device="cpu",
+                train_batch_transform=mixup,
+            )
+
+        self.assertTrue(any("MixUpBatchTransform" in message for message in log_output.output))
 
     @patch("pytorch_engine.training_loop.test_step")
     @patch("pytorch_engine.training_loop.train_step")

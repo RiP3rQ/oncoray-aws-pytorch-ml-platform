@@ -17,7 +17,12 @@ def soft_target_cross_entropy(
     """Cross-entropy for probability targets such as MixUp labels."""
     if logits.ndim != 2:
         raise ValueError("logits must have shape [batch_size, num_classes]")
-    if targets.shape != logits.shape:
+
+    if targets.ndim == 1:
+        if targets.size(0) != logits.size(0):
+            raise ValueError("hard targets batch size must match logits batch size")
+        targets = F.one_hot(targets.long(), num_classes=logits.size(1)).to(device=logits.device, dtype=logits.dtype)
+    elif targets.shape != logits.shape:
         raise ValueError("targets must match logits shape for soft-target cross-entropy")
 
     log_probs = F.log_softmax(logits, dim=1)

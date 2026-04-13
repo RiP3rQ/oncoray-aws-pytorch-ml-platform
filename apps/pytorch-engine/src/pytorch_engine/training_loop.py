@@ -25,6 +25,17 @@ TrainBatchTransform = Callable[
 ]
 
 
+def _describe_train_batch_transform(train_batch_transform: TrainBatchTransform | None) -> str | None:
+    """Return a human-readable name for an optional train batch transform."""
+    if train_batch_transform is None:
+        return None
+    transform_name = getattr(train_batch_transform, "__name__", None)
+    if isinstance(transform_name, str) and transform_name:
+        return transform_name
+    class_name = train_batch_transform.__class__.__name__
+    return class_name if class_name else "custom_train_batch_transform"
+
+
 def _unwrap_model(model: torch.nn.Module) -> torch.nn.Module:
     """Return original module when *model* comes from ``torch.compile``."""
     # ``torch.compile`` wraps the original nn.Module. Unwrapping keeps
@@ -511,6 +522,14 @@ def train_model(
         resolved_use_amp and computed_device.type == "cuda",
         resolved_use_channels_last,
     )
+    train_batch_transform_name = _describe_train_batch_transform(train_batch_transform)
+    if train_batch_transform_name is not None:
+        logger.warning(
+            "Training batch transform '%s' active. Train loss/accuracy are not directly "
+            "comparable to plain-label runs; use validation metrics such as macro_f1, "
+            "balanced_accuracy, and per-class recall for model selection.",
+            train_batch_transform_name,
+        )
 
     results: TrainResult = {
         "train_loss": [],

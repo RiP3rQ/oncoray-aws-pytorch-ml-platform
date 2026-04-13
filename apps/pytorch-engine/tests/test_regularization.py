@@ -20,6 +20,15 @@ class SoftTargetCrossEntropyLossTests(unittest.TestCase):
 
         self.assertAlmostEqual(actual.item(), expected.item(), places=6)
 
+    def test_matches_cross_entropy_on_hard_targets(self) -> None:
+        logits = torch.tensor([[2.0, 0.5, -1.0], [0.1, 1.3, -0.2]], dtype=torch.float32)
+        hard_targets = torch.tensor([0, 1], dtype=torch.long)
+
+        expected = torch.nn.CrossEntropyLoss()(logits, hard_targets)
+        actual = SoftTargetCrossEntropyLoss()(logits, hard_targets)
+
+        self.assertAlmostEqual(actual.item(), expected.item(), places=6)
+
 
 class MixUpTrainingLoopTests(unittest.TestCase):
     def test_train_step_supports_soft_targets_via_batch_transform(self) -> None:
