@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_KAGGLE_HAM10000_URL = (
     "https://www.kaggle.com/api/v1/datasets/download/surajghuwalewala/ham1000-segmentation-and-classification"
 )
+DEFAULT_KAGGLE_CHEST_XRAY_PNEUMONIA_BALANCED_URL = (
+    "https://www.kaggle.com/api/v1/datasets/download/yusufmurtaza01/chest-xray-pneumonia-balanced-dataset"
+)
+CHEST_XRAY_SPLITS = ("train", "val", "test")
+CHEST_XRAY_CLASS_NAMES = ("NORMAL", "PNEUMONIA")
 
 
 def download_with_curl(
@@ -123,6 +128,123 @@ def prepare_kaggle_ham10000_dataset(
         zip_path.unlink(missing_ok=True)
 
     return destination_path
+
+
+def _is_imagefolder_split_root(
+    root: Path,
+    *,
+    split_names: tuple[str, ...],
+    class_names: tuple[str, ...],
+) -> bool:
+    """Return True when *root* matches an ImageFolder train/val/test layout."""
+    return all(
+        (root / split_name).is_dir() and all((root / split_name / class_name).is_dir() for class_name in class_names)
+        for split_name in split_names
+    )
+
+
+def _find_imagefolder_split_root(
+    destination: Path,
+    *,
+    split_names: tuple[str, ...],
+    class_names: tuple[str, ...],
+) -> Path:
+    """Find directory that contains expected split/class subdirectories."""
+    candidates = [destination]
+    candidates.extend(
+        sorted(
+            (path for path in destination.rglob("*") if path.is_dir()),
+            key=lambda path: (len(path.parts), str(path).lower()),
+        )
+    )
+    for candidate in candidates:
+        if _is_imagefolder_split_root(
+            candidate,
+            split_names=split_names,
+            class_names=class_names,
+        ):
+            return candidate
+
+    expected_structure = ", ".join(f"{split_name}/<{'|'.join(class_names)}>" for split_name in split_names)
+    raise FileNotFoundError(
+        "Could not find extracted dataset root with expected directory layout under "
+        f"'{destination}'. Expected split/class structure like: {expected_structure}."
+    )
+
+
+def download_and_prepare_kaggle_chest_xray_pneumonia_dataset(
+    destination: str | Path,
+    download_url: str = DEFAULT_KAGGLE_CHEST_XRAY_PNEUMONIA_BALANCED_URL,
+    zip_name: str = "chest-xray-pneumonia-balanced-dataset.zip",
+    remove_zip: bool = True,
+) -> Path:
+    """Download chest X-ray Kaggle archive and return extracted dataset root.
+
+    The Kaggle archive may contain one or more wrapper directories. This helper
+    extracts the archive into *destination* and returns the nested directory
+    that directly contains ``train/``, ``val/``, and ``test/`` splits.
+    """
+    destination_path = Path(destination)
+    destination_path.mkdir(parents=True, exist_ok=True)
+
+    try:
+        dataset_root = _find_imagefolder_split_root(
+            destination_path,
+            split_names=CHEST_XRAY_SPLITS,
+            class_names=CHEST_XRAY_CLASS_NAMES,
+        )
+    except FileNotFoundError:
+        dataset_root = None
+    else:
+        logger.info("Dataset already prepared in '%s'; skipping download.", dataset_root)
+        return dataset_root
+
+    zip_path = destination_path / zip_name
+    download_with_curl(url=download_url, output_path=zip_path)
+    return prepare_kaggle_chest_xray_pneumonia_dataset(
+        zip_path=zip_path,
+        destination=destination_path,
+        remove_zip=remove_zip,
+    )
+
+
+def prepare_kaggle_chest_xray_pneumonia_dataset(
+    zip_path: str | Path,
+    destination: str | Path,
+    remove_zip: bool = False,
+) -> Path:
+    """Extract chest X-ray Kaggle archive and return split-root directory.
+
+    Expected extracted structure somewhere under *destination*:
+      - ``train/NORMAL``
+      - ``train/PNEUMONIA``
+      - ``val/NORMAL``
+      - ``val/PNEUMONIA``
+      - ``test/NORMAL``
+      - ``test/PNEUMONIA``
+    """
+    zip_path = Path(zip_path)
+    destination_path = Path(destination)
+
+    if not zip_path.is_file():
+        raise FileNotFoundError(f"Dataset zip not found: {zip_path}")
+
+    destination_path.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        logger.info("Extracting dataset '%s' to '%s'", zip_path, destination_path)
+        zip_ref.extractall(destination_path)
+
+    dataset_root = _find_imagefolder_split_root(
+        destination_path,
+        split_names=CHEST_XRAY_SPLITS,
+        class_names=CHEST_XRAY_CLASS_NAMES,
+    )
+
+    if remove_zip:
+        zip_path.unlink(missing_ok=True)
+
+    return dataset_root
 
 
 def walk_through_dir(dir_path: str | Path) -> None:
