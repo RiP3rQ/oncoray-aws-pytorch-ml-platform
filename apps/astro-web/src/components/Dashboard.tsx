@@ -27,7 +27,9 @@ function DashboardInner() {
           <header className="topbar flat-card animate-rise">
             <div>
               <p className="brand">OncoRay</p>
-              <p className="topnote">AI-assisted X-ray cancer screening</p>
+              <p className="topnote">
+                Default workflow: chest X-ray pneumonia classification
+              </p>
             </div>
             <nav className="flex items-center gap-4">
               <span className="text-sm text-[var(--muted)]">{user?.email}</span>

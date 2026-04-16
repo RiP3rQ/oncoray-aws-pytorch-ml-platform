@@ -62,7 +62,7 @@ function RegisterFormInner() {
         <span>Email</span>
         <input
           type="email"
-          placeholder="oncology.ops@clinic.org"
+          placeholder="radiology.ops@clinic.org"
           {...register("email")}
         />
         {errors.email && (

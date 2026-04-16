@@ -144,16 +144,16 @@ export default function ImageDropzone({
         />
 
         <div className="dropzone-copy">
-          <p className="dropzone-kicker">Image upload</p>
+          <p className="dropzone-kicker">Chest X-ray upload</p>
           <h2>
             {selectedFile
-              ? "Image ready for backend processing"
-              : "Drop an image here"}
+              ? "Image ready for pneumonia classification"
+              : "Drop chest X-ray image here"}
           </h2>
           <p>
             {selectedFile
-              ? "Replace it by dropping another file or choosing a new one."
-              : "Drag and drop a PNG, JPG, or WEBP file, or choose one from your device."}
+              ? "Replace it by dropping another chest X-ray image or choosing a new one."
+              : "Drag and drop a PNG, JPG, or WEBP chest X-ray image, or choose one from your device."}
           </p>
         </div>
 
@@ -196,7 +196,7 @@ export default function ImageDropzone({
         ) : (
           <div>
             <span>Status</span>
-            <strong>Waiting for upload</strong>
+            <strong>Waiting for chest X-ray upload</strong>
           </div>
         )}
       </div>

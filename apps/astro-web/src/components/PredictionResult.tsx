@@ -21,11 +21,11 @@ export default function PredictionResult({
 
   return (
     <div className="prediction-card flat-card animate-rise">
-      <p className="section-label">Prediction result</p>
+      <p className="section-label">Classification result</p>
 
       <div className="prediction-grid">
         <div className="prediction-row">
-          <span className="prediction-label">Label</span>
+          <span className="prediction-label">Predicted class</span>
           <strong className="prediction-value">{prediction.prediction}</strong>
         </div>
 
@@ -51,7 +51,7 @@ export default function PredictionResult({
         </div>
 
         <div className="prediction-row">
-          <span className="prediction-label">Image reference</span>
+          <span className="prediction-label">Upload reference</span>
           <strong className="prediction-value mono">
             {prediction.image_s3_key}
           </strong>

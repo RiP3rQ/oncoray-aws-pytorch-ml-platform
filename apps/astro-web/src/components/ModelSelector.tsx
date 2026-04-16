@@ -61,20 +61,30 @@ export default function ModelSelector({
   }
 
   return (
-    <Tabs value={value} onValueChange={onValueChange} className="animate-rise">
-      <TabsList>
+    <div className="animate-rise">
+      <div className="mb-5">
+        <p className="section-label">Model selection</p>
+        <p className="lede">
+          Default PyTorch workflow now targets chest X-ray pneumonia
+          classification instead of skin lesion analysis.
+        </p>
+      </div>
+
+      <Tabs value={value} onValueChange={onValueChange}>
+        <TabsList>
+          {models.map((model) => (
+            <TabsTrigger key={model.id} value={model.id}>
+              {model.name}
+            </TabsTrigger>
+          ))}
+        </TabsList>
         {models.map((model) => (
-          <TabsTrigger key={model.id} value={model.id}>
-            {model.name}
-          </TabsTrigger>
+          <TabsContent key={model.id} value={model.id}>
+            <p className="section-label">{model.name}</p>
+            <p className="lede">{model.description}</p>
+          </TabsContent>
         ))}
-      </TabsList>
-      {models.map((model) => (
-        <TabsContent key={model.id} value={model.id}>
-          <p className="section-label">{model.name}</p>
-          <p className="lede">{model.description}</p>
-        </TabsContent>
-      ))}
-    </Tabs>
+      </Tabs>
+    </div>
   );
 }
