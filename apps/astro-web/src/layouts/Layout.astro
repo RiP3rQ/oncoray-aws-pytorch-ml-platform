@@ -1,5 +1,5 @@
 ---
-import "../styles/global.css";
+import "@repo/ui/globals.css";
 import { Toaster } from "../components/ui/sonner.tsx";
 
 interface Props {
@@ -24,18 +24,8 @@ const {
     <link rel="icon" href="/favicon.ico" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
-
-    <!-- Prevent FOUC: ensure dark class is set before paint -->
-    <script is:inline>
-      if (!document.documentElement.classList.contains("dark")) {
-        document.documentElement.classList.add("dark");
-      }
-    </script>
-
-    <!-- Preload critical fonts (IBM Plex Mono — Berkeley Mono open-source fallback) -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   </head>
-  <body>
+  <body class="bg-background text-foreground min-h-dvh font-mono antialiased">
     <slot />
     <Toaster client:load />
   </body>

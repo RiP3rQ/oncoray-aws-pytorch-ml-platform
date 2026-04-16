@@ -7,13 +7,29 @@ import RegisterForm from "../components/RegisterForm.tsx";
   title="Register | OncoRay"
   description="Create an OncoRay account to begin uploading chest X-rays and reviewing pneumonia classification output."
 >
-  <div class="page-shell">
-    <div class="frame register-layout">
-      <section class="register-card flat-card animate-rise h-[750px]">
-        <div class="card-header">
-          <p class="section-label">Create account</p>
-          <h1>Open a secure lane for incoming chest X-rays.</h1>
-          <p>
+  <div
+    class="mx-auto flex min-h-dvh w-full max-w-[56rem] px-4 py-4 sm:px-6 lg:px-8"
+  >
+    <div
+      class="grid min-h-[calc(100dvh-2rem)] w-full items-center gap-6 lg:min-h-[calc(100dvh-3rem)] lg:grid-cols-[minmax(23rem,29.375rem)_minmax(0,1fr)] lg:gap-8"
+    >
+      <section
+        class="border-border bg-card motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 rounded-[4px] border p-6 motion-safe:duration-200 sm:p-8 lg:min-h-[42rem]"
+      >
+        <div>
+          <p
+            class="text-muted-foreground text-sm leading-none font-bold tracking-[0.05em] uppercase"
+          >
+            Create account
+          </p>
+          <h1
+            class="text-foreground mt-2 font-mono text-[clamp(1.75rem,5vw,2.375rem)] leading-[1.5] font-bold"
+          >
+            Open a secure lane for incoming chest X-rays.
+          </h1>
+          <p
+            class="text-muted-foreground mt-4 max-w-[42ch] text-base leading-[1.5]"
+          >
             Set up your workspace in seconds. We keep the flow minimal here:
             just email and password, then you're ready to upload chest X-rays
             and review model output.
@@ -23,30 +39,63 @@ import RegisterForm from "../components/RegisterForm.tsx";
         <RegisterForm client:load />
       </section>
 
-      <section class="register-copy animate-rise h-[750px] delay-2">
-        <span class="eyebrow">Rapid onboarding</span>
-        <h2 class="headline">
+      <section
+        class="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 flex min-w-0 flex-col justify-center motion-safe:duration-200 lg:min-h-[42rem]"
+      >
+        <span
+          class="text-accent mb-2 block text-sm leading-none font-bold tracking-[0.05em] uppercase"
+        >
+          Rapid onboarding
+        </span>
+        <h2
+          class="text-foreground font-mono text-[clamp(1.5rem,5vw,2.375rem)] leading-[1.5] font-bold"
+        >
           A calmer front door for a high-stakes workflow.
         </h2>
-        <p class="lede">
+        <p
+          class="text-muted-foreground mt-4 max-w-[42ch] text-base leading-[1.5]"
+        >
           OncoRay is currently configured around chest X-ray pneumonia review.
           The interface surfaces predicted class, confidence signals, and
           follow-up checkpoints without pretending the model replaces clinical
           judgment.
         </p>
 
-        <div class="feature-grid">
-          <div>
-            <strong>Chest X-ray intake</strong>
-            <span>Upload chest X-rays for the current pneumonia workflow.</span>
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            class="border-border bg-card rounded-[4px] border px-5 py-5 transition-colors duration-150 hover:border-[var(--color-opencode-border-outline)]"
+          >
+            <strong class="text-foreground font-bold">Chest X-ray intake</strong
+            >
+            <span
+              class="text-muted-foreground mt-1.5 block text-sm leading-[1.5]"
+            >
+              Upload chest X-rays for the current pneumonia workflow.
+            </span>
           </div>
-          <div>
-            <strong>Classification summary</strong>
-            <span>Review predicted class and confidence for each upload.</span>
+          <div
+            class="border-border bg-card rounded-[4px] border px-5 py-5 transition-colors duration-150 hover:border-[var(--color-opencode-border-outline)]"
+          >
+            <strong class="text-foreground font-bold">
+              Classification summary
+            </strong>
+            <span
+              class="text-muted-foreground mt-1.5 block text-sm leading-[1.5]"
+            >
+              Review predicted class and confidence for each upload.
+            </span>
           </div>
-          <div>
-            <strong>Audit-friendly flow</strong>
-            <span>Every model result stays tied to its image reference.</span>
+          <div
+            class="border-border bg-card rounded-[4px] border px-5 py-5 transition-colors duration-150 hover:border-[var(--color-opencode-border-outline)] sm:col-span-2 lg:col-span-1"
+          >
+            <strong class="text-foreground font-bold"
+              >Audit-friendly flow</strong
+            >
+            <span
+              class="text-muted-foreground mt-1.5 block text-sm leading-[1.5]"
+            >
+              Every model result stays tied to its image reference.
+            </span>
           </div>
         </div>
       </section>

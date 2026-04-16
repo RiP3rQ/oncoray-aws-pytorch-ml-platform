@@ -1,4 +1,5 @@
 import { useAuthContext } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 import { useEffect, type ReactNode } from "react";
 
 export default function AuthGuard({ children }: { children: ReactNode }) {
@@ -6,17 +7,23 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      window.location.href = "/login";
+      window.location.replace("/login");
     }
   }, [isAuthenticated, isLoading]);
 
   if (isLoading) {
     return (
-      <div className="page-shell">
-        <div className="frame auth-layout auth-layout--single">
-          <div className="flat-card loading-card">
-            <div className="skeleton loading-line loading-line--title" />
-            <div className="skeleton loading-line loading-line--subtitle" />
+      <div className="mx-auto flex min-h-dvh w-full max-w-[56rem] px-4 py-4 sm:px-6 lg:px-8">
+        <div className="grid min-h-[calc(100dvh-2rem)] w-full place-items-center sm:min-h-[calc(100dvh-3rem)]">
+          <div className="border-border bg-card flex w-full max-w-xs flex-col items-center gap-3 rounded-[4px] border px-8 py-8">
+            <div
+              aria-hidden="true"
+              className="bg-muted h-4 w-32 animate-pulse rounded-[4px]"
+            />
+            <div
+              aria-hidden="true"
+              className="bg-muted h-3 w-20 animate-pulse rounded-[4px]"
+            />
           </div>
         </div>
       </div>
@@ -27,5 +34,13 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
     return null;
   }
 
-  return <div className="animate-fade-in">{children}</div>;
+  return (
+    <div
+      className={cn(
+        "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-150",
+      )}
+    >
+      {children}
+    </div>
+  );
 }
