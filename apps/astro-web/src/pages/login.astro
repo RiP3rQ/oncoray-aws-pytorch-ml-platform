@@ -5,27 +5,27 @@ import LoginForm from "../components/LoginForm.tsx";
 
 <Layout
   title="Log In | OncoRay"
-  description="Access the OncoRay screening workspace to upload X-rays and review AI-assisted findings."
+  description="Access OncoRay to upload chest X-rays and review pneumonia classification output."
 >
   <div class="page-shell">
     <div class="frame auth-layout">
       <section class="auth-copy animate-rise">
         <span class="eyebrow">Protected workspace</span>
-        <h1 class="headline">Step back into the screening room.</h1>
+        <h1 class="headline">Step back into chest X-ray review.</h1>
         <p class="lede">
-          Sign in to continue reviewing uploaded X-rays, flagged regions, and
-          clinician-ready screening notes. Keep every scan flowing through one
-          clean, accountable workspace.
+          Sign in to continue reviewing uploaded chest X-rays, model confidence,
+          and case notes. Keep every study flowing through one clean,
+          accountable workspace.
         </p>
 
         <div class="signal-strip">
           <div>
-            <strong>Live model health</strong>
-            <span>Inference nodes calibrated and online</span>
+            <strong>Default model</strong>
+            <span>Chest X-ray pneumonia classifier online</span>
           </div>
           <div>
-            <strong>Escalation policy</strong>
-            <span>Every positive flag is routed to human review</span>
+            <strong>Review policy</strong>
+            <span>Model output supports review, not diagnosis</span>
           </div>
         </div>
       </section>
@@ -33,7 +33,7 @@ import LoginForm from "../components/LoginForm.tsx";
       <section class="auth-card flat-card animate-rise delay-2">
         <div class="card-top">
           <p class="section-label">Log in</p>
-          <h2>Resume an active case review.</h2>
+          <h2>Resume an active imaging review.</h2>
         </div>
 
         <LoginForm client:load />
