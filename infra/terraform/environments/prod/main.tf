@@ -95,7 +95,7 @@ module "eks" {
 resource "aws_ecr_repository" "api" {
   name                 = local.api_repository_name
   image_tag_mutability = "IMMUTABLE"
-  force_delete = true
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -105,7 +105,7 @@ resource "aws_ecr_repository" "api" {
 resource "aws_ecr_repository" "model_service" {
   name                 = local.model_service_repository_name
   image_tag_mutability = "IMMUTABLE"
-  force_delete = true
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -236,8 +236,8 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   default_cache_behavior {
-    allowed_methods = ["GET", "HEAD", "OPTIONS"]
-    cached_methods = ["GET", "HEAD", "OPTIONS"]
+    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+    cached_methods   = ["GET", "HEAD", "OPTIONS"]
     target_origin_id = "frontend-s3"
     compress         = true
 
@@ -291,14 +291,14 @@ data "aws_iam_policy_document" "frontend_bucket" {
     ]
 
     principals {
-      type = "Service"
+      type        = "Service"
       identifiers = ["cloudfront.amazonaws.com"]
     }
 
     condition {
       test     = "StringEquals"
       variable = "AWS:SourceArn"
-      values = [aws_cloudfront_distribution.frontend.arn]
+      values   = [aws_cloudfront_distribution.frontend.arn]
     }
   }
 }

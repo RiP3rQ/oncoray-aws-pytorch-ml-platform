@@ -4,6 +4,7 @@ param(
     [string]$TerraformDir = "infra/terraform/environments/prod",
     [string]$TerraformVarsFile = "terraform.tfvars",
     [switch]$SkipHelm,
+    [switch]$SkipAddons,
     [switch]$SkipTerraform,
     [switch]$AutoApprove
 )
@@ -33,6 +34,27 @@ if (-not $SkipHelm) {
 
     if ($LASTEXITCODE -ne 0) {
         Write-Warning "Helm uninstall returned non-zero exit code. Continuing. Release may already be absent."
+    }
+}
+
+if (-not $SkipAddons) {
+    if (-not (Get-Command helm -ErrorAction SilentlyContinue)) {
+        throw "helm not found in PATH. Install helm or use -SkipAddons."
+    }
+
+    $addonReleases = @(
+        @{ Name = "platform-addons"; Namespace = "amazon-cloudwatch" },
+        @{ Name = "external-secrets"; Namespace = "external-secrets" },
+        @{ Name = "aws-load-balancer-controller"; Namespace = "kube-system" }
+    )
+
+    foreach ($addon in $addonReleases) {
+        Write-Host "Uninstalling add-on release if present: $($addon.Name)"
+        & helm uninstall $addon.Name --namespace $addon.Namespace
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Helm uninstall returned non-zero exit code for $($addon.Name). Continuing."
+        }
     }
 }
 

@@ -1,0 +1,120 @@
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$ClusterName,
+    [Parameter(Mandatory = $true)]
+    [string]$VpcId,
+    [Parameter(Mandatory = $true)]
+    [string]$LoadBalancerControllerRoleArn,
+    [Parameter(Mandatory = $true)]
+    [string]$ExternalSecretsRoleArn,
+    [Parameter(Mandatory = $true)]
+    [string]$FluentBitRoleArn,
+    [string]$AwsRegion = "eu-central-1",
+    [string]$PlatformValuesFile = "infra/helm/values/addons.example.yaml",
+    [string]$AwsLoadBalancerControllerChartVersion = "1.14.1",
+    [string]$ExternalSecretsChartVersion = "1.3.1",
+    [switch]$DryRun
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+if (-not (Get-Command helm -ErrorAction SilentlyContinue)) {
+    throw "helm not found in PATH. Install helm before using install-cluster-addons.ps1."
+}
+
+$repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$platformChartPath = Join-Path $repoRoot "infra/helm/charts/platform-addons"
+$resolvedPlatformValuesFile = if ([System.IO.Path]::IsPathRooted($PlatformValuesFile)) {
+    $PlatformValuesFile
+}
+else {
+    Join-Path $repoRoot $PlatformValuesFile
+}
+
+if (-not (Test-Path -LiteralPath $resolvedPlatformValuesFile)) {
+    throw "Platform values file not found: $resolvedPlatformValuesFile"
+}
+
+& helm repo add eks https://aws.github.io/eks-charts --force-update | Out-Null
+& helm repo add external-secrets https://charts.external-secrets.io --force-update | Out-Null
+& helm repo update | Out-Null
+
+$commonDryRunArgs = @()
+if ($DryRun) {
+    $commonDryRunArgs = @("--dry-run", "--debug")
+}
+
+$loadBalancerArgs = @(
+    "upgrade",
+    "--install",
+    "aws-load-balancer-controller",
+    "eks/aws-load-balancer-controller",
+    "--namespace",
+    "kube-system",
+    "--version",
+    $AwsLoadBalancerControllerChartVersion,
+    "--set",
+    "clusterName=$ClusterName",
+    "--set",
+    "region=$AwsRegion",
+    "--set",
+    "vpcId=$VpcId",
+    "--set",
+    "serviceAccount.create=true",
+    "--set",
+    "serviceAccount.name=aws-load-balancer-controller",
+    "--set-string",
+    "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=$LoadBalancerControllerRoleArn"
+) + $commonDryRunArgs
+
+$externalSecretsArgs = @(
+    "upgrade",
+    "--install",
+    "external-secrets",
+    "external-secrets/external-secrets",
+    "--namespace",
+    "external-secrets",
+    "--create-namespace",
+    "--version",
+    $ExternalSecretsChartVersion,
+    "--set",
+    "installCRDs=true",
+    "--set",
+    "serviceAccount.create=true",
+    "--set",
+    "serviceAccount.name=external-secrets",
+    "--set-string",
+    "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=$ExternalSecretsRoleArn"
+) + $commonDryRunArgs
+
+$platformArgs = @(
+    "upgrade",
+    "--install",
+    "platform-addons",
+    $platformChartPath,
+    "--namespace",
+    "amazon-cloudwatch",
+    "--create-namespace",
+    "-f",
+    $resolvedPlatformValuesFile,
+    "--set",
+    "global.clusterName=$ClusterName",
+    "--set",
+    "global.awsRegion=$AwsRegion",
+    "--set",
+    "externalSecrets.serviceAccount.name=external-secrets",
+    "--set",
+    "externalSecrets.serviceAccount.namespace=external-secrets",
+    "--set-string",
+    "fluentBit.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=$FluentBitRoleArn"
+) + $commonDryRunArgs
+
+Write-Host "Installing AWS Load Balancer Controller"
+& helm @loadBalancerArgs
+
+Write-Host "Installing External Secrets Operator"
+& helm @externalSecretsArgs
+
+Write-Host "Installing platform add-on config and Fluent Bit"
+& helm @platformArgs

@@ -1,0 +1,37 @@
+global:
+  clusterName: ""
+  awsRegion: eu-central-1
+  commonLabels: {}
+
+externalSecrets:
+  enabled: true
+  storeName: aws-parameter-store
+  refreshInterval: 1h
+  serviceAccount:
+    name: external-secrets
+    namespace: external-secrets
+
+fluentBit:
+  enabled: true
+  logLevel: info
+  podAnnotations: {}
+  serviceAccount:
+    create: true
+    name: fluent-bit
+    annotations: {}
+  image:
+    repository: public.ecr.aws/aws-observability/aws-for-fluent-bit
+    tag: 2.33.0
+    pullPolicy: IfNotPresent
+  cloudWatch:
+    logGroupName: /aws/eks/pytorch-model-prod-eks/workloads
+    logStreamPrefix: fluent-bit-
+  resources:
+    requests:
+      cpu: 100m
+      memory: 200Mi
+    limits:
+      cpu: 200m
+      memory: 400Mi
+  tolerations:
+    - operator: Exists

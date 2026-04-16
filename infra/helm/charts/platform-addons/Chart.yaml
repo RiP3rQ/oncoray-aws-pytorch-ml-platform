@@ -1,0 +1,6 @@
+apiVersion: v2
+name: platform-addons
+description: Cluster add-ons and config for pytorch-model production.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

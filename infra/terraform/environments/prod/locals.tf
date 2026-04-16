@@ -7,7 +7,7 @@ locals {
 
   name_prefix = "${var.project_name}-${var.environment}"
 
-  eks_cluster_name = "${local.name_prefix}-eks"
+  eks_cluster_name                   = "${local.name_prefix}-eks"
   frontend_cloudfront_hosted_zone_id = "Z2FDTNDATAQYW2"
   postgres_identifier                = "${local.name_prefix}-postgres"
   redis_replication_group_id         = "${local.name_prefix}-redis"

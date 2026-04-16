@@ -85,6 +85,14 @@ data "aws_iam_policy_document" "fluent_bit" {
   statement {
     effect = "Allow"
     actions = [
+      "logs:DescribeLogGroups",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
       "logs:CreateLogStream",
       "logs:DescribeLogStreams",
       "logs:PutLogEvents",
