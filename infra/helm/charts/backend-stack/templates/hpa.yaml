@@ -1,35 +1,35 @@
-{ { - $root := . - } }
-  { { - range $name, $workload := .Values.workloads } }
-  { { - if and $workload.enabled $workload.autoscaling.enabled } }
+{{- $root := . -}}
+{{- range $name, $workload := .Values.workloads }}
+{{- if and $workload.enabled $workload.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: { { include "backend-stack.componentName" (dict "root" $root "component" $name) } }
+  name: {{ include "backend-stack.componentName" (dict "root" $root "component" $name) }}
   labels:
-    { { - include "backend-stack.labels" $root | nindent 4 } }
-    app.kubernetes.io/component: { { $name } }
+    {{- include "backend-stack.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: { { include "backend-stack.componentName" (dict "root" $root "component" $name) } }
-  minReplicas: { { $workload.autoscaling.minReplicas } }
-  maxReplicas: { { $workload.autoscaling.maxReplicas } }
+    name: {{ include "backend-stack.componentName" (dict "root" $root "component" $name) }}
+  minReplicas: {{ $workload.autoscaling.minReplicas }}
+  maxReplicas: {{ $workload.autoscaling.maxReplicas }}
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: { { $workload.autoscaling.targetCPUUtilizationPercentage } }
-    { { - if $workload.autoscaling.targetMemoryUtilizationPercentage } }
+          averageUtilization: {{ $workload.autoscaling.targetCPUUtilizationPercentage }}
+    {{- if $workload.autoscaling.targetMemoryUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: { { $workload.autoscaling.targetMemoryUtilizationPercentage } }
-    { { - end } }
+          averageUtilization: {{ $workload.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
 ---
-{ { - end } }
-  { { - end } }
+{{- end }}
+{{- end }}

@@ -1,23 +1,23 @@
-{ { - $root := . - } }
-  { { - range $name, $workload := .Values.workloads } }
-  { { - if and $workload.enabled $workload.service.enabled } }
+{{- $root := . -}}
+{{- range $name, $workload := .Values.workloads }}
+{{- if and $workload.enabled $workload.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: { { include "backend-stack.componentName" (dict "root" $root "component" $name) } }
+  name: {{ include "backend-stack.componentName" (dict "root" $root "component" $name) }}
   labels:
-    { { - include "backend-stack.labels" $root | nindent 4 } }
-    app.kubernetes.io/component: { { $name } }
+    {{- include "backend-stack.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
 spec:
-  type: { { $workload.service.type } }
+  type: {{ $workload.service.type }}
   selector:
-    { { - include "backend-stack.selectorLabels" $root | nindent 4 } }
-    app.kubernetes.io/component: { { $name } }
+    {{- include "backend-stack.selectorLabels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
   ports:
     - name: http
-      port: { { $workload.service.port } }
-      targetPort: { { $workload.service.targetPort } }
+      port: {{ $workload.service.port }}
+      targetPort: {{ $workload.service.targetPort }}
       protocol: TCP
 ---
-{ { - end } }
-  { { - end } }
+{{- end }}
+{{- end }}
