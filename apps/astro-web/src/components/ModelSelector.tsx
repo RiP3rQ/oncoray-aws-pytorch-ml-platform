@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import useSWR from "swr";
 import * as api from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -18,19 +19,25 @@ export default function ModelSelector({
     isLoading,
   } = useSWR<ModelRead[]>("/model/", () => api.getModels());
 
+  useEffect(() => {
+    if (!value && models?.[0]) {
+      onValueChange(models[0].id);
+    }
+  }, [models, onValueChange, value]);
+
   if (isLoading) {
     return (
-      <div className="flat-card auth-card skeleton animate-rise">
-        Loading models…
+      <div className="flat-card model-selector-card skeleton animate-rise">
+        Loading models...
       </div>
     );
   }
 
   if (error || !models) {
     return (
-      <div className="flat-card auth-card animate-rise">
+      <div className="flat-card model-selector-card animate-rise">
         <p className="dropzone-error">Failed to load models</p>
-        <div className="dropzone-actions">
+        <div className="panel-actions">
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -45,9 +52,9 @@ export default function ModelSelector({
 
   if (models.length === 0) {
     return (
-      <div className="flat-card auth-card animate-rise">
+      <div className="flat-card model-selector-card animate-rise">
         <p className="section-label">No models available</p>
-        <div className="dropzone-actions">
+        <div className="panel-actions">
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -60,9 +67,11 @@ export default function ModelSelector({
     );
   }
 
+  const resolvedValue = value || models[0].id;
+
   return (
-    <div className="animate-rise">
-      <div className="mb-5">
+    <div className="flat-card model-selector-card animate-rise">
+      <div className="model-selector-header">
         <p className="section-label">Model selection</p>
         <p className="lede">
           Default PyTorch workflow now targets chest X-ray pneumonia
@@ -70,8 +79,8 @@ export default function ModelSelector({
         </p>
       </div>
 
-      <Tabs value={value} onValueChange={onValueChange}>
-        <TabsList>
+      <Tabs value={resolvedValue} onValueChange={onValueChange}>
+        <TabsList className="model-tabs-list">
           {models.map((model) => (
             <TabsTrigger key={model.id} value={model.id}>
               {model.name}
@@ -79,9 +88,16 @@ export default function ModelSelector({
           ))}
         </TabsList>
         {models.map((model) => (
-          <TabsContent key={model.id} value={model.id}>
-            <p className="section-label">{model.name}</p>
-            <p className="lede">{model.description}</p>
+          <TabsContent
+            key={model.id}
+            value={model.id}
+            className="model-tab-panel"
+          >
+            <div className="model-tab-header">
+              <p className="section-label">{model.name}</p>
+              <span className="model-version">v{model.version}</span>
+            </div>
+            <p className="model-description">{model.description}</p>
           </TabsContent>
         ))}
       </Tabs>

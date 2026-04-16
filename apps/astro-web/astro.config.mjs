@@ -13,6 +13,7 @@ export default defineConfig({
   integrations: [react()],
 
   vite: {
+    cacheDir: ".astro/vite",
     plugins: [tailwindcss()],
     resolve: {
       alias: {

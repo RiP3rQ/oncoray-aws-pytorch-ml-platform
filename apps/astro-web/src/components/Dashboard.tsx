@@ -25,19 +25,15 @@ function DashboardInner() {
       <div className="page-shell">
         <div className="frame app-frame">
           <header className="topbar flat-card animate-rise">
-            <div>
+            <div className="topbar-brand-block">
               <p className="brand">OncoRay</p>
               <p className="topnote">
                 Default workflow: chest X-ray pneumonia classification
               </p>
             </div>
-            <nav className="flex items-center gap-4">
-              <span className="text-sm text-[var(--muted)]">{user?.email}</span>
-              <button
-                type="button"
-                onClick={logout}
-                className="rounded border border-[var(--color-opencode-border-outline)] bg-transparent px-5 py-1 font-mono text-sm leading-[2] font-medium text-[var(--color-opencode-mid-gray)] transition-colors duration-[var(--duration-fast)] hover:border-[var(--color-opencode-accent-blue)] hover:text-[var(--color-opencode-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-opencode-accent-blue)]"
-              >
+            <nav className="topbar-actions" aria-label="Workspace actions">
+              <span className="topbar-email">{user?.email}</span>
+              <button type="button" onClick={logout} className="toolbar-button">
                 Log out
               </button>
             </nav>

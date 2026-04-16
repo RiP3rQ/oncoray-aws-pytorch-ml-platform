@@ -124,13 +124,26 @@ export default function ImageDropzone({
     }
   };
 
-  const canUpload = selectedFile && modelId && !uploading;
+  const canUpload = Boolean(selectedFile && modelId && !uploading);
+  const helperTone = error
+    ? "error"
+    : !modelId && selectedFile
+      ? "warning"
+      : "muted";
+  const helperMessage = error
+    ? error
+    : !modelId && selectedFile
+      ? "Select a model before running classification."
+      : selectedFile
+        ? "Image ready. Review details below and run prediction when ready."
+        : "PNG, JPG, or WEBP. Maximum upload size: 2 MB.";
 
   return (
     <div className="dropzone-shell animate-rise">
       <label
         htmlFor={inputId}
         className={`dropzone ${isDragging ? "is-dragging" : ""} ${selectedFile ? "has-file" : ""}`}
+        aria-busy={uploading}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
@@ -179,53 +192,38 @@ export default function ImageDropzone({
       </label>
 
       <div className="dropzone-meta" aria-live="polite">
-        {selectedFile ? (
-          <>
-            <div>
-              <span>Selected file</span>
-              <strong>{selectedFile.name}</strong>
-            </div>
-            <div>
-              <span>File size</span>
-              <strong>{formatFileSize(selectedFile.size)}</strong>
-            </div>
-            <button type="button" onClick={clearFile} disabled={uploading}>
-              Remove image
-            </button>
-          </>
-        ) : (
-          <div>
-            <span>Status</span>
-            <strong>Waiting for chest X-ray upload</strong>
-          </div>
-        )}
-      </div>
-
-      {canUpload && (
+        <div>
+          <span>Selected file</span>
+          <strong>{selectedFile?.name ?? "No file selected"}</strong>
+        </div>
+        <div>
+          <span>File size</span>
+          <strong>
+            {selectedFile ? formatFileSize(selectedFile.size) : "-"}
+          </strong>
+        </div>
         <button
           type="button"
-          onClick={handleUpload}
-          className="dropzone-upload-btn"
-          disabled={uploading}
+          onClick={clearFile}
+          disabled={!selectedFile || uploading}
         >
-          {uploading ? "Processing…" : "Run prediction"}
+          Remove image
         </button>
-      )}
+      </div>
 
-      {!modelId && selectedFile && (
-        <p
-          style={{
-            color: "var(--warning)",
-            fontSize: "0.875rem",
-            marginTop: "8px",
-            fontFamily: "var(--font-mono)",
-          }}
-        >
-          Select a model above before running prediction.
-        </p>
-      )}
+      <button
+        type="button"
+        onClick={handleUpload}
+        className="dropzone-upload-btn"
+        disabled={!canUpload}
+        aria-busy={uploading}
+      >
+        {uploading ? "Processing..." : "Run prediction"}
+      </button>
 
-      {error ? <p className="dropzone-error">{error}</p> : null}
+      <p className={`dropzone-feedback dropzone-feedback--${helperTone}`}>
+        {helperMessage}
+      </p>
     </div>
   );
 }

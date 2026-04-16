@@ -13,20 +13,36 @@ function confidenceColor(confidence: number): string {
 export default function PredictionResult({
   prediction,
 }: PredictionResultProps) {
-  if (!prediction) {
-    return null;
-  }
-
-  const percentage = (prediction.confidence * 100).toFixed(1);
+  const hasPrediction = prediction !== null;
+  const confidence = prediction?.confidence ?? 0;
+  const percentage = hasPrediction
+    ? `${(confidence * 100).toFixed(1)}%`
+    : "Pending";
+  const confidenceColorValue = hasPrediction
+    ? confidenceColor(confidence)
+    : "var(--muted)";
+  const predictedClass = prediction?.prediction ?? "Awaiting upload";
+  const uploadReference = prediction?.image_s3_key ?? "Prediction pending";
+  const valueClass = hasPrediction
+    ? "prediction-value"
+    : "prediction-value prediction-value--placeholder";
+  const monoValueClass = hasPrediction
+    ? "prediction-value mono"
+    : "prediction-value mono prediction-value--placeholder";
 
   return (
-    <div className="prediction-card flat-card animate-rise">
+    <div className="prediction-card flat-card animate-rise" aria-live="polite">
       <p className="section-label">Classification result</p>
+      <p className="prediction-note">
+        {hasPrediction
+          ? "Latest upload scored and stored."
+          : "Upload a chest X-ray to populate predicted class, confidence, and storage reference."}
+      </p>
 
       <div className="prediction-grid">
         <div className="prediction-row">
           <span className="prediction-label">Predicted class</span>
-          <strong className="prediction-value">{prediction.prediction}</strong>
+          <strong className={valueClass}>{predictedClass}</strong>
         </div>
 
         <div className="prediction-row">
@@ -36,25 +52,23 @@ export default function PredictionResult({
               <div
                 className="confidence-bar-fill"
                 style={{
-                  width: `${prediction.confidence * 100}%`,
-                  backgroundColor: confidenceColor(prediction.confidence),
+                  width: `${confidence * 100}%`,
+                  backgroundColor: confidenceColorValue,
                 }}
               />
             </div>
             <strong
-              className="prediction-value"
-              style={{ color: confidenceColor(prediction.confidence) }}
+              className={valueClass}
+              style={{ color: confidenceColorValue }}
             >
-              {percentage}%
+              {percentage}
             </strong>
           </div>
         </div>
 
         <div className="prediction-row">
           <span className="prediction-label">Upload reference</span>
-          <strong className="prediction-value mono">
-            {prediction.image_s3_key}
-          </strong>
+          <strong className={monoValueClass}>{uploadReference}</strong>
         </div>
       </div>
     </div>
