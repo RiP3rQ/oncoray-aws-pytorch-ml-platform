@@ -14,16 +14,18 @@ Contents:
 - `scripts/install-cluster-addons.ps1` to install controller/operator add-ons
 - `scripts/release-prod.ps1` to orchestrate production release end-to-end
 - `scripts/destroy-prod.ps1` to wrap teardown
+- `scripts/validate-local.ps1` for offline-safe local validation with no AWS calls
 - `../docs/DEPLOYMENT_RUNBOOK.md` for end-to-end operator steps
 
 Recommended flow later:
 
-1. Fill in `infra/terraform/environments/prod/terraform.tfvars`
-2. Copy `infra/helm/values/addons.example.yaml` to a real add-ons values file
-3. Copy `infra/helm/values/prod.example.yaml` to a real prod values file
-4. Copy `infra/helm/values/ssm-parameters.prod.example.json` to a real Parameter Store manifest and fill secrets
-5. Run `infra/scripts/release-prod.ps1` for the one-command production path
-6. Use `infra/scripts/destroy-prod.ps1` when environment teardown is required
+1. Run `infra/scripts/validate-local.ps1` for offline-safe checks first
+2. Fill in `infra/terraform/environments/prod/terraform.tfvars`
+3. Copy `infra/helm/values/addons.example.yaml` to a real add-ons values file
+4. Copy `infra/helm/values/prod.example.yaml` to a real prod values file
+5. Copy `infra/helm/values/ssm-parameters.prod.example.json` to a real Parameter Store manifest and fill secrets
+6. Run `infra/scripts/release-prod.ps1` for the one-command production path
+7. Use `infra/scripts/destroy-prod.ps1` when environment teardown is required
 
 Current status:
 

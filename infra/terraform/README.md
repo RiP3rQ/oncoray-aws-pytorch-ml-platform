@@ -15,7 +15,7 @@ Current scope:
 - RDS PostgreSQL (Multi-AZ)
 - ElastiCache Redis replication group
 - CloudWatch log group for workload shipping
-- CloudWatch alarms for queue depth, database pressure, cache pressure, and optional API ALB health
+- CloudWatch alarms for queue depth, database pressure, cache pressure, optional API ALB health, and optional EKS node-condition health when Container Insights metrics are enabled
 - IRSA roles for AWS Load Balancer Controller, External Secrets, Fluent Bit, API, and worker
 - expected Parameter Store path outputs for later secret population
 
@@ -24,6 +24,7 @@ Still pending after this scaffold:
 - remote backend creation and live state bucket/table
 - production secret values and External Secrets Operator wiring
 - CI/CD execution against real AWS account
+- Container Insights metrics collection if you want node-condition alarms or pod/container restart metrics in CloudWatch
 
 Usage:
 

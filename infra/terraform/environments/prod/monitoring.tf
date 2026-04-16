@@ -203,3 +203,24 @@ resource "aws_cloudwatch_metric_alarm" "api_unhealthy_targets" {
     TargetGroup  = var.api_target_group_arn_suffix
   }
 }
+
+resource "aws_cloudwatch_metric_alarm" "eks_failed_nodes" {
+  count = var.enable_container_insights_node_condition_alarm ? 1 : 0
+
+  alarm_name          = "${local.name_prefix}-eks-failed-nodes"
+  alarm_description   = "EKS cluster has worker nodes reporting failure conditions through Container Insights."
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 2
+  metric_name         = "cluster_failed_node_count"
+  namespace           = "ContainerInsights"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.ok_actions
+
+  dimensions = {
+    ClusterName = module.eks.cluster_name
+  }
+}

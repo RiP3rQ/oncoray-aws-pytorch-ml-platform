@@ -232,6 +232,7 @@ $vpcId = Get-OutputValue -Outputs $terraformOutputs -Name "vpc_id"
 $frontendBucketName = Get-OutputValue -Outputs $terraformOutputs -Name "frontend_bucket_name"
 $frontendDistributionId = Get-OutputValue -Outputs $terraformOutputs -Name "frontend_distribution_id"
 $predictionArtifactsBucketName = Get-OutputValue -Outputs $terraformOutputs -Name "prediction_artifacts_bucket_name"
+$apiWafAclArn = Get-OutputValue -Outputs $terraformOutputs -Name "api_waf_acl_arn"
 $ecrRepositoryUrls = Get-OutputValue -Outputs $terraformOutputs -Name "ecr_repository_urls"
 $addonRoleArns = Get-OutputValue -Outputs $terraformOutputs -Name "cluster_addon_role_arns"
 $appRoleArns = Get-OutputValue -Outputs $terraformOutputs -Name "app_workload_role_arns"
@@ -358,6 +359,13 @@ if (-not $SkipBackendDeploy) {
         "-WorkerServiceAccountRoleArn",
         $appRoleArns.worker
     )
+
+    if ($apiWafAclArn) {
+        $deployArgs += @(
+            "-ApiWafAclArn",
+            $apiWafAclArn
+        )
+    }
 
     if ($EnableModelService) {
         $deployArgs += @(
