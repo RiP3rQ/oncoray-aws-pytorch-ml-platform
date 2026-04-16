@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import uuid
+from io import BytesIO
+from mimetypes import guess_type
+
+import boto3
 
 from src.core.logger import get_logger
 
@@ -21,19 +25,22 @@ class ImageSizeError(Exception):
 
 class S3Service:
     """
-    Placeholder S3 service for uploading images.
+    Upload images to S3 when production mode is enabled.
 
-    Currently this is a mocked implementation.  When the real bucket is ready,
-    uncomment the boto3 calls and provide credentials via environment
-    variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    S3_BUCKET_NAME).
+    In development, mocked mode keeps tests and local flows offline.
     """
 
-    def __init__(self, bucket_name: str = "model-predictions") -> None:
+    def __init__(
+        self,
+        bucket_name: str = "model-predictions",
+        region_name: str = "us-east-1",
+        upload_mode: str = "mock",
+        s3_client=None,
+    ) -> None:
         self.bucket_name = bucket_name
-        # TODO: Uncomment when real S3 is configured
-        # import boto3
-        # self.s3_client = boto3.client("s3")
+        self.region_name = region_name
+        self.upload_mode = upload_mode
+        self.s3_client = s3_client or (boto3.client("s3", region_name=region_name) if upload_mode == "aws" else None)
 
     # ------------------------------------------------------------------
     # Public helpers
@@ -49,7 +56,7 @@ class S3Service:
         """
         Upload *data* to S3 and return the object key.
 
-        In mocked mode the key is generated but nothing is actually stored.
+        In mocked mode the key is generated but nothing is stored.
 
         Parameters
         ----------
@@ -71,6 +78,24 @@ class S3Service:
             ext = filename.rsplit(".", 1)[-1]
         object_key = f"predictions/{uuid.uuid4()}.{ext}" if ext else f"predictions/{uuid.uuid4()}"
 
+        if self.upload_mode == "aws":
+            content_type = guess_type(filename)[0] or "application/octet-stream"
+            assert self.s3_client is not None
+            self.s3_client.upload_fileobj(
+                Fileobj=BytesIO(data),
+                Bucket=self.bucket_name,
+                Key=object_key,
+                ExtraArgs={"ContentType": content_type},
+            )
+            logger.info(
+                "Uploaded image %s (%d bytes) to s3://%s/%s",
+                filename,
+                len(data),
+                self.bucket_name,
+                object_key,
+            )
+            return object_key
+
         logger.info(
             "[MOCK] Uploading image %s (%d bytes) to s3://%s/%s",
             filename,
@@ -78,13 +103,5 @@ class S3Service:
             self.bucket_name,
             object_key,
         )
-
-        # TODO: Uncomment when real S3 is configured
-        # self.s3_client.put_object(
-        #     Bucket=self.bucket_name,
-        #     Key=object_key,
-        #     Body=BytesIO(data),
-        #     ContentType=f"image/{ext}" if ext else "application/octet-stream",
-        # )
 
         return object_key

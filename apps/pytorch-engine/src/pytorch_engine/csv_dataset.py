@@ -300,11 +300,7 @@ class CSVDataset(Dataset[tuple[Any, int]]):
             label_value = str(row[self.label_col])
             image_filename = _to_image_filename(row[self.image_id_col], self.file_extension)
             image_path = next(
-                (
-                    directory / image_filename
-                    for directory in self.image_dirs
-                    if (directory / image_filename).is_file()
-                ),
+                (directory / image_filename for directory in self.image_dirs if (directory / image_filename).is_file()),
                 None,
             )
 

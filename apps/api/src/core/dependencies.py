@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import model_service_settings
+from src.core.config import model_service_settings, s3_settings
 from src.core.errors import ClientNotAuthorized, InvalidToken
 from src.core.security import oauth2_scheme_user
 from src.database.postgres import LLMModel, User
@@ -82,7 +82,11 @@ UserServiceDep = Annotated[
 
 # =============================== S3 SERVICE ===============================
 def get_s3_service() -> S3Service:
-    return S3Service()
+    return S3Service(
+        bucket_name=s3_settings.S3_BUCKET_NAME,
+        region_name=s3_settings.AWS_REGION,
+        upload_mode=s3_settings.S3_UPLOAD_MODE,
+    )
 
 
 S3ServiceDep = Annotated[

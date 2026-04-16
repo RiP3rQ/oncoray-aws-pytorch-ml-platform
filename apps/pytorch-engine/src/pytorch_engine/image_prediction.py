@@ -68,9 +68,7 @@ def predict_image(
     img = Image.open(image_path)
     logger.info("Opened image: %s (size=%s)", image_path, img.size)
 
-    image_transform = (
-        transform if transform is not None else get_default_transform(image_size)
-    )
+    image_transform = transform if transform is not None else get_default_transform(image_size)
 
     model.to(computed_device).eval()
     with torch.inference_mode():
@@ -115,9 +113,7 @@ def plot_prediction(
     """
     import matplotlib.pyplot as plt
 
-    logger.info(
-        "Plotting prediction for %s: %s (%.3f)", image_path, class_name, confidence
-    )
+    logger.info("Plotting prediction for %s: %s (%.3f)", image_path, class_name, confidence)
     img = Image.open(image_path)
     fig, ax = plt.subplots()
     ax.imshow(img)

@@ -4,6 +4,7 @@ Tests for S3Service - image validation and upload.
 
 import sys
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -85,6 +86,13 @@ class TestS3ServiceConstructor:
         service = S3Service(bucket_name="custom-bucket")
         assert service.bucket_name == "custom-bucket"
 
+    def test_aws_mode_uses_injected_client(self):
+        """AWS mode should preserve injected client for production uploads."""
+        client = Mock()
+        service = S3Service(bucket_name="custom-bucket", upload_mode="aws", s3_client=client)
+        assert service.upload_mode == "aws"
+        assert service.s3_client is client
+
 
 # =============================================================================
 # Tests for S3Service.upload_image
@@ -118,3 +126,19 @@ class TestUploadImage:
 
         with pytest.raises(ImageSizeError):
             await service.upload_image(large_data, "large.jpg")
+
+    @pytest.mark.asyncio
+    async def test_upload_image_in_aws_mode_calls_s3(self):
+        """AWS mode should upload through boto3 client."""
+        client = Mock()
+        service = S3Service(
+            bucket_name="prod-bucket",
+            region_name="eu-central-1",
+            upload_mode="aws",
+            s3_client=client,
+        )
+
+        result = await service.upload_image(b"image_data", "photo.jpg")
+
+        assert result.startswith("predictions/")
+        client.upload_fileobj.assert_called_once()

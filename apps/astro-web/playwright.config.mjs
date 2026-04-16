@@ -1,7 +1,9 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "@playwright/test";
 
-const PORT = 4321;
-const baseURL = `http://127.0.0.1:${PORT}`;
+const appDir = path.dirname(fileURLToPath(import.meta.url));
+const frontendURL = "http://localhost:4321";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -12,7 +14,7 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   outputDir: "test-results",
   use: {
-    baseURL,
+    baseURL: frontendURL,
     browserName: "chromium",
     viewport: { width: 1440, height: 900 },
     trace: "on-first-retry",
@@ -21,7 +23,8 @@ export default defineConfig({
   },
   webServer: {
     command: "bun run dev:e2e",
-    url: baseURL,
+    cwd: appDir,
+    url: frontendURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

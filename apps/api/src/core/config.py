@@ -54,6 +54,7 @@ class DatabaseSettings(BaseSettings):
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
+    REDIS_SSL: bool = False
 
     model_config = _base_config
 
@@ -71,7 +72,8 @@ class DatabaseSettings(BaseSettings):
         return to_sync_database_url(self.POSTGRES_URL)
 
     def REDIS_URL(self, db: int) -> str:
-        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{db}"
+        scheme = "rediss" if self.REDIS_SSL else "redis"
+        return f"{scheme}://{self.REDIS_HOST}:{self.REDIS_PORT}/{db}"
 
 
 class SecuritySettings(BaseSettings):
@@ -125,8 +127,14 @@ class S3Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_REGION: str = "us-east-1"
     S3_BUCKET_NAME: str = "model-predictions"
+    S3_UPLOAD_MODE: str = "mock"
 
     model_config = _base_config
+
+    @field_validator("S3_UPLOAD_MODE", mode="before")
+    @classmethod
+    def normalize_upload_mode(cls, value: str) -> str:
+        return value.strip().lower()
 
 
 class ModelServiceSettings(BaseSettings):

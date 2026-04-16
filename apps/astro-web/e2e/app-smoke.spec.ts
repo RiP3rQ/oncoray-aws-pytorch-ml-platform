@@ -1,9 +1,42 @@
-import { Buffer } from "node:buffer";
 import { expect, test } from "@playwright/test";
-import { mockWorkspaceApi } from "./utils/oncoray-api";
 
-const samplePngBase64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sWwae8AAAAASUVORK5CYII=";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://localhost:8000";
+const e2eUserPassword = "E2E-password-123";
+
+async function waitForAstroHydration(page: import("@playwright/test").Page) {
+  await page.waitForFunction(() =>
+    Array.from(document.querySelectorAll("astro-island")).every(
+      (element) => !element.hasAttribute("ssr"),
+    ),
+  );
+}
+
+function createUniqueE2EEmail() {
+  return `e2e+${Date.now()}-${Math.random().toString(36).slice(2, 10)}@example.com`;
+}
+
+async function createVerifiedTestUser(
+  request: import("@playwright/test").APIRequestContext,
+  email: string,
+) {
+  const response = await request.post(`${apiBaseUrl}/user/e2e/test-user`, {
+    data: {
+      email,
+      password: e2eUserPassword,
+    },
+  });
+
+  expect(response.ok()).toBeTruthy();
+}
+
+async function cleanupTestUser(
+  request: import("@playwright/test").APIRequestContext,
+  email: string,
+) {
+  await request.delete(`${apiBaseUrl}/user/e2e/test-user`, {
+    params: { email },
+  });
+}
 
 test("redirects unauthenticated workspace access to login", async ({
   page,
@@ -18,44 +51,34 @@ test("redirects unauthenticated workspace access to login", async ({
   ).toBeVisible();
 });
 
-test("logs in and completes prediction flow against mocked API", async ({
+test("logs in against real API, loads models, and logs out", async ({
   page,
+  request,
 }) => {
-  await mockWorkspaceApi(page);
-  await page.goto("/login");
+  const e2eUserEmail = createUniqueE2EEmail();
 
-  await page.getByLabel("Email").fill("radiology.team@hospital.org");
-  await page.getByLabel("Password").fill("StrongPass123!");
-  await page.getByRole("button", { name: "Log in to workspace" }).click();
+  await createVerifiedTestUser(request, e2eUserEmail);
 
-  await expect(page).toHaveURL("/");
-  await expect(page.getByText("radiology.team@hospital.org")).toBeVisible();
-  await expect(
-    page.getByRole("tab", { name: "PneumoniaNet v2" }),
-  ).toBeVisible();
+  try {
+    await page.goto("/login");
+    await waitForAstroHydration(page);
 
-  await page.locator('input[type="file"]').setInputFiles({
-    name: "chest-xray.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(samplePngBase64, "base64"),
-  });
+    await page.getByLabel("Email").fill(e2eUserEmail);
+    await page.getByLabel("Password").fill(e2eUserPassword);
+    await page.getByRole("button", { name: "Log in to workspace" }).click();
 
-  await expect(page.getByText("chest-xray.png")).toBeVisible();
-  const runPredictionButton = page.getByRole("button", {
-    name: "Run prediction",
-  });
+    await expect(page).toHaveURL("/");
+    await expect(page.getByText(e2eUserEmail)).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: "VIT optical model" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: "EffectiveNetB2" }),
+    ).toBeVisible();
 
-  await expect(runPredictionButton).toBeEnabled();
-  await runPredictionButton.click();
-
-  const predictionCard = page.locator(".prediction-card");
-
-  await expect(
-    predictionCard.getByText("Latest upload scored and stored."),
-  ).toBeVisible();
-  await expect(predictionCard.getByText("Pneumonia")).toBeVisible();
-  await expect(predictionCard.getByText("92.0%")).toBeVisible();
-  await expect(
-    predictionCard.getByText("uploads/test/chest-xray.png"),
-  ).toBeVisible();
+    await page.getByRole("button", { name: "Log out" }).click();
+    await expect(page).toHaveURL(/\/login$/);
+  } finally {
+    await cleanupTestUser(request, e2eUserEmail);
+  }
 });

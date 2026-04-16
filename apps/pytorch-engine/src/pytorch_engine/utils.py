@@ -73,9 +73,7 @@ def accuracy_fn(y_true: torch.Tensor, y_pred: torch.Tensor) -> float:
     return correct / len(y_pred)
 
 
-def print_train_time(
-    start: float, end: float, device: str | torch.device | None = None
-) -> float:
+def print_train_time(start: float, end: float, device: str | torch.device | None = None) -> float:
     """Print and return the elapsed time between *start* and *end*.
 
     Args:

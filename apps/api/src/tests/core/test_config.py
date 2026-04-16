@@ -91,6 +91,7 @@ class TestDatabaseSettings:
         assert settings.POSTGRES_PORT == 5433
         assert settings.POSTGRES_USER == "postgres"
         assert settings.POSTGRES_DB == "pytorch-model"
+        assert settings.REDIS_SSL is False
 
     def test_postgres_url_with_override(self):
         """POSTGRES_URL should use CORE_API_DATABASE_URL when set."""
@@ -119,6 +120,11 @@ class TestDatabaseSettings:
         url = settings.REDIS_URL(0)
         assert url.startswith("redis://")
         assert ":6379/0" in url
+
+    def test_redis_url_uses_tls_scheme_when_enabled(self):
+        """REDIS_URL should use rediss:// when TLS is enabled."""
+        settings = DatabaseSettings(REDIS_SSL=True)
+        assert settings.REDIS_URL(0).startswith("rediss://")
 
 
 # =============================================================================
@@ -177,6 +183,12 @@ class TestS3Settings:
         settings = S3Settings()
         assert settings.AWS_REGION == "us-east-1"
         assert settings.S3_BUCKET_NAME == "model-predictions"
+        assert settings.S3_UPLOAD_MODE == "mock"
+
+    def test_s3_upload_mode_is_normalized(self):
+        """S3 upload mode should be lower-cased."""
+        settings = S3Settings(S3_UPLOAD_MODE=" AWS ")
+        assert settings.S3_UPLOAD_MODE == "aws"
 
 
 class TestModelServiceSettings:

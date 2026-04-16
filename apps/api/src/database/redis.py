@@ -7,6 +7,7 @@ redis_instance = Redis(
     host=db_settings.REDIS_HOST,
     port=db_settings.REDIS_PORT,
     db=0,
+    ssl=db_settings.REDIS_SSL,
 )
 
 
