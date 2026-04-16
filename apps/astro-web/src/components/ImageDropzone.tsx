@@ -153,7 +153,7 @@ export default function ImageDropzone({
       <label
         htmlFor={inputId}
         className={cn(
-          "group bg-card relative flex min-h-[18rem] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[4px] border px-6 py-10 text-center transition-[border-color,background-color] duration-150 sm:min-h-[20rem] sm:px-10",
+          "group bg-card relative flex min-h-[18rem] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[4px] border px-6 py-10 text-center transition-[border-color,background-color] duration-150 sm:min-h-[18rem] sm:px-10",
           error
             ? "border-[var(--color-opencode-danger)]"
             : isDragging
@@ -250,22 +250,24 @@ export default function ImageDropzone({
         </button>
       </div>
 
-      <button
-        type="button"
-        onClick={handleUpload}
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-[4px] bg-[var(--color-opencode-accent-blue)] px-5 py-2 text-base leading-[1.5] font-bold text-white transition-[background-color,color] duration-150 hover:bg-[var(--color-opencode-accent-blue-hover)] active:bg-[var(--color-opencode-accent-blue-active)] disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit sm:min-w-[12rem]"
-        disabled={!canUpload}
-        aria-busy={uploading}
-      >
-        {uploading ? "Processing..." : "Run prediction"}
-      </button>
+      <div className="mt-4 flex flex-col items-center gap-4">
+        <button
+          type="button"
+          onClick={handleUpload}
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-[4px] bg-[var(--color-opencode-accent-blue)] px-5 py-2 text-base leading-[1.5] font-bold text-white transition-[background-color,color] duration-150 hover:bg-[var(--color-opencode-accent-blue-hover)] active:bg-[var(--color-opencode-accent-blue-active)] disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit sm:min-w-[12rem]"
+          disabled={!canUpload}
+          aria-busy={uploading}
+        >
+          {uploading ? "Processing..." : "Run prediction"}
+        </button>
 
-      <p
-        id={`${inputId}-helper`}
-        className={cn("min-h-6 text-sm font-medium", helperClassName)}
-      >
-        {helperMessage}
-      </p>
+        <p
+          id={`${inputId}-helper`}
+          className={cn("min-h-6 text-sm font-medium", helperClassName)}
+        >
+          {helperMessage}
+        </p>
+      </div>
     </div>
   );
 }
