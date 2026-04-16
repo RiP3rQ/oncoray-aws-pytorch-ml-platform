@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import {
   abortApiRequest,
+  cleanupTestUser,
+  createUniqueE2EEmail,
+  e2eUserPassword,
   gotoLogin,
   gotoRegister,
   mockApiText,
@@ -85,4 +88,24 @@ test("shows fallback toast for generic registration network failure", async ({
   await expect(toastByText(page, "Network error. Try again.")).toHaveCount(1);
 });
 
-test.fixme("registers and redirects to login once local verification helper exists", async () => {});
+test("registers and redirects to login through real API", async ({
+  page,
+  request,
+}) => {
+  const e2eUserEmail = createUniqueE2EEmail();
+
+  try {
+    await gotoRegister(page);
+
+    await submitRegisterForm(page, e2eUserEmail, e2eUserPassword);
+
+    await expect(page).toHaveURL(/\/login$/, { timeout: 20_000 });
+    await expect(
+      page.getByRole("heading", {
+        name: "Step back into chest X-ray review.",
+      }),
+    ).toBeVisible();
+  } finally {
+    await cleanupTestUser(request, e2eUserEmail);
+  }
+});

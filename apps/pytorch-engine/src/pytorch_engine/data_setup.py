@@ -1,5 +1,6 @@
 """PyTorch DataLoader creation and data utilities for image classification datasets."""
 
+import hashlib
 import logging
 import os
 import shutil
@@ -369,6 +370,20 @@ class DataLoaderResult(TypedDict):
     class_names: list[str]
 
 
+class DuplicateImageRecord(TypedDict):
+    """One hashed file occurrence inside a dataset split."""
+
+    split: str
+    path: str
+
+
+class CrossSplitDuplicateGroup(TypedDict):
+    """Exact duplicate files that appear in more than one dataset split."""
+
+    sha256: str
+    files: list[DuplicateImageRecord]
+
+
 def create_dataloader(
     data_dir: str,
     transform: transforms.Compose,
@@ -433,3 +448,43 @@ def create_dataloader(
         dataloader=dataloader,
         class_names=dataset.classes,
     )
+
+
+def find_cross_split_duplicate_files(
+    dataset_root: str | Path,
+    split_names: tuple[str, ...] = CHEST_XRAY_SPLITS,
+) -> list[CrossSplitDuplicateGroup]:
+    """Find exact duplicate files that appear in more than one split.
+
+    Hashes each file with SHA256 and returns only groups whose identical bytes
+    span at least two distinct split roots. Duplicates within the same split are
+    ignored because they do not create train/val/test leakage by themselves.
+    """
+    root = Path(dataset_root)
+    records_by_hash: dict[str, list[DuplicateImageRecord]] = {}
+
+    for split_name in split_names:
+        split_dir = root / split_name
+        if not split_dir.is_dir():
+            raise FileNotFoundError(f"Expected split directory not found: {split_dir}")
+
+        for file_path in sorted(path for path in split_dir.rglob("*") if path.is_file()):
+            file_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+            records_by_hash.setdefault(file_hash, []).append(
+                DuplicateImageRecord(split=split_name, path=str(file_path))
+            )
+
+    duplicate_groups: list[CrossSplitDuplicateGroup] = []
+    for file_hash, file_records in records_by_hash.items():
+        unique_splits = {record["split"] for record in file_records}
+        if len(file_records) < 2 or len(unique_splits) < 2:
+            continue
+        duplicate_groups.append(
+            CrossSplitDuplicateGroup(
+                sha256=file_hash,
+                files=sorted(file_records, key=lambda record: (record["split"], record["path"])),
+            )
+        )
+
+    duplicate_groups.sort(key=lambda group: (len(group["files"]), group["sha256"]))
+    return duplicate_groups

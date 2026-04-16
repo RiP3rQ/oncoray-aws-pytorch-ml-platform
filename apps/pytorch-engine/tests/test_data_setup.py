@@ -8,7 +8,11 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from PIL import Image
-from pytorch_engine.data_setup import create_dataloader, summarize_imagefolder_splits
+from pytorch_engine.data_setup import (
+    create_dataloader,
+    find_cross_split_duplicate_files,
+    summarize_imagefolder_splits,
+)
 from torchvision import transforms
 
 TEST_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
@@ -66,6 +70,45 @@ class CreateDataloaderTests(unittest.TestCase):
 
         self.assertEqual(result["class_names"], ["NORMAL"])
         self.assertFalse(result["dataloader"].pin_memory)
+
+
+class FindCrossSplitDuplicateFilesTests(unittest.TestCase):
+    def test_returns_exact_duplicates_that_span_multiple_splits(self) -> None:
+        with _workspace_tmp_dir() as root:
+            source_file = root / "source.png"
+            _write_image(source_file)
+            train_file = root / "train" / "NORMAL" / "same.png"
+            test_file = root / "test" / "NORMAL" / "same_copy.png"
+            train_file.parent.mkdir(parents=True, exist_ok=True)
+            test_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_file, train_file)
+            shutil.copyfile(source_file, test_file)
+
+            duplicate_groups = find_cross_split_duplicate_files(root, split_names=("train", "test"))
+
+        self.assertEqual(len(duplicate_groups), 1)
+        duplicate_group = duplicate_groups[0]
+        self.assertEqual(
+            duplicate_group["files"],
+            [
+                {"split": "test", "path": str(test_file)},
+                {"split": "train", "path": str(train_file)},
+            ],
+        )
+
+    def test_ignores_duplicates_within_same_split_only(self) -> None:
+        with _workspace_tmp_dir() as root:
+            source_file = root / "source.png"
+            _write_image(source_file)
+            train_file_a = root / "train" / "NORMAL" / "same_a.png"
+            train_file_b = root / "train" / "NORMAL" / "same_b.png"
+            train_file_a.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_file, train_file_a)
+            shutil.copyfile(source_file, train_file_b)
+
+            duplicate_groups = find_cross_split_duplicate_files(root, split_names=("train",))
+
+        self.assertEqual(duplicate_groups, [])
 
 
 if __name__ == "__main__":

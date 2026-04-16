@@ -21,7 +21,9 @@ async function openMockedDashboard(page: import("@playwright/test").Page) {
   await expect(page.getByText(mockUser.email)).toBeVisible();
 }
 
-test.fixme("runs real prediction happy path once local model-service and storage harness exist", async () => {});
+// TODO: Replace mocked prediction coverage below with real API E2E coverage
+// once prediction endpoint, model runtime, and storage flow are stable locally.
+test.skip("runs real prediction happy path once prediction backend is ready for E2E", async () => {});
 
 test("keeps upload disabled until supported image is selected", async ({
   page,
