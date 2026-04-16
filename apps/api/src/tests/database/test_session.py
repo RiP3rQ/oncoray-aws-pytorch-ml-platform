@@ -30,9 +30,7 @@ class TestGetSession:
             mock_factory = MagicMock()
             # Make the context manager work
             mock_session_instance = AsyncMock()
-            mock_factory.return_value.__aenter__ = AsyncMock(
-                return_value=mock_session_instance
-            )
+            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session_instance)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=False)
             mock_sessionmaker.return_value = mock_factory
 
@@ -65,9 +63,7 @@ class TestPingDatabase:
         from sqlalchemy.exc import SQLAlchemyError
 
         mock_session = AsyncMock()
-        mock_session.execute = AsyncMock(
-            side_effect=SQLAlchemyError("Connection refused")
-        )
+        mock_session.execute = AsyncMock(side_effect=SQLAlchemyError("Connection refused"))
 
         result = await ping_database(mock_session)
         assert result is False

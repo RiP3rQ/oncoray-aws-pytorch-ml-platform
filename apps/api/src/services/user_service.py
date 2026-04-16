@@ -22,7 +22,8 @@ from src.utils.token_utils import (
     generate_access_token,
     generate_url_safe_token,
 )
-from src.worker.tasks import send_email_with_template_async
+from src.worker.tasks import dispatch_email_with_template
+
 from .base import BaseService
 
 logger = get_logger(__name__)
@@ -80,19 +81,7 @@ class UserService(BaseService):
         """Queue the account verification email for a newly created user."""
 
         token = generate_url_safe_token({"id": str(user.id)})
-        # TODO: UNCOMMENT IN PRODUCTION
-        # send_email_with_template.delay(
-        #     recipients=[user.email],
-        #     subject="Verify Your Account With PyTorch Model",
-        #     context={
-        #         "username": user.email,
-        #         "verification_url": self._build_verification_url(
-        #             token, router_prefix,
-        #         ),
-        #     },
-        #     template_name="mail_email_verify.html",
-        # )
-        await send_email_with_template_async(
+        await dispatch_email_with_template(
             recipients=[user.email],
             subject="Verify Your Account With PyTorch Model",
             context={
@@ -150,9 +139,7 @@ class UserService(BaseService):
     async def _get_user_by_email(self, email: str) -> User | None:
         """Look up a user by email address."""
 
-        return await self.session.scalar(
-            select(self.model).where(self.model.email == email)
-        )
+        return await self.session.scalar(select(self.model).where(self.model.email == email))
 
     async def _authenticate_user(self, email: str, password: str) -> User:
         """Return the authenticated user or raise `BadCredentials`."""

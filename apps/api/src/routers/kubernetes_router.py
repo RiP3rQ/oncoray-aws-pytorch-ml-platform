@@ -13,9 +13,9 @@ _session = Depends(get_session)
 
 
 def _probe_response(
-        *,
-        db_ready: bool | None = None,
-        redis_ready: bool | None = None,
+    *,
+    db_ready: bool | None = None,
+    redis_ready: bool | None = None,
 ) -> dict[str, object]:
     """
     Build a consistent payload for Kubernetes probes.
@@ -29,9 +29,7 @@ def _probe_response(
         "status": "ok",
     }
     if any(value is not None for value in checks.values()):
-        filtered_checks = {
-            name: value for name, value in checks.items() if value is not None
-        }
+        filtered_checks = {name: value for name, value in checks.items() if value is not None}
         payload["checks"] = filtered_checks
         payload["status"] = "ok" if all(filtered_checks.values()) else "degraded"
     return payload
@@ -61,7 +59,7 @@ async def get_livez() -> dict[str, object]:
 
 @router.get("/readyz", response_model=None)
 async def get_readyz(
-        session: AsyncSession = _session,
+    session: AsyncSession = _session,
 ) -> dict[str, object] | JSONResponse:
     """
     Kubernetes readiness probe.
@@ -71,7 +69,7 @@ async def get_readyz(
 
 @router.get("/startupz", response_model=None)
 async def get_startupz(
-        session: AsyncSession = _session,
+    session: AsyncSession = _session,
 ) -> dict[str, object] | JSONResponse:
     """
     Kubernetes startup probe.
@@ -81,7 +79,7 @@ async def get_startupz(
 
 @router.get("/health", response_model=None)
 async def get_health(
-        session: AsyncSession = _session,
+    session: AsyncSession = _session,
 ) -> dict[str, object] | JSONResponse:
     """
     Compatibility health probe that mirrors readiness.
@@ -91,7 +89,7 @@ async def get_health(
 
 @router.get("/healthz", response_model=None)
 async def get_healthz(
-        session: AsyncSession = _session,
+    session: AsyncSession = _session,
 ) -> dict[str, object] | JSONResponse:
     """
     Compatibility health probe for common Kubernetes conventions.

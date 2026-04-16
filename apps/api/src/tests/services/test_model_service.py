@@ -1,5 +1,5 @@
 """
-Tests for ModelService - getting models and predictions.
+Tests for ModelService - getting models and orchestrating predictions.
 """
 
 import sys
@@ -15,15 +15,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.core.errors import EntityNotFound
+from src.core.errors import EntityNotFound, ServiceUnavailable
 from src.database.postgres import LLMModel
 from src.schemas.model_schemas import ModelRead, PredictionResponse
+from src.services.model_runtime_client import ModelRuntimeClient
 from src.services.model_service import ModelService
 from src.services.s3_service import S3Service
-
-# =============================================================================
-# Fixtures
-# =============================================================================
 
 
 @pytest.fixture
@@ -44,6 +41,14 @@ def mock_s3_service():
 
 
 @pytest.fixture
+def mock_runtime_client():
+    """Create a mock runtime client."""
+    runtime = MagicMock(spec=ModelRuntimeClient)
+    runtime.predict = AsyncMock(return_value=MagicMock(prediction="cat", confidence=0.95))
+    return runtime
+
+
+@pytest.fixture
 def fake_model():
     """Create a fake LLMModel instance."""
     model = MagicMock(spec=LLMModel)
@@ -57,27 +62,21 @@ def fake_model():
 
 
 @pytest.fixture
-def model_service(mock_session, mock_s3_service):
+def model_service(mock_session, mock_s3_service, mock_runtime_client):
     """Create a ModelService instance with mocked dependencies."""
     return ModelService(
-        model=LLMModel, session=mock_session, s3_service=mock_s3_service
+        model=LLMModel,
+        session=mock_session,
+        s3_service=mock_s3_service,
+        model_runtime_client=mock_runtime_client,
     )
-
-
-# =============================================================================
-# Tests for get_all
-# =============================================================================
 
 
 class TestGetAllModels:
     """Tests for ModelService.get_all."""
 
     @pytest.mark.asyncio
-    async def test_get_all_returns_model_reads(
-            self, model_service, mock_session, fake_model
-    ):
-        """get_all should return a list of ModelRead schemas."""
-        # Mock the query result
+    async def test_get_all_returns_model_reads(self, model_service, mock_session, fake_model):
         mock_result = MagicMock()
         mock_scalars = MagicMock()
         mock_scalars.all.return_value = [fake_model]
@@ -93,7 +92,6 @@ class TestGetAllModels:
 
     @pytest.mark.asyncio
     async def test_get_all_empty_list(self, model_service, mock_session):
-        """get_all should return empty list when no models exist."""
         mock_result = MagicMock()
         mock_scalars = MagicMock()
         mock_scalars.all.return_value = []
@@ -106,19 +104,11 @@ class TestGetAllModels:
         assert len(result) == 0
 
 
-# =============================================================================
-# Tests for get
-# =============================================================================
-
-
 class TestGetModelById:
     """Tests for ModelService.get."""
 
     @pytest.mark.asyncio
-    async def test_get_returns_model_read(
-            self, model_service, mock_session, fake_model
-    ):
-        """get should return ModelRead when model is found."""
+    async def test_get_returns_model_read(self, model_service, mock_session, fake_model):
         mock_session.get.return_value = fake_model
 
         result = await model_service.get(fake_model.id)
@@ -129,16 +119,10 @@ class TestGetModelById:
 
     @pytest.mark.asyncio
     async def test_get_raises_entity_not_found(self, model_service, mock_session):
-        """get should raise EntityNotFound when model is not found."""
         mock_session.get.return_value = None
 
         with pytest.raises(EntityNotFound):
             await model_service.get(uuid4())
-
-
-# =============================================================================
-# Tests for predict_with_image
-# =============================================================================
 
 
 class TestPredictWithImage:
@@ -146,9 +130,13 @@ class TestPredictWithImage:
 
     @pytest.mark.asyncio
     async def test_predict_with_image_success(
-            self, model_service, mock_session, mock_s3_service, fake_model
+        self,
+        model_service,
+        mock_session,
+        mock_s3_service,
+        mock_runtime_client,
+        fake_model,
     ):
-        """predict_with_image should return PredictionResponse for valid model."""
         mock_session.get.return_value = fake_model
 
         result = await model_service.predict_with_image(
@@ -161,15 +149,18 @@ class TestPredictWithImage:
         assert result.prediction == "cat"
         assert result.confidence == 0.95
         assert result.model_id == fake_model.id
+        mock_runtime_client.predict.assert_called_once_with(
+            model_id=fake_model.id,
+            image_data=b"fake_image_data",
+            filename="test.jpg",
+        )
         mock_s3_service.upload_image.assert_called_once_with(
-            b"fake_image_data", "test.jpg"
+            b"fake_image_data",
+            "test.jpg",
         )
 
     @pytest.mark.asyncio
-    async def test_predict_with_image_model_not_found(
-            self, model_service, mock_session
-    ):
-        """predict_with_image should raise EntityNotFound for nonexistent model."""
+    async def test_predict_with_image_model_not_found(self, model_service, mock_session):
         mock_session.get.return_value = None
         model_id = uuid4()
 
@@ -181,17 +172,18 @@ class TestPredictWithImage:
             )
 
     @pytest.mark.asyncio
-    async def test_predict_with_image_no_extension(
-            self, model_service, mock_session, mock_s3_service, fake_model
-    ):
-        """predict_with_image should handle filenames without extensions."""
-        mock_session.get.return_value = fake_model
-        mock_s3_service.upload_image.return_value = "predictions/test-uuid"
-
-        result = await model_service.predict_with_image(
-            model_id=fake_model.id,
-            image_data=b"fake_image_data",
-            filename="no_extension",
+    async def test_predict_with_image_requires_runtime_client(self, mock_session, mock_s3_service, fake_model):
+        service = ModelService(
+            model=LLMModel,
+            session=mock_session,
+            s3_service=mock_s3_service,
+            model_runtime_client=None,
         )
+        mock_session.get.return_value = fake_model
 
-        assert isinstance(result, PredictionResponse)
+        with pytest.raises(ServiceUnavailable):
+            await service.predict_with_image(
+                model_id=fake_model.id,
+                image_data=b"fake_image_data",
+                filename="test.jpg",
+            )

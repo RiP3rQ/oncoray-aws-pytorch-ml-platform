@@ -1,5 +1,5 @@
 """
-Tests for Celery worker tasks - email sending.
+Tests for worker task helpers and email dispatch.
 """
 
 import sys
@@ -12,59 +12,38 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 
-# =============================================================================
-# Tests for send_mail task
-# =============================================================================
-
-
 class TestSendMailTask:
     """Tests for send_mail Celery task."""
 
     def test_send_mail_task_exists(self):
-        """send_mail task should be callable."""
         from src.worker.tasks import send_mail
 
         assert callable(send_mail)
 
     def test_send_mail_task_is_celery_task(self):
-        """send_mail should be a Celery task."""
         from src.worker.tasks import send_mail
 
-        # Celery tasks have a 'delay' attribute
         assert hasattr(send_mail, "delay")
-
-
-# =============================================================================
-# Tests for send_email_with_template task
-# =============================================================================
 
 
 class TestSendEmailWithTemplateTask:
     """Tests for send_email_with_template Celery task."""
 
     def test_send_email_with_template_task_exists(self):
-        """send_email_with_template task should be callable."""
         from src.worker.tasks import send_email_with_template
 
         assert callable(send_email_with_template)
 
     def test_send_email_with_template_is_celery_task(self):
-        """send_email_with_template should be a Celery task."""
         from src.worker.tasks import send_email_with_template
 
         assert hasattr(send_email_with_template, "delay")
 
 
-# =============================================================================
-# Tests for send_email_with_template_async
-# =============================================================================
-
-
 class TestSendEmailWithTemplateAsync:
-    """Tests for send_email_with_template_async function."""
+    """Tests for inline email send helper."""
 
     async def test_send_email_with_template_async_calls_fastmail(self):
-        """send_email_with_template_async should call fast_mail.send_message."""
         with patch("src.worker.tasks.fast_mail") as mock_fast_mail:
             mock_fast_mail.send_message = AsyncMock()
 
@@ -78,5 +57,49 @@ class TestSendEmailWithTemplateAsync:
             )
 
             mock_fast_mail.send_message.assert_called_once()
-            call_kwargs = mock_fast_mail.send_message.call_args
-            assert call_kwargs is not None
+
+
+class TestDispatchEmailWithTemplate:
+    """Tests for broker-aware email dispatch."""
+
+    async def test_dispatch_queues_task_when_worker_enabled(self):
+        with (
+            patch("src.worker.tasks.worker_settings") as mock_settings,
+            patch("src.worker.tasks.send_email_with_template.delay") as mock_delay,
+        ):
+            mock_settings.should_dispatch_via_worker = True
+
+            from src.worker.tasks import dispatch_email_with_template
+
+            result = await dispatch_email_with_template(
+                recipients=["test@example.com"],
+                subject="Test Subject",
+                context={"username": "test"},
+                template_name="test_template.html",
+            )
+
+            mock_delay.assert_called_once()
+            assert result == "Message Queued!"
+
+    async def test_dispatch_sends_inline_when_worker_disabled(self):
+        with (
+            patch("src.worker.tasks.worker_settings") as mock_settings,
+            patch(
+                "src.worker.tasks.send_email_with_template_async",
+                new_callable=AsyncMock,
+            ) as mock_send_inline,
+        ):
+            mock_settings.should_dispatch_via_worker = False
+            mock_send_inline.return_value = "Message Sent!"
+
+            from src.worker.tasks import dispatch_email_with_template
+
+            result = await dispatch_email_with_template(
+                recipients=["test@example.com"],
+                subject="Test Subject",
+                context={"username": "test"},
+                template_name="test_template.html",
+            )
+
+            mock_send_inline.assert_called_once()
+            assert result == "Message Sent!"

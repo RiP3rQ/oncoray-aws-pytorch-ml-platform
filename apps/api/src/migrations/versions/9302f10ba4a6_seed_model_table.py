@@ -61,6 +61,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.execute(
-        sa.delete(llm_models_table).where(llm_models_table.c.id.in_(seeded_model_ids))
-    )
+    op.execute(sa.delete(llm_models_table).where(llm_models_table.c.id.in_(seeded_model_ids)))

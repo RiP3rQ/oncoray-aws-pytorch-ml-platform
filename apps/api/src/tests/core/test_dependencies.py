@@ -145,9 +145,14 @@ class TestServiceDependencies:
         """get_model_service should return a ModelService instance."""
         from src.core.dependencies import get_model_service
         from src.services.model_service import ModelService
+        from src.services.s3_service import S3Service
 
         mock_session = MagicMock()
-        service = get_model_service(session=mock_session)
+        service = get_model_service(
+            session=mock_session,
+            s3_service=S3Service(),
+            model_runtime_client=None,
+        )
         assert isinstance(service, ModelService)
 
     def test_get_s3_service(self):
@@ -157,3 +162,28 @@ class TestServiceDependencies:
 
         service = get_s3_service()
         assert isinstance(service, S3Service)
+
+    def test_get_model_runtime_client_returns_none_without_url(self):
+        """get_model_runtime_client should return None when URL is unset."""
+        from src.core.dependencies import get_model_runtime_client
+
+        with patch("src.core.dependencies.model_service_settings") as mock_settings:
+            mock_settings.MODEL_SERVICE_URL = None
+            result = get_model_runtime_client()
+
+        assert result is None
+
+    def test_get_model_runtime_client_builds_client_when_url_set(self):
+        """get_model_runtime_client should build client when URL exists."""
+        from src.core.dependencies import get_model_runtime_client
+        from src.services.model_runtime_client import ModelRuntimeClient
+
+        with patch("src.core.dependencies.model_service_settings") as mock_settings:
+            mock_settings.MODEL_SERVICE_URL = "http://model-service:8000"
+            mock_settings.MODEL_SERVICE_TIMEOUT_SECONDS = 12.5
+            result = get_model_runtime_client()
+
+        assert isinstance(result, ModelRuntimeClient)
+        assert result is not None
+        assert result.base_url == "http://model-service:8000"
+        assert result.timeout_seconds == 12.5

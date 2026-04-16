@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
 from src.core.config import db_settings
+
 # MAKE SURE TO IMPORT THE MODELS HERE
 from src.database.postgres import LLMModel, User  # noqa: F401
 

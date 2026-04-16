@@ -5,6 +5,8 @@ Tests for core configuration settings.
 import sys
 from pathlib import Path
 
+import pytest
+
 # Add project root to Python path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -13,16 +15,21 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.core.config import (
     AppSettings,
     DatabaseSettings,
+    ModelServiceSettings,
     NotificationSettings,
     S3Settings,
     SecuritySettings,
+    WorkerSettings,
     app_settings,
     db_settings,
+    extract_queue_name_from_url,
+    model_service_settings,
     normalize_database_url,
     notification_settings,
     s3_settings,
     security_settings,
     to_sync_database_url,
+    worker_settings,
 )
 
 # =============================================================================
@@ -50,9 +57,7 @@ class TestAppSettings:
 
     def test_cors_allowed_origins_tuple(self):
         """cors_allowed_origins_tuple should split CORS_ALLOWED_ORIGINS."""
-        settings = AppSettings(
-            CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5173"
-        )
+        settings = AppSettings(CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5173")
         origins = settings.cors_allowed_origins_tuple
         assert "http://localhost:3000" in origins
         assert "http://localhost:5173" in origins
@@ -89,9 +94,7 @@ class TestDatabaseSettings:
 
     def test_postgres_url_with_override(self):
         """POSTGRES_URL should use CORE_API_DATABASE_URL when set."""
-        settings = DatabaseSettings(
-            CORE_API_DATABASE_URL="postgresql+asyncpg://user:pass@host:5432/db"
-        )
+        settings = DatabaseSettings(CORE_API_DATABASE_URL="postgresql+asyncpg://user:pass@host:5432/db")
         url = settings.POSTGRES_URL
         assert url == "postgresql+asyncpg://user:pass@host:5432/db"
 
@@ -105,9 +108,7 @@ class TestDatabaseSettings:
 
     def test_sync_postgres_url(self):
         """SYNC_POSTGRES_URL should convert async URL to sync."""
-        settings = DatabaseSettings(
-            CORE_API_DATABASE_URL="postgresql+asyncpg://user:pass@host:5432/db"
-        )
+        settings = DatabaseSettings(CORE_API_DATABASE_URL="postgresql+asyncpg://user:pass@host:5432/db")
         sync_url = settings.SYNC_POSTGRES_URL
         assert "postgresql://" in sync_url
         assert "asyncpg" not in sync_url
@@ -178,6 +179,60 @@ class TestS3Settings:
         assert settings.S3_BUCKET_NAME == "model-predictions"
 
 
+class TestModelServiceSettings:
+    """Tests for internal model-service settings."""
+
+    def test_model_service_defaults(self):
+        settings = ModelServiceSettings()
+        assert settings.MODEL_SERVICE_URL is None
+        assert settings.MODEL_SERVICE_TIMEOUT_SECONDS == 30.0
+
+    def test_model_service_url_is_normalized(self):
+        settings = ModelServiceSettings(MODEL_SERVICE_URL=" http://model-service:8000/ ")
+        assert settings.MODEL_SERVICE_URL == "http://model-service:8000"
+
+
+class TestWorkerSettings:
+    """Tests for worker and broker settings."""
+
+    def test_worker_defaults(self):
+        settings = WorkerSettings()
+        assert settings.AWS_REGION == "us-east-1"
+        assert settings.resolved_broker_url.startswith("redis://")
+        assert settings.resolved_queue_name == "celery"
+        assert settings.uses_sqs is False
+
+    def test_worker_uses_sqs_when_queue_url_present(self):
+        settings = WorkerSettings(
+            SQS_QUEUE_URL="https://sqs.eu-central-1.amazonaws.com/123456789012/my-queue",
+        )
+        assert settings.resolved_broker_url == "sqs://"
+        assert settings.uses_sqs is True
+        assert settings.should_dispatch_via_worker is True
+        assert settings.resolved_queue_name == "my-queue"
+
+    def test_worker_uses_custom_queue_name_when_set(self):
+        settings = WorkerSettings(
+            SQS_QUEUE_URL="https://sqs.eu-central-1.amazonaws.com/123456789012/my-queue",
+            CELERY_QUEUE_NAME="mail-jobs",
+        )
+        assert settings.resolved_queue_name == "mail-jobs"
+
+
+class TestExtractQueueNameFromUrl:
+    """Tests for SQS queue-name parsing."""
+
+    def test_extract_queue_name(self):
+        queue_name = extract_queue_name_from_url(
+            "https://sqs.eu-central-1.amazonaws.com/123456789012/pytorch-worker",
+        )
+        assert queue_name == "pytorch-worker"
+
+    def test_extract_queue_name_raises_for_invalid_url(self):
+        with pytest.raises(ValueError):
+            extract_queue_name_from_url("https://sqs.eu-central-1.amazonaws.com/")
+
+
 # =============================================================================
 # Tests for normalize_database_url
 # =============================================================================
@@ -194,9 +249,7 @@ class TestNormalizeDatabaseUrl:
     def test_postgresql_url_converted(self):
         """postgresql:// URL should be converted to asyncpg."""
         url = "postgresql://user:pass@host/db"
-        assert normalize_database_url(url) == url.replace(
-            "postgresql://", "postgresql+asyncpg://"
-        )
+        assert normalize_database_url(url) == url.replace("postgresql://", "postgresql+asyncpg://")
 
     def test_postgres_url_converted(self):
         """postgres:// URL should be converted to asyncpg."""
@@ -260,3 +313,11 @@ class TestModuleInstances:
     def test_s3_settings_instance(self):
         """s3_settings should be an instance of S3Settings."""
         assert isinstance(s3_settings, S3Settings)
+
+    def test_model_service_settings_instance(self):
+        """model_service_settings should be an instance of ModelServiceSettings."""
+        assert isinstance(model_service_settings, ModelServiceSettings)
+
+    def test_worker_settings_instance(self):
+        """worker_settings should be an instance of WorkerSettings."""
+        assert isinstance(worker_settings, WorkerSettings)

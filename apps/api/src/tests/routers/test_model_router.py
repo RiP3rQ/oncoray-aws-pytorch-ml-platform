@@ -77,9 +77,7 @@ class TestPredictWithImage:
         assert data["prediction"] == "cat"
         assert data["confidence"] == 0.95
 
-    def test_predict_with_image_too_large(
-            self, client: TestClient, mock_models: list[MagicMock]
-    ):
+    def test_predict_with_image_too_large(self, client: TestClient, mock_models: list[MagicMock]):
         """POST /model/{model_id}/predict with oversized image should return 413."""
         model_id = mock_models[0].id
         # Create image data larger than 2MB
@@ -91,13 +89,9 @@ class TestPredictWithImage:
 
     def test_predict_nonexistent_model_returns_404(self, client: TestClient):
         """POST /model/{non_existent_id}/predict should return 404."""
-        # The MockModelService returns predictions for any model_id,
-        # so this test verifies the route is accessible. Actual 404
-        # behavior is tested in ModelService unit tests.
         non_existent_id = uuid4()
         image_data = b"fake_image_data"
         files = {"image": ("test.jpg", BytesIO(image_data), "image/jpeg")}
 
         response = client.post(f"/model/{non_existent_id}/predict", files=files)
-        # The mock service returns 200 for any ID - this tests the route wiring
-        assert response.status_code == 200
+        assert response.status_code == 404

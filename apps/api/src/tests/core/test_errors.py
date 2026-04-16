@@ -21,6 +21,8 @@ from src.core.errors import (
     EntityNotFound,
     FastApiCoreError,
     InvalidToken,
+    ServiceUnavailable,
+    UpstreamServiceError,
     add_exception_handlers,
 )
 
@@ -71,10 +73,7 @@ class TestClientNotAuthorized:
 
     def test_default_detail(self):
         """ClientNotAuthorized should have appropriate detail."""
-        assert (
-                ClientNotAuthorized.detail
-                == "Client is not authorized to perform the action."
-        )
+        assert ClientNotAuthorized.detail == "Client is not authorized to perform the action."
 
 
 class TestInvalidToken:
@@ -110,10 +109,7 @@ class TestBadPassword:
 
     def test_default_detail(self):
         """BadPassword should have appropriate detail."""
-        assert (
-                BadPassword.detail
-                == "Password does not meet requirements or could not be processed."
-        )
+        assert BadPassword.detail == "Password does not meet requirements or could not be processed."
 
 
 class TestClientNotVerified:
@@ -126,6 +122,26 @@ class TestClientNotVerified:
     def test_default_detail(self):
         """ClientNotVerified should have appropriate detail."""
         assert ClientNotVerified.detail == "Email address has not been verified."
+
+
+class TestServiceUnavailable:
+    """Tests for ServiceUnavailable exception."""
+
+    def test_status_code(self):
+        assert ServiceUnavailable.status == status.HTTP_503_SERVICE_UNAVAILABLE
+
+    def test_default_detail(self):
+        assert ServiceUnavailable.detail == "Dependent service is unavailable."
+
+
+class TestUpstreamServiceError:
+    """Tests for UpstreamServiceError exception."""
+
+    def test_status_code(self):
+        assert UpstreamServiceError.status == status.HTTP_502_BAD_GATEWAY
+
+    def test_default_detail(self):
+        assert UpstreamServiceError.detail == "Dependent service returned an invalid response."
 
 
 # =============================================================================
@@ -236,3 +252,17 @@ class TestAddExceptionHandlers:
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get("/test-not-authorized")
         assert response.status_code == 401
+
+    def test_handler_uses_custom_exception_detail(self):
+        """Custom detail passed to exception instance should reach the response."""
+        app = FastAPI()
+        add_exception_handlers(app)
+
+        @app.get("/test-service-unavailable")
+        async def test_service_unavailable():
+            raise ServiceUnavailable("Model-service URL is not configured.")
+
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/test-service-unavailable")
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Model-service URL is not configured."

@@ -3,11 +3,12 @@ from uuid import UUID
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.errors import EntityNotFound
+from src.core.errors import EntityNotFound, ServiceUnavailable
 from src.core.logger import get_logger
 from src.database.postgres import LLMModel
 from src.schemas.model_schemas import ModelRead, PredictionResponse
 from src.services.base import BaseService
+from src.services.model_runtime_client import ModelRuntimeClient
 from src.services.s3_service import S3Service
 
 logger = get_logger(__name__)
@@ -19,15 +20,17 @@ class ModelService(BaseService):
     """
 
     def __init__(
-            self,
-            model: type[LLMModel],
-            session: AsyncSession,
-            s3_service: S3Service,
+        self,
+        model: type[LLMModel],
+        session: AsyncSession,
+        s3_service: S3Service,
+        model_runtime_client: ModelRuntimeClient | None = None,
     ) -> None:
         super().__init__()
         self.model = model
         self.session = session
         self.s3_service = s3_service
+        self.model_runtime_client = model_runtime_client
 
     # ------------------------------------------------------------------
     # Read operations
@@ -36,9 +39,7 @@ class ModelService(BaseService):
     async def get_all(self) -> list[ModelRead]:
         """Return all models from the database."""
         logger.info("Fetching all models from database")
-        result = await self.session.execute(
-            select(LLMModel).order_by(desc(LLMModel.created_at))
-        )
+        result = await self.session.execute(select(LLMModel).order_by(desc(LLMModel.created_at)))
         models = result.scalars().all()
         logger.info("Found %d models", len(models))
         return [
@@ -71,7 +72,7 @@ class ModelService(BaseService):
         )
 
     # ------------------------------------------------------------------
-    # Prediction (mocked)
+    # Prediction orchestration
     # ------------------------------------------------------------------
 
     async def predict_with_image(
@@ -81,29 +82,38 @@ class ModelService(BaseService):
         filename: str,
     ) -> PredictionResponse:
         """
-        Run a mocked prediction.
+        Run prediction through internal model-service.
 
-        1. Validate the model exists.
-        2. Upload the image to S3 (currently mocked).
-        3. Return a hard-coded prediction response.
+        1. Validate model exists in metadata store.
+        2. Forward image to internal model-service.
+        3. Persist uploaded image metadata to S3.
+        4. Return normalized prediction response.
         """
-        # 1. Validate model exists
         model = await self.session.get(LLMModel, model_id)
         if model is None:
             raise EntityNotFound(f"Model '{model_id}' was not found.")
 
-        # 2. Upload image to S3 (mocked)
+        if self.model_runtime_client is None:
+            raise ServiceUnavailable("Model-service URL is not configured.")
+
+        prediction = await self.model_runtime_client.predict(
+            model_id=model_id,
+            image_data=image_data,
+            filename=filename,
+        )
+
         s3_key = await self.s3_service.upload_image(image_data, filename)
 
-        # 3. Return mocked prediction
         logger.info(
-            "[MOCK] Prediction for model %s with image %s -> cat (confidence=0.95)",
+            "Prediction for model %s with image %s -> %s (confidence=%.4f)",
             model_id,
             s3_key,
+            prediction.prediction,
+            prediction.confidence,
         )
         return PredictionResponse(
             model_id=model_id,
-            prediction="cat",
-            confidence=0.95,
+            prediction=prediction.prediction,
+            confidence=prediction.confidence,
             image_s3_key=s3_key,
         )

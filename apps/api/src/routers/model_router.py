@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# GET /model/ — list all models
+# GET /model/ - list all models
 # ---------------------------------------------------------------------------
 @router.get("/", response_model=list[ModelRead])
 async def get_all_models(service: ModelServiceDep) -> list[ModelRead]:
@@ -24,7 +24,7 @@ async def get_all_models(service: ModelServiceDep) -> list[ModelRead]:
 
 
 # ---------------------------------------------------------------------------
-# GET /model/{model_id} — get a single model by id
+# GET /model/{model_id} - get a single model by id
 # ---------------------------------------------------------------------------
 @router.get("/{model_id}", response_model=ModelRead)
 async def get_model_by_id(
@@ -37,7 +37,7 @@ async def get_model_by_id(
 
 
 # ---------------------------------------------------------------------------
-# POST /model/{model_id}/predict — mocked image prediction
+# POST /model/{model_id}/predict - internal model-service prediction
 # ---------------------------------------------------------------------------
 @router.post("/{model_id}/predict", response_model=PredictionResponse)
 async def predict(
@@ -45,20 +45,14 @@ async def predict(
     service: ModelServiceDep,
     image: Annotated[UploadFile, File(..., description="Image file (max 2 MB)")],
 ) -> PredictionResponse:
-    """
-    Run a mocked image prediction.
-
-    The image is uploaded to S3 (currently mocked) and a hard-coded
-    prediction response is returned.
-    """
+    """Run image prediction through the internal model-service."""
     logger.info("Received prediction request for model_id=%s", model_id)
 
     image_data = await image.read()
 
-    # Validate image size (max 2 MB)
     if len(image_data) > MAX_IMAGE_SIZE_BYTES:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=(
                 f"Image size {len(image_data)} bytes exceeds the maximum"
                 f" allowed size of {MAX_IMAGE_SIZE_BYTES} bytes (2 MB)."

@@ -71,9 +71,7 @@ class TestGetUserProfile:
         response = client.get("/user/me")
         assert response.status_code == 401
 
-    def test_get_user_profile_authenticated(
-            self, authenticated_client: TestClient, mock_user: MagicMock
-    ):
+    def test_get_user_profile_authenticated(self, authenticated_client: TestClient, mock_user: MagicMock):
         """GET /user/me with auth should return user profile."""
         response = authenticated_client.get("/user/me")
         assert response.status_code == 200

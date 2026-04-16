@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import urlparse
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -38,11 +39,7 @@ class AppSettings(BaseSettings):
 
     @property
     def cors_allowed_origins_tuple(self) -> tuple[str, ...]:
-        return tuple(
-            origin.strip()
-            for origin in self.CORS_ALLOWED_ORIGINS.split(",")
-            if origin.strip()
-        )
+        return tuple(origin.strip() for origin in self.CORS_ALLOWED_ORIGINS.split(",") if origin.strip())
 
 
 class DatabaseSettings(BaseSettings):
@@ -132,6 +129,78 @@ class S3Settings(BaseSettings):
     model_config = _base_config
 
 
+class ModelServiceSettings(BaseSettings):
+    """Internal model-service connection settings."""
+
+    MODEL_SERVICE_URL: str | None = None
+    MODEL_SERVICE_TIMEOUT_SECONDS: float = 30.0
+
+    model_config = _base_config
+
+    @field_validator("MODEL_SERVICE_URL", mode="before")
+    @classmethod
+    def normalize_model_service_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        normalized = value.strip().rstrip("/")
+        return normalized or None
+
+
+class WorkerSettings(BaseSettings):
+    """Celery worker and broker settings."""
+
+    CELERY_BROKER_URL: str | None = None
+    CELERY_RESULT_BACKEND: str | None = None
+    CELERY_QUEUE_NAME: str | None = None
+    CELERY_VISIBILITY_TIMEOUT_SECONDS: int = 1800
+    CELERY_WAIT_TIME_SECONDS: int = 10
+    CELERY_POLLING_INTERVAL_SECONDS: float = 1.0
+    AWS_REGION: str = "us-east-1"
+    SQS_QUEUE_URL: str | None = None
+
+    model_config = _base_config
+
+    @field_validator(
+        "CELERY_BROKER_URL",
+        "CELERY_RESULT_BACKEND",
+        "CELERY_QUEUE_NAME",
+        "SQS_QUEUE_URL",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        return normalized or None
+
+    @property
+    def resolved_broker_url(self) -> str:
+        if self.CELERY_BROKER_URL:
+            return self.CELERY_BROKER_URL
+        if self.SQS_QUEUE_URL:
+            return "sqs://"
+        return db_settings.REDIS_URL(9)
+
+    @property
+    def uses_sqs(self) -> bool:
+        return self.resolved_broker_url.startswith("sqs://")
+
+    @property
+    def should_dispatch_via_worker(self) -> bool:
+        return self.uses_sqs or self.CELERY_BROKER_URL is not None
+
+    @property
+    def resolved_queue_name(self) -> str:
+        if self.CELERY_QUEUE_NAME:
+            return self.CELERY_QUEUE_NAME
+        if self.SQS_QUEUE_URL:
+            return extract_queue_name_from_url(self.SQS_QUEUE_URL)
+        return "celery"
+
+
 def normalize_database_url(url: str) -> str:
     """Ensure override URLs use the asyncpg driver when appropriate."""
     trimmed = url.strip()
@@ -151,8 +220,19 @@ def to_sync_database_url(database_url: str) -> str:
     return database_url
 
 
+def extract_queue_name_from_url(queue_url: str) -> str:
+    """Return queue name from a full SQS queue URL."""
+    parsed = urlparse(queue_url)
+    queue_name = parsed.path.strip("/").split("/")[-1]
+    if not queue_name:
+        raise ValueError(f"Could not extract queue name from URL: {queue_url!r}")
+    return queue_name
+
+
 app_settings = AppSettings()
 db_settings = DatabaseSettings()
 security_settings = SecuritySettings()
 notification_settings = NotificationSettings()
 s3_settings = S3Settings()
+model_service_settings = ModelServiceSettings()
+worker_settings = WorkerSettings()

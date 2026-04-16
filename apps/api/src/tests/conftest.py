@@ -23,8 +23,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 
 def create_fake_user(
-        email: str = "test@example.com",
-        email_verified: bool = False,
+    email: str = "test@example.com",
+    email_verified: bool = False,
 ) -> MagicMock:
     """Create a fake User model instance."""
     user = MagicMock()
@@ -38,9 +38,9 @@ def create_fake_user(
 
 
 def create_fake_model(
-        name: str = "TestModel",
-        description: str = "A test model",
-        version: str = "v1",
+    name: str = "TestModel",
+    description: str = "A test model",
+    version: str = "v1",
 ) -> MagicMock:
     """Create a fake LLMModel instance."""
     model = MagicMock()
@@ -67,9 +67,7 @@ class MockUserService:
     async def register_user(self, user_data):
         return self._user
 
-    async def authenticate_user_and_create_token(
-            self, email: str, password: str
-    ) -> str:
+    async def authenticate_user_and_create_token(self, email: str, password: str) -> str:
         if email == "valid@example.com" and password == "validpassword":
             return "fake.jwt.token"
         from src.core.errors import BadCredentials
@@ -97,17 +95,19 @@ class MockModelService:
 
         raise EntityNotFound(f"Model '{model_id}' was not found.")
 
-    async def predict_with_image(
-            self, model_id, image_data: bytes, filename: str
-    ) -> dict:
-        from uuid import UUID
+    async def predict_with_image(self, model_id, image_data: bytes, filename: str) -> dict:
+        from src.core.errors import EntityNotFound
 
-        return {
-            "model_id": UUID(str(model_id)),
-            "prediction": "cat",
-            "confidence": 0.95,
-            "image_s3_key": f"predictions/{uuid4()}.jpg",
-        }
+        for model in self._models:
+            if str(model.id) == str(model_id):
+                return {
+                    "model_id": model.id,
+                    "prediction": "cat",
+                    "confidence": 0.95,
+                    "image_s3_key": f"predictions/{uuid4()}.jpg",
+                }
+
+        raise EntityNotFound(f"Model '{model_id}' was not found.")
 
 
 # =============================================================================
@@ -118,9 +118,7 @@ class MockModelService:
 class MockAsyncSession:
     """Mock AsyncSession for testing."""
 
-    def __init__(
-            self, user: MagicMock | None = None, models: list[MagicMock] | None = None
-    ):
+    def __init__(self, user: MagicMock | None = None, models: list[MagicMock] | None = None):
         self._user = user or create_fake_user(email_verified=True)
         self._models = models or [
             create_fake_model(),
@@ -218,9 +216,7 @@ def app(mock_session, mock_user_service, mock_model_service):
     # Must patch at the import location (where the name is used), not the
     # definition location, because Python binds imports to local names.
     patches = [
-        patch(
-            "src.routers.kubernetes_router.ping_redis", new=AsyncMock(return_value=True)
-        ),
+        patch("src.routers.kubernetes_router.ping_redis", new=AsyncMock(return_value=True)),
         patch(
             "src.routers.kubernetes_router.ping_database",
             new=AsyncMock(return_value=True),

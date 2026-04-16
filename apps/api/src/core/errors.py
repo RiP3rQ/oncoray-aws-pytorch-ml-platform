@@ -57,54 +57,53 @@ class ClientNotVerified(FastApiCoreError):
     detail = "Email address has not been verified."
 
 
-# =============================== EXCEPTION HANDLER ===============================
+class ServiceUnavailable(FastApiCoreError):
+    """Dependent service is unavailable."""
+
+    status = status.HTTP_503_SERVICE_UNAVAILABLE
+    detail = "Dependent service is unavailable."
+
+
+class UpstreamServiceError(FastApiCoreError):
+    """Dependent service returned an invalid response."""
+
+    status = status.HTTP_502_BAD_GATEWAY
+    detail = "Dependent service returned an invalid response."
+
+
 def _get_handler(status: int, detail: str):
-    # Define
+    """Create FastAPI exception handler for a custom core error type."""
+
     def handler(request: Request, exception: Exception) -> Response:
-        # DEBUG PRINT STATEMENT 👇
-        from rich import panel, print
+        resolved_detail = detail
+        if isinstance(exception, FastApiCoreError):
+            resolved_detail = exception.detail
 
-        print(
-            panel.Panel(
-                exception.__class__.__name__,
-                title="Handled Exception",
-                border_style="red",
-            ),
-        )
-        # DEBUG PRINT STATEMENT 👆
-
-        # Raise HTTPException with given status and detail
-        # can return JSONResponse as well
         raise HTTPException(
             status_code=status,
-            detail=detail,
+            detail=resolved_detail,
         )
 
-    # Return ExceptionHandler required with given
-    # status and detail for HTTPExcetion above
     return handler
 
 
 def add_exception_handlers(app: FastAPI):
-    # Get all subclass of 👇, our custom exceptions
+    # Get all subclass of our custom exceptions
     exception_classes = FastApiCoreError.__subclasses__()
 
     for exception_class in exception_classes:
-        # Add exception handler
         app.add_exception_handler(
-            # Custom exception class
             exception_class,
-            # Get handler function
             _get_handler(
                 status=exception_class.status,
-                detail=exception_class.__doc__,
+                detail=exception_class.detail,
             ),
         )
 
     @app.exception_handler(status.HTTP_500_INTERNAL_SERVER_ERROR)
     def internal_server_error_handler(
-            request: Request,
-            exception: Exception,
+        request: Request,
+        exception: Exception,
     ) -> Response:
         return JSONResponse(
             content={"detail": "Something went wrong..."},

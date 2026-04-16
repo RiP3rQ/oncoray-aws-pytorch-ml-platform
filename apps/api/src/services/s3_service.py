@@ -16,10 +16,7 @@ class ImageSizeError(Exception):
     def __init__(self, size_bytes: int, max_bytes: int = MAX_IMAGE_SIZE_BYTES):
         self.size_bytes = size_bytes
         self.max_bytes = max_bytes
-        super().__init__(
-            f"Image size {size_bytes} bytes exceeds the maximum"
-            f" allowed size of {max_bytes} bytes (2 MB)."
-        )
+        super().__init__(f"Image size {size_bytes} bytes exceeds the maximum allowed size of {max_bytes} bytes (2 MB).")
 
 
 class S3Service:
@@ -72,11 +69,7 @@ class S3Service:
         ext = ""
         if "." in filename:
             ext = filename.rsplit(".", 1)[-1]
-        object_key = (
-            f"predictions/{uuid.uuid4()}.{ext}"
-            if ext
-            else f"predictions/{uuid.uuid4()}"
-        )
+        object_key = f"predictions/{uuid.uuid4()}.{ext}" if ext else f"predictions/{uuid.uuid4()}"
 
         logger.info(
             "[MOCK] Uploading image %s (%d bytes) to s3://%s/%s",

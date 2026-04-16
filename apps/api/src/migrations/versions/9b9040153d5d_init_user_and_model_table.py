@@ -29,12 +29,8 @@ def upgrade() -> None:
         sa.Column("updated_at", postgresql.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("name", sqlmodel.sql.sqltypes.AutoString(length=100), nullable=False),
-        sa.Column(
-            "description", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False
-        ),
-        sa.Column(
-            "version", sqlmodel.sql.sqltypes.AutoString(length=50), nullable=False
-        ),
+        sa.Column("description", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),
+        sa.Column("version", sqlmodel.sql.sqltypes.AutoString(length=50), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_llm_models_name"), "llm_models", ["name"], unique=False)
@@ -43,9 +39,7 @@ def upgrade() -> None:
         sa.Column("created_at", postgresql.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("updated_at", postgresql.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("id", sa.UUID(), nullable=False),
-        sa.Column(
-            "email", sqlmodel.sql.sqltypes.AutoString(length=320), nullable=False
-        ),
+        sa.Column("email", sqlmodel.sql.sqltypes.AutoString(length=320), nullable=False),
         sa.Column(
             "password_hash",
             sqlmodel.sql.sqltypes.AutoString(length=255),

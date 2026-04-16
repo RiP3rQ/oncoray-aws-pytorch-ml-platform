@@ -4,11 +4,13 @@ from uuid import UUID
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import model_service_settings
 from src.core.errors import ClientNotAuthorized, InvalidToken
 from src.core.security import oauth2_scheme_user
 from src.database.postgres import LLMModel, User
 from src.database.redis import is_jti_blacklisted
 from src.database.session import get_session
+from src.services.model_runtime_client import ModelRuntimeClient
 from src.services.model_service import ModelService
 from src.services.s3_service import S3Service
 from src.services.user_service import UserService
@@ -91,10 +93,35 @@ S3ServiceDep = Annotated[
 # =============================== MODEL SERVICE ===============================
 
 
+def get_model_runtime_client() -> ModelRuntimeClient | None:
+    if model_service_settings.MODEL_SERVICE_URL is None:
+        return None
+
+    return ModelRuntimeClient(
+        base_url=model_service_settings.MODEL_SERVICE_URL,
+        timeout_seconds=model_service_settings.MODEL_SERVICE_TIMEOUT_SECONDS,
+    )
+
+
+ModelRuntimeClientDep = Annotated[
+    ModelRuntimeClient | None,
+    Depends(get_model_runtime_client),
+]
+
+
 # Get model service
-def get_model_service(session: SessionDep) -> ModelService:
+def get_model_service(
+    session: SessionDep,
+    s3_service: S3ServiceDep,
+    model_runtime_client: ModelRuntimeClientDep,
+) -> ModelService:
     """Get model service"""
-    return ModelService(model=LLMModel, session=session, s3_service=get_s3_service())
+    return ModelService(
+        model=LLMModel,
+        session=session,
+        s3_service=s3_service,
+        model_runtime_client=model_runtime_client,
+    )
 
 
 # Model service dep annotation

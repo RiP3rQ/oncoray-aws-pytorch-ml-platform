@@ -1,10 +1,10 @@
 from asgiref.sync import async_to_sync
-from celery import Celery
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from pydantic import EmailStr
 
-from src.core.config import TEMPLATE_DIR, db_settings, notification_settings
+from src.core.config import TEMPLATE_DIR, notification_settings, worker_settings
 from src.core.logger import get_logger
+from src.worker.celery_app import app
 
 logger = get_logger(__name__)
 
@@ -17,16 +17,6 @@ fast_mail = FastMail(
 
 send_message = async_to_sync(fast_mail.send_message)
 
-"""
-Celery tasks for sending emails
-"""
-app = Celery(
-    "api_tasks",
-    broker=db_settings.REDIS_URL(9),
-    backend=db_settings.REDIS_URL(9),
-    broker_connection_retry_on_startup=True,
-)
-
 
 @app.task
 def send_mail(
@@ -34,9 +24,7 @@ def send_mail(
     subject: str,
     body: str,
 ):
-    """
-    Send an email
-    """
+    """Send an email."""
     send_message(
         message=MessageSchema(
             recipients=recipients,
@@ -45,7 +33,7 @@ def send_mail(
             subtype=MessageType.plain,
         ),
     )
-    logger.info(f"Email sent to {recipients}")
+    logger.info("Email sent to %s", recipients)
     return "Message Sent!"
 
 
@@ -56,9 +44,7 @@ def send_email_with_template(
     context: dict,
     template_name: str,
 ):
-    """
-    Send an email with a Jinja2 template
-    """
+    """Send an email with a Jinja2 template."""
     send_message(
         message=MessageSchema(
             recipients=recipients,
@@ -68,7 +54,7 @@ def send_email_with_template(
         ),
         template_name=template_name,
     )
-    logger.info(f"Email sent to {recipients}")
+    logger.info("Email sent to %s", recipients)
     return "Message Sent!"
 
 
@@ -78,12 +64,7 @@ async def send_email_with_template_async(
     context: dict,
     template_name: str,
 ):
-    """
-    Send an email with a Jinja2 template.
-
-    Bypass Celery and send directly, because Celery is not
-    supported on Windows machines.
-    """
+    """Send an email inline without going through Celery."""
     await fast_mail.send_message(
         message=MessageSchema(
             recipients=recipients,
@@ -93,5 +74,30 @@ async def send_email_with_template_async(
         ),
         template_name=template_name,
     )
-    logger.info(f"Email sent to {recipients}")
+    logger.info("Email sent to %s", recipients)
     return "Message Sent!"
+
+
+async def dispatch_email_with_template(
+    recipients: list[EmailStr],
+    subject: str,
+    context: dict,
+    template_name: str,
+) -> str:
+    """Queue email through Celery when broker is configured, else send inline."""
+    if worker_settings.should_dispatch_via_worker:
+        send_email_with_template.delay(
+            recipients=recipients,
+            subject=subject,
+            context=context,
+            template_name=template_name,
+        )
+        logger.info("Queued email task for %s", recipients)
+        return "Message Queued!"
+
+    return await send_email_with_template_async(
+        recipients=recipients,
+        subject=subject,
+        context=context,
+        template_name=template_name,
+    )
