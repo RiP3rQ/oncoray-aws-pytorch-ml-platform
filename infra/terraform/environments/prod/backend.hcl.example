@@ -1,0 +1,5 @@
+bucket         = "pytorch-model-terraform-state"
+key            = "prod/terraform.tfstate"
+region         = "eu-central-1"
+dynamodb_table = "pytorch-model-terraform-locks"
+encrypt        = true

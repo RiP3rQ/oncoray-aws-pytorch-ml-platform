@@ -227,6 +227,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   default_root_object = "index.html"
   aliases             = var.frontend_aliases
   price_class         = "PriceClass_100"
+  web_acl_id          = var.enable_frontend_waf ? aws_wafv2_web_acl.frontend[0].arn : null
 
   origin {
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name

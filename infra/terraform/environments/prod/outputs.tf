@@ -13,6 +13,11 @@ output "cluster_oidc_provider_arn" {
   value       = module.eks.oidc_provider_arn
 }
 
+output "cloudwatch_workload_log_group_name" {
+  description = "CloudWatch log group targeted by Fluent Bit."
+  value       = aws_cloudwatch_log_group.eks_workloads.name
+}
+
 output "frontend_bucket_name" {
   description = "Private S3 bucket for the Astro frontend."
   value       = aws_s3_bucket.frontend.bucket
@@ -26,6 +31,26 @@ output "frontend_distribution_id" {
 output "frontend_distribution_domain_name" {
   description = "CloudFront domain name for the frontend."
   value       = aws_cloudfront_distribution.frontend.domain_name
+}
+
+output "frontend_route53_record_names" {
+  description = "Frontend Route53 aliases managed by Terraform."
+  value       = keys(aws_route53_record.frontend_ipv4)
+}
+
+output "api_route53_record_name" {
+  description = "API Route53 CNAME managed by Terraform once api_dns_name is supplied."
+  value       = try(aws_route53_record.api[0].fqdn, null)
+}
+
+output "frontend_waf_acl_arn" {
+  description = "Frontend CloudFront WAF Web ACL ARN."
+  value       = try(aws_wafv2_web_acl.frontend[0].arn, null)
+}
+
+output "api_waf_acl_arn" {
+  description = "Regional WAF Web ACL ARN for ALB ingress annotations."
+  value       = try(aws_wafv2_web_acl.api[0].arn, null)
 }
 
 output "worker_queue_url" {
@@ -46,6 +71,34 @@ output "ecr_repository_urls" {
   }
 }
 
+output "postgres" {
+  description = "Production PostgreSQL connection endpoints."
+  value = {
+    address = aws_db_instance.postgres.address
+    endpoint = aws_db_instance.postgres.endpoint
+    port    = aws_db_instance.postgres.port
+    db_name = aws_db_instance.postgres.db_name
+  }
+}
+
+output "redis" {
+  description = "Production ElastiCache Redis endpoints."
+  value = {
+    primary_endpoint = aws_elasticache_replication_group.redis.primary_endpoint_address
+    reader_endpoint  = aws_elasticache_replication_group.redis.reader_endpoint_address
+    port             = aws_elasticache_replication_group.redis.port
+  }
+}
+
+output "cluster_addon_role_arns" {
+  description = "IRSA roles for cluster add-ons."
+  value = {
+    aws_load_balancer_controller = aws_iam_role.irsa["aws_load_balancer_controller"].arn
+    external_secrets             = aws_iam_role.irsa["external_secrets"].arn
+    fluent_bit                   = aws_iam_role.irsa["fluent_bit"].arn
+  }
+}
+
 output "expected_parameter_store_paths" {
   description = "Recommended SSM Parameter Store keys for app secrets and config."
   value = {
@@ -53,6 +106,8 @@ output "expected_parameter_store_paths" {
       "${local.ssm_parameter_prefix}/api/SECRET_KEY",
       "${local.ssm_parameter_prefix}/api/CORE_API_DATABASE_URL",
       "${local.ssm_parameter_prefix}/api/REDIS_HOST",
+      "${local.ssm_parameter_prefix}/api/REDIS_PORT",
+      "${local.ssm_parameter_prefix}/api/AWS_REGION",
       "${local.ssm_parameter_prefix}/api/MAIL_USERNAME",
       "${local.ssm_parameter_prefix}/api/MAIL_PASSWORD",
       "${local.ssm_parameter_prefix}/api/S3_BUCKET_NAME",
