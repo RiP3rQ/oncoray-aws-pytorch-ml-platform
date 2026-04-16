@@ -43,6 +43,7 @@ if (-not $SkipAddons) {
     }
 
     $addonReleases = @(
+        @{ Name = "keda"; Namespace = "keda" },
         @{ Name = "platform-addons"; Namespace = "amazon-cloudwatch" },
         @{ Name = "external-secrets"; Namespace = "external-secrets" },
         @{ Name = "aws-load-balancer-controller"; Namespace = "kube-system" }

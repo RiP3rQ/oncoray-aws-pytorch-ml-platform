@@ -29,6 +29,12 @@ locals {
     : "${local.name_prefix}-frontend-${data.aws_caller_identity.current.account_id}"
   )
 
+  prediction_artifacts_bucket_name = (
+    var.prediction_artifacts_bucket_name != ""
+    ? var.prediction_artifacts_bucket_name
+    : "${local.name_prefix}-artifacts-${data.aws_caller_identity.current.account_id}"
+  )
+
   worker_queue_name = (
     var.worker_queue_name != ""
     ? var.worker_queue_name

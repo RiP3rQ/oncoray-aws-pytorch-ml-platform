@@ -13,6 +13,7 @@ param(
     [string]$PlatformValuesFile = "infra/helm/values/addons.example.yaml",
     [string]$AwsLoadBalancerControllerChartVersion = "1.14.1",
     [string]$ExternalSecretsChartVersion = "1.3.1",
+    [string]$KedaChartVersion = "2.18.1",
     [switch]$DryRun
 )
 
@@ -38,6 +39,7 @@ if (-not (Test-Path -LiteralPath $resolvedPlatformValuesFile)) {
 
 & helm repo add eks https://aws.github.io/eks-charts --force-update | Out-Null
 & helm repo add external-secrets https://charts.external-secrets.io --force-update | Out-Null
+& helm repo add kedacore https://kedacore.github.io/charts --force-update | Out-Null
 & helm repo update | Out-Null
 
 $commonDryRunArgs = @()
@@ -110,11 +112,26 @@ $platformArgs = @(
     "fluentBit.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=$FluentBitRoleArn"
 ) + $commonDryRunArgs
 
+$kedaArgs = @(
+    "upgrade",
+    "--install",
+    "keda",
+    "kedacore/keda",
+    "--namespace",
+    "keda",
+    "--create-namespace",
+    "--version",
+    $KedaChartVersion
+) + $commonDryRunArgs
+
 Write-Host "Installing AWS Load Balancer Controller"
 & helm @loadBalancerArgs
 
 Write-Host "Installing External Secrets Operator"
 & helm @externalSecretsArgs
+
+Write-Host "Installing KEDA"
+& helm @kedaArgs
 
 Write-Host "Installing platform add-on config and Fluent Bit"
 & helm @platformArgs

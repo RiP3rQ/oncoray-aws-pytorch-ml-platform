@@ -21,6 +21,11 @@ build
 .DS_Store
 *.pem
 .astro-cache/
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+infra/terraform/environments/prod/outputs.json
 
 # debug
 npm-debug.log*

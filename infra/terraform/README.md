@@ -8,20 +8,21 @@ Current scope:
 - EKS cluster with separate general and model-service node groups
 - ECR repositories for `api` and `model-service`
 - private S3 bucket + CloudFront distribution for frontend delivery
+- private S3 bucket for prediction artifacts
 - CloudFront WAF and regional API WAF policy
 - Route53 frontend aliases and optional API CNAME
 - SQS queue + DLQ for worker jobs
 - RDS PostgreSQL (Multi-AZ)
 - ElastiCache Redis replication group
 - CloudWatch log group for workload shipping
-- IRSA roles for AWS Load Balancer Controller, External Secrets, and Fluent Bit
+- CloudWatch alarms for queue depth, database pressure, cache pressure, and optional API ALB health
+- IRSA roles for AWS Load Balancer Controller, External Secrets, Fluent Bit, API, and worker
 - expected Parameter Store path outputs for later secret population
 
 Still pending after this scaffold:
 
 - remote backend creation and live state bucket/table
 - production secret values and External Secrets Operator wiring
-- API Route53 automation before first ALB DNS name exists
 - CI/CD execution against real AWS account
 
 Usage:

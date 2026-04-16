@@ -3,6 +3,16 @@ output "cluster_name" {
   value       = module.eks.cluster_name
 }
 
+output "aws_region" {
+  description = "Primary AWS region for the production stack."
+  value       = data.aws_region.current.name
+}
+
+output "vpc_id" {
+  description = "Production VPC ID."
+  value       = module.vpc.vpc_id
+}
+
 output "cluster_endpoint" {
   description = "EKS cluster endpoint."
   value       = module.eks.cluster_endpoint
@@ -21,6 +31,11 @@ output "cloudwatch_workload_log_group_name" {
 output "frontend_bucket_name" {
   description = "Private S3 bucket for the Astro frontend."
   value       = aws_s3_bucket.frontend.bucket
+}
+
+output "prediction_artifacts_bucket_name" {
+  description = "Private S3 bucket for prediction artifacts."
+  value       = aws_s3_bucket.prediction_artifacts.bucket
 }
 
 output "frontend_distribution_id" {
@@ -99,6 +114,24 @@ output "cluster_addon_role_arns" {
   }
 }
 
+output "app_workload_role_arns" {
+  description = "IRSA roles for application workloads."
+  value = {
+    api    = aws_iam_role.app_irsa["api"].arn
+    worker = aws_iam_role.app_irsa["worker"].arn
+  }
+}
+
+output "kubernetes_service_accounts" {
+  description = "Stable Kubernetes service account names expected by Helm values and IRSA."
+  value = {
+    namespace     = var.kubernetes_namespace
+    api           = var.api_service_account_name
+    worker        = var.worker_service_account_name
+    model_service = var.model_service_service_account_name
+  }
+}
+
 output "expected_parameter_store_paths" {
   description = "Recommended SSM Parameter Store keys for app secrets and config."
   value = {
@@ -107,15 +140,34 @@ output "expected_parameter_store_paths" {
       "${local.ssm_parameter_prefix}/api/CORE_API_DATABASE_URL",
       "${local.ssm_parameter_prefix}/api/REDIS_HOST",
       "${local.ssm_parameter_prefix}/api/REDIS_PORT",
+      "${local.ssm_parameter_prefix}/api/REDIS_SSL",
       "${local.ssm_parameter_prefix}/api/AWS_REGION",
       "${local.ssm_parameter_prefix}/api/SQS_QUEUE_URL",
       "${local.ssm_parameter_prefix}/api/MAIL_USERNAME",
       "${local.ssm_parameter_prefix}/api/MAIL_PASSWORD",
+      "${local.ssm_parameter_prefix}/api/MAIL_FROM",
+      "${local.ssm_parameter_prefix}/api/MAIL_PORT",
+      "${local.ssm_parameter_prefix}/api/MAIL_SERVER",
+      "${local.ssm_parameter_prefix}/api/MAIL_FROM_NAME",
+      "${local.ssm_parameter_prefix}/api/MAIL_STARTTLS",
+      "${local.ssm_parameter_prefix}/api/MAIL_SSL_TLS",
+      "${local.ssm_parameter_prefix}/api/USE_CREDENTIALS",
+      "${local.ssm_parameter_prefix}/api/VALIDATE_CERTS",
       "${local.ssm_parameter_prefix}/api/S3_BUCKET_NAME",
     ]
     worker = [
       "${local.ssm_parameter_prefix}/worker/AWS_REGION",
       "${local.ssm_parameter_prefix}/worker/SQS_QUEUE_URL",
+      "${local.ssm_parameter_prefix}/worker/MAIL_USERNAME",
+      "${local.ssm_parameter_prefix}/worker/MAIL_PASSWORD",
+      "${local.ssm_parameter_prefix}/worker/MAIL_FROM",
+      "${local.ssm_parameter_prefix}/worker/MAIL_PORT",
+      "${local.ssm_parameter_prefix}/worker/MAIL_SERVER",
+      "${local.ssm_parameter_prefix}/worker/MAIL_FROM_NAME",
+      "${local.ssm_parameter_prefix}/worker/MAIL_STARTTLS",
+      "${local.ssm_parameter_prefix}/worker/MAIL_SSL_TLS",
+      "${local.ssm_parameter_prefix}/worker/USE_CREDENTIALS",
+      "${local.ssm_parameter_prefix}/worker/VALIDATE_CERTS",
     ]
     model_service = [
       "${local.ssm_parameter_prefix}/model-service/HF_MODEL_REPOSITORY",

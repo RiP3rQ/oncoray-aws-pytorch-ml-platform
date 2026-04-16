@@ -16,7 +16,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  {{- if not $workload.autoscaling.enabled }}
+  {{- if and (not $workload.autoscaling.enabled) (not $workload.queueAutoscaling.enabled) }}
   replicas: {{ $workload.replicaCount }}
   {{- end }}
   selector:

@@ -20,6 +20,8 @@
 #   EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
 #   HELM_VALUES_FILE: ${{ vars.HELM_VALUES_FILE || 'infra/helm/values/prod.yaml' }}
 #   API_IMAGE_REPOSITORY: ${{ vars.API_IMAGE_REPOSITORY }}
+#   API_SERVICE_ACCOUNT_ROLE_ARN: ${{ vars.API_SERVICE_ACCOUNT_ROLE_ARN }}
+#   WORKER_SERVICE_ACCOUNT_ROLE_ARN: ${{ vars.WORKER_SERVICE_ACCOUNT_ROLE_ARN }}
 #   BACKEND_RELEASE_NAME: ${{ vars.BACKEND_RELEASE_NAME || 'pytorch-model' }}
 #   BACKEND_NAMESPACE: ${{ vars.BACKEND_NAMESPACE || 'pytorch-model-prod' }}
 
@@ -67,3 +69,5 @@
 #           -ValuesFile "${env:HELM_VALUES_FILE}"
 #           -ApiImageRepository "${env:API_IMAGE_REPOSITORY}"
 #           -ApiImageTag "${{ steps.meta.outputs.image_tag }}"
+#           -ApiServiceAccountRoleArn "${env:API_SERVICE_ACCOUNT_ROLE_ARN}"
+#           -WorkerServiceAccountRoleArn "${env:WORKER_SERVICE_ACCOUNT_ROLE_ARN}"

@@ -9,10 +9,11 @@ module "vpc" {
   public_subnets  = local.public_subnets
   private_subnets = local.private_subnets
 
-  enable_nat_gateway   = true
-  single_nat_gateway   = true
-  enable_dns_support   = true
-  enable_dns_hostnames = true
+  enable_nat_gateway     = true
+  single_nat_gateway     = false
+  one_nat_gateway_per_az = true
+  enable_dns_support     = true
+  enable_dns_hostnames   = true
 
   public_subnet_tags = {
     "kubernetes.io/role/elb" = "1"
@@ -41,18 +42,10 @@ module "eks" {
   enable_irsa                              = true
 
   cluster_addons = {
-    coredns = {
-      most_recent = true
-    }
-    eks-pod-identity-agent = {
-      most_recent = true
-    }
-    kube-proxy = {
-      most_recent = true
-    }
-    vpc-cni = {
-      most_recent = true
-    }
+    coredns                = {}
+    eks-pod-identity-agent = {}
+    kube-proxy             = {}
+    vpc-cni                = {}
   }
 
   eks_managed_node_groups = {
@@ -159,6 +152,7 @@ resource "aws_ecr_lifecycle_policy" "repositories" {
 resource "aws_sqs_queue" "worker_dlq" {
   name                      = local.worker_dlq_name
   message_retention_seconds = 1209600
+  sqs_managed_sse_enabled   = true
 }
 
 resource "aws_sqs_queue" "worker" {
@@ -166,6 +160,7 @@ resource "aws_sqs_queue" "worker" {
   visibility_timeout_seconds = 60
   message_retention_seconds  = 345600
   receive_wait_time_seconds  = 20
+  sqs_managed_sse_enabled    = true
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.worker_dlq.arn
@@ -178,8 +173,21 @@ resource "aws_s3_bucket" "frontend" {
   force_destroy = true
 }
 
+resource "aws_s3_bucket" "prediction_artifacts" {
+  bucket = local.prediction_artifacts_bucket_name
+}
+
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_public_access_block" "prediction_artifacts" {
+  bucket = aws_s3_bucket.prediction_artifacts.id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -195,8 +203,24 @@ resource "aws_s3_bucket_ownership_controls" "frontend" {
   }
 }
 
+resource "aws_s3_bucket_ownership_controls" "prediction_artifacts" {
+  bucket = aws_s3_bucket.prediction_artifacts.id
+
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
+
 resource "aws_s3_bucket_versioning" "frontend" {
   bucket = aws_s3_bucket.frontend.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_versioning" "prediction_artifacts" {
+  bucket = aws_s3_bucket.prediction_artifacts.id
 
   versioning_configuration {
     status = "Enabled"
@@ -213,6 +237,16 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
   }
 }
 
+resource "aws_s3_bucket_server_side_encryption_configuration" "prediction_artifacts" {
+  bucket = aws_s3_bucket.prediction_artifacts.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
 resource "aws_cloudfront_origin_access_control" "frontend" {
   name                              = "${local.name_prefix}-frontend-oac"
   description                       = "OAC for ${local.frontend_bucket_name}"
@@ -221,11 +255,50 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   signing_protocol                  = "sigv4"
 }
 
+resource "aws_cloudfront_response_headers_policy" "frontend_security_headers" {
+  name = "${local.name_prefix}-frontend-security"
+
+  security_headers_config {
+    content_security_policy {
+      content_security_policy = "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+      override                = true
+    }
+
+    content_type_options {
+      override = true
+    }
+
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+
+    strict_transport_security {
+      access_control_max_age_sec = 31536000
+      include_subdomains         = true
+      override                   = true
+      preload                    = true
+    }
+
+    xss_protection {
+      mode_block = true
+      protection = true
+      override   = true
+    }
+  }
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   comment             = "Static frontend for ${local.name_prefix}"
   default_root_object = "index.html"
   aliases             = var.frontend_aliases
+  http_version        = "http2and3"
   price_class         = "PriceClass_100"
   web_acl_id          = var.enable_frontend_waf ? aws_wafv2_web_acl.frontend[0].arn : null
 
@@ -236,10 +309,11 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   default_cache_behavior {
-    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
-    cached_methods   = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id = "frontend-s3"
-    compress         = true
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id           = "frontend-s3"
+    compress                   = true
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend_security_headers.id
 
     viewer_protocol_policy = "redirect-to-https"
 
