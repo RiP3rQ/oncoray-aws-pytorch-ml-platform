@@ -74,10 +74,10 @@ output "ecr_repository_urls" {
 output "postgres" {
   description = "Production PostgreSQL connection endpoints."
   value = {
-    address = aws_db_instance.postgres.address
+    address  = aws_db_instance.postgres.address
     endpoint = aws_db_instance.postgres.endpoint
-    port    = aws_db_instance.postgres.port
-    db_name = aws_db_instance.postgres.db_name
+    port     = aws_db_instance.postgres.port
+    db_name  = aws_db_instance.postgres.db_name
   }
 }
 
@@ -108,6 +108,7 @@ output "expected_parameter_store_paths" {
       "${local.ssm_parameter_prefix}/api/REDIS_HOST",
       "${local.ssm_parameter_prefix}/api/REDIS_PORT",
       "${local.ssm_parameter_prefix}/api/AWS_REGION",
+      "${local.ssm_parameter_prefix}/api/SQS_QUEUE_URL",
       "${local.ssm_parameter_prefix}/api/MAIL_USERNAME",
       "${local.ssm_parameter_prefix}/api/MAIL_PASSWORD",
       "${local.ssm_parameter_prefix}/api/S3_BUCKET_NAME",
