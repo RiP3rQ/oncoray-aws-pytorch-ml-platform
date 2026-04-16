@@ -11,6 +11,7 @@ from pytorch_engine.data_setup import (
     download_with_curl,
     prepare_kaggle_chest_xray_pneumonia_dataset,
     prepare_kaggle_ham10000_dataset,
+    summarize_imagefolder_splits,
 )
 from pytorch_engine.data_split import split_csv_metadata
 from pytorch_engine.evaluation import ClassificationMetrics, evaluate_classification_model
@@ -20,7 +21,7 @@ from pytorch_engine.save_model import (
     save_model,
     upload_model_file_to_huggingface,
 )
-from pytorch_engine.transforms import get_train_transform
+from pytorch_engine.transforms import get_simple_train_transform, get_train_transform
 from pytorch_engine.utils import (
     accuracy_fn,
     get_current_device,
@@ -44,6 +45,7 @@ __all__ = [
     "download_with_curl",
     "evaluate_classification_model",
     "get_current_device",
+    "get_simple_train_transform",
     "get_train_transform",
     "MixUpBatchTransform",
     "prepare_kaggle_chest_xray_pneumonia_dataset",
@@ -54,5 +56,6 @@ __all__ = [
     "set_seeds",
     "split_csv_metadata",
     "SoftTargetCrossEntropyLoss",
+    "summarize_imagefolder_splits",
     "upload_model_file_to_huggingface",
 ]

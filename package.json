@@ -13,6 +13,7 @@
     "prod:release": "powershell -ExecutionPolicy Bypass -File infra/scripts/release-prod.ps1",
     "test:e2e": "turbo run test:e2e --filter=astro-web",
     "start-database": "turbo run start-database",
+    "pre-commit": "node ./node_modules/lint-staged/bin/lint-staged.js --verbose --concurrent false",
     "prepare": "husky"
   },
   "devDependencies": {
@@ -24,10 +25,7 @@
     "turbo": "^2.9.3"
   },
   "lint-staged": {
-    "*.py": [
-      "ruff check --fix",
-      "ruff format"
-    ],
+    "*.py": "node scripts/run-ruff-precommit.mjs",
     "*.{ts,tsx,js,jsx,astro}": [
       "prettier --write"
     ]

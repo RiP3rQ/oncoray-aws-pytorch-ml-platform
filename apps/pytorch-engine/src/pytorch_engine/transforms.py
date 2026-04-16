@@ -28,6 +28,44 @@ def get_default_transform(
     )
 
 
+def get_simple_train_transform(
+    image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
+    normalize_mean: list[float] | None = None,
+    normalize_std: list[float] | None = None,
+    interpolation: transforms.InterpolationMode = DEFAULT_INTERPOLATION,
+    rotation_degrees: float = 7.0,
+    horizontal_flip_probability: float = 0.5,
+) -> transforms.Compose:
+    """Training transform with light augmentation for clean transfer-learning runs.
+
+    This keeps the pipeline readable for beginner notebooks: a small crop
+    jitter, an optional horizontal flip, a small rotation, then tensor
+    conversion and normalization.
+    """
+    return transforms.Compose(
+        [
+            transforms.RandomResizedCrop(
+                image_size,
+                scale=(0.9, 1.0),
+                ratio=(0.95, 1.05),
+                interpolation=interpolation,
+                antialias=True,
+            ),
+            transforms.RandomHorizontalFlip(p=horizontal_flip_probability),
+            transforms.RandomRotation(
+                degrees=rotation_degrees,
+                interpolation=interpolation,
+                fill=0,
+            ),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=normalize_mean if normalize_mean is not None else IMAGENET_MEAN,
+                std=normalize_std if normalize_std is not None else IMAGENET_STD,
+            ),
+        ]
+    )
+
+
 def get_train_transform(
     image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
     normalize_mean: list[float] | None = None,

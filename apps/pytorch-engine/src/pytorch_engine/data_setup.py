@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 import requests
+import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
@@ -247,6 +248,42 @@ def prepare_kaggle_chest_xray_pneumonia_dataset(
     return dataset_root
 
 
+def summarize_imagefolder_splits(
+    dataset_root: str | Path,
+    split_names: tuple[str, ...] = CHEST_XRAY_SPLITS,
+    class_names: tuple[str, ...] | None = CHEST_XRAY_CLASS_NAMES,
+) -> list[dict[str, int | str]]:
+    """Return per-split file counts grouped by class directory.
+
+    Each row contains the split name, one count per class directory, and a
+    ``total`` key with the summed file count for the split.
+    """
+    root = Path(dataset_root)
+    summaries: list[dict[str, int | str]] = []
+
+    for split_name in split_names:
+        split_dir = root / split_name
+        if not split_dir.is_dir():
+            raise FileNotFoundError(f"Expected split directory not found: {split_dir}")
+
+        if class_names is None:
+            resolved_class_names = tuple(sorted(path.name for path in split_dir.iterdir() if path.is_dir()))
+        else:
+            resolved_class_names = class_names
+
+        row: dict[str, int | str] = {"split": split_name}
+        total = 0
+        for class_name in resolved_class_names:
+            class_dir = split_dir / class_name
+            count = sum(1 for file_path in class_dir.rglob("*") if file_path.is_file()) if class_dir.is_dir() else 0
+            row[class_name] = count
+            total += count
+        row["total"] = total
+        summaries.append(row)
+
+    return summaries
+
+
 def walk_through_dir(dir_path: str | Path) -> None:
     """Walk through *dir_path* and print the number of directories and images.
 
@@ -389,7 +426,7 @@ def create_dataloader(
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=torch.cuda.is_available(),
     )
 
     return DataLoaderResult(
