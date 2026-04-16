@@ -7,6 +7,9 @@ node_modules
 
 # testing
 coverage
+playwright-report
+blob-report
+test-results
 
 # next.js
 .next/
@@ -17,6 +20,7 @@ build
 # misc
 .DS_Store
 *.pem
+.astro-cache/
 
 # debug
 npm-debug.log*

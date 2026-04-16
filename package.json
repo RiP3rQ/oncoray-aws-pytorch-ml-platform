@@ -9,6 +9,7 @@
     "check-types": "turbo run check-types",
     "check-types:python": "turbo run check-types --filter=fastapi-core-api --filter=pytorch-engine",
     "format": "turbo run format",
+    "test:e2e": "turbo run test:e2e --filter=astro-web",
     "start-database": "turbo run start-database",
     "prepare": "husky"
   },
