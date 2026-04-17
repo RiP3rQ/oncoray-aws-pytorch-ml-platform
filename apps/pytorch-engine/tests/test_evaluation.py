@@ -4,7 +4,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import torch
-from pytorch_engine.evaluation import evaluate_classification_model
+from pytorch_engine.evaluation import build_classification_metrics, evaluate_classification_model
 from pytorch_engine.visualization import plot_confusion_matrix
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -106,6 +106,20 @@ class EvaluateClassificationModelTests(unittest.TestCase):
         self.assertEqual(metrics["positive_class_index"], 1)
         self.assertIsNotNone(metrics["y_prob"])
         self.assertEqual(len(metrics["y_prob"] or []), 4)
+        self.assertAlmostEqual(metrics["auroc"] or 0.0, 1.0, places=6)
+        self.assertAlmostEqual(metrics["average_precision"] or 0.0, 1.0, places=6)
+
+    def test_build_metrics_from_cached_predictions(self) -> None:
+        metrics = build_classification_metrics(
+            class_names=["NORMAL", "PNEUMONIA"],
+            y_true=[0, 1, 0, 1],
+            y_pred=[0, 1, 0, 1],
+            y_prob=[0.1, 0.9, 0.2, 0.8],
+        )
+
+        self.assertEqual(metrics["y_true"], [0, 1, 0, 1])
+        self.assertEqual(metrics["y_pred"], [0, 1, 0, 1])
+        self.assertAlmostEqual(metrics["accuracy"], 1.0, places=6)
         self.assertAlmostEqual(metrics["auroc"] or 0.0, 1.0, places=6)
         self.assertAlmostEqual(metrics["average_precision"] or 0.0, 1.0, places=6)
 

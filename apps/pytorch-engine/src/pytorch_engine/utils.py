@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from copy import deepcopy
 from dataclasses import dataclass
+from typing import Any
 
 import cv2
 import numpy as np
@@ -110,6 +112,32 @@ def set_seeds(seed: int = 42) -> None:
     """
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
+
+
+def clone_state_dict_to_cpu(state_dict: Mapping[str, Any]) -> dict[str, Any]:
+    """Clone a state dict onto CPU tensors to avoid extra GPU copies."""
+    cloned_state: dict[str, Any] = {}
+    for key, value in state_dict.items():
+        if isinstance(value, torch.Tensor):
+            cloned_state[key] = value.detach().cpu().clone()
+            continue
+        cloned_state[key] = deepcopy(value)
+    return cloned_state
+
+
+def configure_torch_runtime(device: torch.device) -> None:
+    """Enable safe CUDA runtime optimizations for convolutional training."""
+    if device.type != "cuda":
+        return
+
+    if hasattr(torch.backends, "cudnn"):
+        torch.backends.cudnn.benchmark = True
+        if hasattr(torch.backends.cudnn, "allow_tf32"):
+            torch.backends.cudnn.allow_tf32 = True
+    if hasattr(torch.backends, "cuda") and hasattr(torch.backends.cuda, "matmul"):
+        torch.backends.cuda.matmul.allow_tf32 = True
+    if hasattr(torch, "set_float32_matmul_precision"):
+        torch.set_float32_matmul_precision("high")
 
 
 @dataclass

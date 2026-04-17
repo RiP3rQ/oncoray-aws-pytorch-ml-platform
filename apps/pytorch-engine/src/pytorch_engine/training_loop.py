@@ -10,14 +10,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Mapping
 from contextlib import nullcontext
-from copy import deepcopy
-from typing import Any, TypedDict, cast
+from typing import Any, NotRequired, TypedDict, cast
 
 import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from pytorch_engine.utils import resolve_device
+from pytorch_engine.utils import clone_state_dict_to_cpu, resolve_device
 
 logger = logging.getLogger(__name__)
 MAX_AUTOTUNE_MIN_TRAIN_STEPS = 1024
@@ -139,8 +138,8 @@ def _resolve_selection_metric_value(
         return float(test_result["accuracy"])
     if validation_metrics is None or selection_metric not in validation_metrics:
         raise ValueError(
-            f"selection_metric '{selection_metric}' requires validation_metrics_callback "
-            "or a metric available in test_result."
+            f"selection_metric '{selection_metric}' requires validation_metrics_callback, "
+            "validation_step_metrics_callback, or a metric available in test_result."
         )
 
     metric_value = validation_metrics[selection_metric]
@@ -177,10 +176,19 @@ class StepResult(TypedDict):
     Attributes:
         loss: Average loss over all samples in the epoch.
         accuracy: Average accuracy (0-1) over all samples in the epoch.
+        y_true: Optional cached labels from the evaluation pass.
+        y_pred: Optional cached predictions from the evaluation pass.
+        y_prob: Optional cached positive-class probabilities.
     """
 
     loss: float
     accuracy: float
+    y_true: NotRequired[list[int]]
+    y_pred: NotRequired[list[int]]
+    y_prob: NotRequired[list[float] | None]
+
+
+ValidationStepMetricsCallback = Callable[[int, StepResult], Mapping[str, float | None]]
 
 
 class TrainResult(TypedDict):
@@ -346,6 +354,8 @@ def test_step(
     use_amp: bool = False,
     amp_dtype: torch.dtype = torch.float16,
     use_channels_last: bool = False,
+    collect_predictions: bool = False,
+    positive_class_index: int | None = None,
 ) -> StepResult:
     """Run a single evaluation epoch.
 
@@ -361,6 +371,10 @@ def test_step(
         use_amp: Whether to enable AMP autocast during evaluation.
         amp_dtype: AMP dtype to use when autocast is enabled.
         use_channels_last: Whether to convert image batches to channels-last.
+        collect_predictions: Whether to cache labels/predictions/probabilities
+            from this validation pass for downstream metrics.
+        positive_class_index: Optional class index used for cached
+            positive-class probabilities when ``collect_predictions`` is True.
 
     Returns:
         A :class:`StepResult` with average ``loss`` and ``accuracy``.
@@ -375,6 +389,8 @@ def test_step(
         use_amp=use_amp,
         amp_dtype=amp_dtype,
         use_channels_last=use_channels_last,
+        collect_predictions=collect_predictions,
+        positive_class_index=positive_class_index,
     )
 
 
@@ -388,6 +404,8 @@ def _evaluate_step(
     use_amp: bool = False,
     amp_dtype: torch.dtype = torch.float16,
     use_channels_last: bool = False,
+    collect_predictions: bool = False,
+    positive_class_index: int | None = None,
 ) -> StepResult:
     """Run a single eval-mode pass over *dataloader*.
 
@@ -405,6 +423,9 @@ def _evaluate_step(
     running_correct: int = 0
     running_examples: int = 0
     num_batches = len(dataloader)
+    true_batches: list[torch.Tensor] = []
+    pred_batches: list[torch.Tensor] = []
+    prob_batches: list[torch.Tensor] = []
 
     logger.info("%s step started on %s (%d batches)", phase_name, computed_device, num_batches)
 
@@ -439,6 +460,12 @@ def _evaluate_step(
             test_pred_labels = test_pred_logits.argmax(dim=1)
             running_correct += int(torch.eq(y, test_pred_labels).sum().item())
             running_examples += batch_size
+            if collect_predictions:
+                true_batches.append(y.detach().cpu())
+                pred_batches.append(test_pred_labels.detach().cpu())
+                if positive_class_index is not None:
+                    positive_probs = torch.softmax(test_pred_logits, dim=1)[:, positive_class_index]
+                    prob_batches.append(positive_probs.detach().cpu())
 
             progress_bar.set_postfix(
                 {
@@ -451,7 +478,12 @@ def _evaluate_step(
     avg_acc = running_correct / running_examples
 
     logger.info("%s step complete - loss=%.4f accuracy=%.4f", phase_name, avg_loss, avg_acc)
-    return StepResult(loss=avg_loss, accuracy=avg_acc)
+    result = StepResult(loss=avg_loss, accuracy=avg_acc)
+    if collect_predictions:
+        result["y_true"] = torch.cat(true_batches).to(dtype=torch.int64).tolist()
+        result["y_pred"] = torch.cat(pred_batches).to(dtype=torch.int64).tolist()
+        result["y_prob"] = torch.cat(prob_batches).to(dtype=torch.float32).tolist() if prob_batches else None
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -480,6 +512,8 @@ def train_model(
     early_stopping_min_delta: float = 0.0,
     train_batch_transform: TrainBatchTransform | None = None,
     validation_metrics_callback: ValidationMetricsCallback | None = None,
+    validation_step_metrics_callback: ValidationStepMetricsCallback | None = None,
+    eval_positive_class_index: int | None = None,
     selection_metric: str = "loss",
     selection_mode: str = "min",
 ) -> TrainResult:
@@ -519,6 +553,15 @@ def train_model(
             MixUp. Validation/test data stays unchanged.
         validation_metrics_callback: Optional callback that computes extra
             validation metrics from the current model after each epoch.
+        validation_step_metrics_callback: Optional callback that computes
+            extra validation metrics directly from cached outputs produced by
+            ``test_step`` during the current epoch. Prefer this over
+            ``validation_metrics_callback`` when the metric can be derived
+            from ``y_true``/``y_pred``/``y_prob`` because it avoids a second
+            full validation pass.
+        eval_positive_class_index: Optional class index whose probabilities
+            should be cached during validation when
+            ``validation_step_metrics_callback`` is used.
         selection_metric: Metric name used for best-model restore and early
             stopping. Defaults to ``"loss"`` for backward compatibility.
         selection_mode: Whether lower (``"min"``) or higher (``"max"``)
@@ -596,6 +639,7 @@ def train_model(
     best_selection_value: float | None = None
     epochs_without_improvement = 0
     resolved_early_stopping_patience = early_stopping_patience
+    collect_validation_predictions = validation_step_metrics_callback is not None
 
     if early_stopping_enabled and resolved_early_stopping_patience is not None and resolved_early_stopping_patience < 1:
         raise ValueError("early_stopping_patience must be >= 1 or None")
@@ -631,10 +675,14 @@ def train_model(
             use_amp=resolved_use_amp,
             amp_dtype=amp_dtype,
             use_channels_last=resolved_use_channels_last,
+            collect_predictions=collect_validation_predictions,
+            positive_class_index=eval_positive_class_index,
         )
-        validation_metrics = (
-            validation_metrics_callback(epoch, base_model) if validation_metrics_callback is not None else None
-        )
+        validation_metrics: Mapping[str, float | None] | None = None
+        if validation_step_metrics_callback is not None:
+            validation_metrics = validation_step_metrics_callback(epoch, test_result)
+        elif validation_metrics_callback is not None:
+            validation_metrics = validation_metrics_callback(epoch, base_model)
         current_selection_value = _resolve_selection_metric_value(
             selection_metric=selection_metric,
             test_result=test_result,
@@ -691,7 +739,7 @@ def train_model(
                 best_test_loss = test_result["loss"]
                 best_selection_value = current_selection_value
                 best_epoch = epoch
-                best_model_state = deepcopy(base_model.state_dict())
+                best_model_state = clone_state_dict_to_cpu(base_model.state_dict())
                 epochs_without_improvement = 0
             else:
                 epochs_without_improvement += 1

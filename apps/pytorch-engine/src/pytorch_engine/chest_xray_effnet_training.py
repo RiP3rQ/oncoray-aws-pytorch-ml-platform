@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -13,11 +12,15 @@ import torch
 from torch.utils.data import DataLoader
 
 from pytorch_engine.data_setup import create_dataloader
-from pytorch_engine.evaluation import ClassificationMetrics, evaluate_classification_model
+from pytorch_engine.evaluation import (
+    ClassificationMetrics,
+    build_classification_metrics,
+    evaluate_classification_model,
+)
 from pytorch_engine.models import create_effnetb0_model
 from pytorch_engine.training_loop import StepResult, TrainResult, train_model
 from pytorch_engine.transforms import get_chest_xray_eval_transform, get_chest_xray_train_transform
-from pytorch_engine.utils import resolve_device, set_seeds
+from pytorch_engine.utils import clone_state_dict_to_cpu, resolve_device, set_seeds
 
 EpochEndCallback = Callable[[int, torch.nn.Module, StepResult, StepResult], None]
 
@@ -49,8 +52,9 @@ class ChestXrayTrainingConfig:
     seed: int = 42
     device: str | torch.device = "auto"
     dropout_p: float = 0.2
-    head_warmup_epochs: int = 2
-    fine_tune_epochs: int = 10
+    label_smoothing: float = 0.05
+    head_warmup_epochs: int = 1
+    fine_tune_epochs: int = 8
     trainable_feature_blocks: int = 2
     head_learning_rate: float = 3e-4
     fine_tune_head_learning_rate: float = 1e-4
@@ -85,6 +89,8 @@ class ChestXrayTrainingConfig:
             raise ValueError("num_workers must be >= 0 or None")
         if self.prefetch_factor < 1:
             raise ValueError("prefetch_factor must be >= 1")
+        if not (0.0 <= self.label_smoothing < 1.0):
+            raise ValueError("label_smoothing must be in [0, 1)")
         if self.early_stopping_patience < 1:
             raise ValueError("early_stopping_patience must be >= 1")
         if self.early_stopping_min_delta < 0:
@@ -199,6 +205,31 @@ def _candidate_improves(
     return candidate_value > (current_best + min_delta)
 
 
+def _scalar_validation_metrics_from_step_result(
+    step_result: StepResult,
+    class_names: list[str],
+) -> dict[str, float | None]:
+    if "y_true" not in step_result or "y_pred" not in step_result:
+        raise ValueError("StepResult must include cached predictions to build classification metrics.")
+
+    metrics = build_classification_metrics(
+        class_names=class_names,
+        y_true=step_result["y_true"],
+        y_pred=step_result["y_pred"],
+        y_prob=step_result.get("y_prob"),
+    )
+    return {
+        "accuracy": metrics["accuracy"],
+        "balanced_accuracy": metrics["balanced_accuracy"],
+        "macro_f1": metrics["macro_f1"],
+        "macro_precision": metrics["macro_precision"],
+        "macro_recall": metrics["macro_recall"],
+        "weighted_f1": metrics["weighted_f1"],
+        "auroc": metrics["auroc"],
+        "average_precision": metrics["average_precision"],
+    }
+
+
 def build_chest_xray_imagefolder_loaders(
     config: ChestXrayTrainingConfig,
 ) -> ChestXrayImageFolderLoaders:
@@ -268,6 +299,7 @@ def run_chest_xray_effnet_training(
     """Train EfficientNet-B0 for binary chest X-ray classification."""
     set_seeds(config.seed)
     dataloaders = build_chest_xray_imagefolder_loaders(config)
+    positive_class_index = dataloaders.class_names.index(config.positive_class_name)
     model_bundle = create_effnetb0_model(
         num_classes=len(dataloaders.class_names),
         seed=config.seed,
@@ -281,7 +313,7 @@ def run_chest_xray_effnet_training(
     feature_extractor = getattr(model, "features", None)
     if not isinstance(feature_extractor, torch.nn.Module):
         raise TypeError("EfficientNet model must expose features as nn.Module.")
-    loss_fn = torch.nn.CrossEntropyLoss()
+    loss_fn = torch.nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
     output_dir = Path(config.output_dir)
     best_checkpoint_path = output_dir / config.best_checkpoint_name
     last_checkpoint_path = output_dir / config.last_checkpoint_name
@@ -318,7 +350,7 @@ def run_chest_xray_effnet_training(
             config=config,
         )
 
-    selected_model_state = deepcopy(model.state_dict())
+    selected_model_state = clone_state_dict_to_cpu(model.state_dict())
     selected_val_metrics = warmup_val_metrics
     selected_metric_value = (
         _selection_value(warmup_val_metrics, config.selection_metric) if warmup_val_metrics is not None else None
@@ -391,17 +423,11 @@ def run_chest_xray_effnet_training(
             use_channels_last=config.use_channels_last,
             early_stopping_patience=config.early_stopping_patience,
             early_stopping_min_delta=config.early_stopping_min_delta,
-            validation_metrics_callback=lambda _epoch, validation_model: {
-                config.selection_metric: _selection_value(
-                    _build_validation_metrics(
-                        model=validation_model,
-                        dataloader=dataloaders.val_dataloader,
-                        class_names=dataloaders.class_names,
-                        config=config,
-                    ),
-                    config.selection_metric,
-                )
-            },
+            validation_step_metrics_callback=lambda _epoch, step_result: _scalar_validation_metrics_from_step_result(
+                step_result,
+                dataloaders.class_names,
+            ),
+            eval_positive_class_index=positive_class_index,
             selection_metric=config.selection_metric,
             selection_mode=config.selection_mode,
         )
@@ -418,7 +444,7 @@ def run_chest_xray_effnet_training(
             mode=config.selection_mode,
             min_delta=config.early_stopping_min_delta,
         ):
-            selected_model_state = deepcopy(model.state_dict())
+            selected_model_state = clone_state_dict_to_cpu(model.state_dict())
             selected_val_metrics = fine_tune_val_metrics
             selected_metric_value = fine_tune_metric_value
             selected_phase = "fine_tune"
@@ -431,7 +457,7 @@ def run_chest_xray_effnet_training(
             config=config,
         )
         selected_metric_value = _selection_value(selected_val_metrics, config.selection_metric)
-        selected_model_state = deepcopy(model.state_dict())
+        selected_model_state = clone_state_dict_to_cpu(model.state_dict())
 
     model.load_state_dict(selected_model_state)
     _save_checkpoint(model, best_checkpoint_path)

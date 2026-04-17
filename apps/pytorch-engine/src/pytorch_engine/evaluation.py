@@ -45,6 +45,15 @@ class ClassificationMetrics(TypedDict):
     y_pred: list[int]
 
 
+class ClassificationPredictions(TypedDict):
+    """Collected classification outputs from one full dataloader pass."""
+
+    positive_class_index: int | None
+    y_prob: list[float] | None
+    y_true: list[int]
+    y_pred: list[int]
+
+
 def _resolve_positive_class_index(class_names: list[str]) -> int | None:
     """Return positive-class index for binary classification metrics."""
     if len(class_names) != 2:
@@ -109,7 +118,98 @@ def _predict_logits_with_tta(
     return logits_sum / len(tta_transforms)
 
 
-def evaluate_classification_model(
+def build_classification_metrics(
+    *,
+    class_names: list[str],
+    y_true: Sequence[int],
+    y_pred: Sequence[int],
+    y_prob: Sequence[float] | None = None,
+    positive_class_index: int | None = None,
+) -> ClassificationMetrics:
+    """Build aggregate/per-class metrics from cached predictions."""
+    y_true_array = np.asarray(y_true, dtype=np.int64)
+    y_pred_array = np.asarray(y_pred, dtype=np.int64)
+    y_prob_array = np.asarray(y_prob, dtype=np.float64) if y_prob is not None else None
+
+    if y_true_array.size == 0:
+        raise ValueError("Cannot compute classification metrics with no targets.")
+    if y_true_array.shape != y_pred_array.shape:
+        raise ValueError("y_true and y_pred must have matching shapes.")
+    resolved_positive_class_index = (
+        _resolve_positive_class_index(class_names) if positive_class_index is None else positive_class_index
+    )
+
+    labels = list(range(len(class_names)))
+    per_class_precision, per_class_recall, per_class_f1, per_class_support = precision_recall_fscore_support(
+        y_true_array,
+        y_pred_array,
+        labels=labels,
+        zero_division=0,
+    )
+    macro_precision, macro_recall, macro_f1, _ = precision_recall_fscore_support(
+        y_true_array,
+        y_pred_array,
+        labels=labels,
+        average="macro",
+        zero_division=0,
+    )
+    _, _, weighted_f1, _ = precision_recall_fscore_support(
+        y_true_array,
+        y_pred_array,
+        labels=labels,
+        average="weighted",
+        zero_division=0,
+    )
+
+    raw_confusion = confusion_matrix(y_true_array, y_pred_array, labels=labels)
+    row_sums = raw_confusion.sum(axis=1, keepdims=True)
+    normalized_confusion = np.divide(
+        raw_confusion,
+        row_sums,
+        out=np.zeros_like(raw_confusion, dtype=np.float64),
+        where=row_sums != 0,
+    )
+    auroc: float | None = None
+    average_precision: float | None = None
+    if y_prob_array is not None and resolved_positive_class_index is not None:
+        try:
+            auroc = float(roc_auc_score(y_true_array, y_prob_array))
+            average_precision = float(average_precision_score(y_true_array, y_prob_array))
+        except ValueError:
+            # Small or pathological validation folds can contain one class only.
+            auroc = None
+            average_precision = None
+
+    return ClassificationMetrics(
+        accuracy=float(accuracy_score(y_true_array, y_pred_array)),
+        balanced_accuracy=float(balanced_accuracy_score(y_true_array, y_pred_array)),
+        macro_f1=float(macro_f1),
+        macro_precision=float(macro_precision),
+        macro_recall=float(macro_recall),
+        weighted_f1=float(weighted_f1),
+        auroc=auroc,
+        average_precision=average_precision,
+        class_names=class_names,
+        per_class_precision={
+            class_name: float(value) for class_name, value in zip(class_names, per_class_precision, strict=True)
+        },
+        per_class_recall={
+            class_name: float(value) for class_name, value in zip(class_names, per_class_recall, strict=True)
+        },
+        per_class_f1={class_name: float(value) for class_name, value in zip(class_names, per_class_f1, strict=True)},
+        per_class_support={
+            class_name: int(value) for class_name, value in zip(class_names, per_class_support, strict=True)
+        },
+        confusion_matrix=raw_confusion.astype(int).tolist(),
+        normalized_confusion_matrix=normalized_confusion.tolist(),
+        positive_class_index=resolved_positive_class_index,
+        y_prob=y_prob_array.astype(float).tolist() if y_prob_array is not None else None,
+        y_true=y_true_array.astype(int).tolist(),
+        y_pred=y_pred_array.astype(int).tolist(),
+    )
+
+
+def collect_classification_predictions(
     model: torch.nn.Module,
     dataloader: DataLoader[Any],
     class_names: list[str],
@@ -118,24 +218,8 @@ def evaluate_classification_model(
     amp_dtype: torch.dtype = torch.float16,
     use_channels_last: bool = False,
     tta_transforms: Sequence[str] | None = None,
-) -> ClassificationMetrics:
-    """Evaluate a classifier on a dataloader with balanced metrics.
-
-    Args:
-        model: Classification model returning class logits.
-        dataloader: Dataloader yielding ``(inputs, labels)`` batches.
-        class_names: Class names in model output order.
-        device: Target device. ``"auto"`` prefers CUDA.
-        use_amp: Enable autocast during forward pass on CUDA.
-        amp_dtype: AMP dtype when autocast is enabled.
-        use_channels_last: Use channels-last memory format for image batches.
-        tta_transforms: Optional deterministic test-time augmentations whose
-            logits will be averaged per batch. Use names such as
-            ``("identity", "hflip", "vflip", "rot90")``.
-
-    Returns:
-        Aggregate and per-class metrics, confusion matrices, and raw labels.
-    """
+) -> ClassificationPredictions:
+    """Collect class predictions/probabilities from one dataloader pass."""
     computed_device = resolve_device(device)
     use_non_blocking = computed_device.type == "cuda"
 
@@ -179,75 +263,59 @@ def evaluate_classification_model(
             pred_batches.append(logits.argmax(dim=1).cpu())
             true_batches.append(y.cpu())
 
-    y_true = torch.cat(true_batches).numpy()
-    y_pred = torch.cat(pred_batches).numpy()
-    y_prob = torch.cat(prob_batches).numpy() if prob_batches else None
+    y_true = torch.cat(true_batches).tolist()
+    y_pred = torch.cat(pred_batches).tolist()
+    y_prob = torch.cat(prob_batches).tolist() if prob_batches else None
 
-    labels = list(range(len(class_names)))
-    per_class_precision, per_class_recall, per_class_f1, per_class_support = precision_recall_fscore_support(
-        y_true,
-        y_pred,
-        labels=labels,
-        zero_division=0,
-    )
-    macro_precision, macro_recall, macro_f1, _ = precision_recall_fscore_support(
-        y_true,
-        y_pred,
-        labels=labels,
-        average="macro",
-        zero_division=0,
-    )
-    _, _, weighted_f1, _ = precision_recall_fscore_support(
-        y_true,
-        y_pred,
-        labels=labels,
-        average="weighted",
-        zero_division=0,
-    )
-
-    raw_confusion = confusion_matrix(y_true, y_pred, labels=labels)
-    row_sums = raw_confusion.sum(axis=1, keepdims=True)
-    normalized_confusion = np.divide(
-        raw_confusion,
-        row_sums,
-        out=np.zeros_like(raw_confusion, dtype=np.float64),
-        where=row_sums != 0,
-    )
-    auroc: float | None = None
-    average_precision: float | None = None
-    if y_prob is not None:
-        try:
-            auroc = float(roc_auc_score(y_true, y_prob))
-            average_precision = float(average_precision_score(y_true, y_prob))
-        except ValueError:
-            # Small or pathological validation folds can contain one class only.
-            auroc = None
-            average_precision = None
-
-    return ClassificationMetrics(
-        accuracy=float(accuracy_score(y_true, y_pred)),
-        balanced_accuracy=float(balanced_accuracy_score(y_true, y_pred)),
-        macro_f1=float(macro_f1),
-        macro_precision=float(macro_precision),
-        macro_recall=float(macro_recall),
-        weighted_f1=float(weighted_f1),
-        auroc=auroc,
-        average_precision=average_precision,
-        class_names=class_names,
-        per_class_precision={
-            class_name: float(value) for class_name, value in zip(class_names, per_class_precision, strict=True)
-        },
-        per_class_recall={
-            class_name: float(value) for class_name, value in zip(class_names, per_class_recall, strict=True)
-        },
-        per_class_f1={class_name: float(value) for class_name, value in zip(class_names, per_class_f1, strict=True)},
-        per_class_support={
-            class_name: int(value) for class_name, value in zip(class_names, per_class_support, strict=True)
-        },
-        confusion_matrix=raw_confusion.astype(int).tolist(),
-        normalized_confusion_matrix=normalized_confusion.tolist(),
+    return ClassificationPredictions(
         positive_class_index=positive_class_index,
-        y_prob=y_prob.astype(float).tolist() if y_prob is not None else None,
-        y_true=y_true.astype(int).tolist(),
-        y_pred=y_pred.astype(int).tolist(),
+        y_prob=[float(value) for value in y_prob] if y_prob is not None else None,
+        y_true=[int(value) for value in y_true],
+        y_pred=[int(value) for value in y_pred],
+    )
+
+
+def evaluate_classification_model(
+    model: torch.nn.Module,
+    dataloader: DataLoader[Any],
+    class_names: list[str],
+    device: str | torch.device = "auto",
+    use_amp: bool = False,
+    amp_dtype: torch.dtype = torch.float16,
+    use_channels_last: bool = False,
+    tta_transforms: Sequence[str] | None = None,
+) -> ClassificationMetrics:
+    """Evaluate a classifier on a dataloader with balanced metrics.
+
+    Args:
+        model: Classification model returning class logits.
+        dataloader: Dataloader yielding ``(inputs, labels)`` batches.
+        class_names: Class names in model output order.
+        device: Target device. ``"auto"`` prefers CUDA.
+        use_amp: Enable autocast during forward pass on CUDA.
+        amp_dtype: AMP dtype when autocast is enabled.
+        use_channels_last: Use channels-last memory format for image batches.
+        tta_transforms: Optional deterministic test-time augmentations whose
+            logits will be averaged per batch. Use names such as
+            ``("identity", "hflip", "vflip", "rot90")``.
+
+    Returns:
+        Aggregate and per-class metrics, confusion matrices, and raw labels.
+    """
+    predictions = collect_classification_predictions(
+        model=model,
+        dataloader=dataloader,
+        class_names=class_names,
+        device=device,
+        use_amp=use_amp,
+        amp_dtype=amp_dtype,
+        use_channels_last=use_channels_last,
+        tta_transforms=tta_transforms,
+    )
+    return build_classification_metrics(
+        class_names=class_names,
+        y_true=predictions["y_true"],
+        y_pred=predictions["y_pred"],
+        y_prob=predictions["y_prob"],
+        positive_class_index=predictions["positive_class_index"],
     )
