@@ -5,7 +5,7 @@ import ModelSelector from "@/components/ModelSelector";
 import ImageDropzone from "@/components/ImageDropzone";
 import PredictionResult from "@/components/PredictionResult";
 import { useAuthContext } from "@/lib/auth";
-import type { PredictionResponse } from "@/lib/api";
+import type { PredictionMode, UnifiedPredictionResponse } from "@/lib/api";
 
 export default function Dashboard() {
   return (
@@ -17,12 +17,13 @@ export default function Dashboard() {
 
 function DashboardInner() {
   const { user, logout } = useAuthContext();
-  const [selectedModelId, setSelectedModelId] = useState("");
-  const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
+  const [selectedMode, setSelectedMode] = useState<PredictionMode | "">("");
+  const [prediction, setPrediction] =
+    useState<UnifiedPredictionResponse | null>(null);
 
-  const handleModelChange = (modelId: string) => {
+  const handleModelChange = (mode: PredictionMode) => {
     startTransition(() => {
-      setSelectedModelId(modelId);
+      setSelectedMode(mode);
       setPrediction(null);
     });
   };
@@ -59,16 +60,13 @@ function DashboardInner() {
 
           <section className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200">
             <ModelSelector
-              value={selectedModelId}
+              value={selectedMode}
               onValueChange={handleModelChange}
             />
           </section>
 
           <section className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200">
-            <ImageDropzone
-              modelId={selectedModelId}
-              onPrediction={setPrediction}
-            />
+            <ImageDropzone mode={selectedMode} onPrediction={setPrediction} />
           </section>
 
           <PredictionResult prediction={prediction} />

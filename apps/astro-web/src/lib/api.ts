@@ -115,6 +115,7 @@ export function getMe(): Promise<{
 export interface ModelRead {
   id: string;
   name: string;
+  slug: ModelSlug;
   description: string;
   version: string;
   created_at: string;
@@ -129,23 +130,38 @@ export function getModel(modelId: string): Promise<ModelRead> {
   return request(`/model/${modelId}`, { method: "GET" });
 }
 
-// Prediction endpoint
-export interface PredictionResponse {
-  model_id: string;
-  prediction: string;
-  confidence: number;
-  image_s3_key: string;
+export type ModelSlug = "effnetb0" | "vitb16";
+export type PredictionMode = ModelSlug | "both";
+
+export interface PredictionUploadStatus {
+  status: "ok" | "error";
+  image_s3_key?: string | null;
+}
+
+export interface PredictionResultStatus {
+  status: "ok" | "error";
+  prediction?: string | null;
+  confidence?: number | null;
+  error?: string | null;
+}
+
+export interface UnifiedPredictionResponse {
+  request_id: string;
+  mode: PredictionMode;
+  upload: PredictionUploadStatus;
+  results: Partial<Record<ModelSlug, PredictionResultStatus>>;
 }
 
 export function predict(
-  modelId: string,
+  mode: PredictionMode,
   file: File,
-): Promise<PredictionResponse> {
+): Promise<UnifiedPredictionResponse> {
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("image", file);
 
-  return request(`/model/${modelId}/predict`, {
+  return request("/predict", {
     method: "POST",
+    params: { model: mode },
     headers: new Headers(), // intentionally empty so browser sets multipart boundary
     body: formData,
   });

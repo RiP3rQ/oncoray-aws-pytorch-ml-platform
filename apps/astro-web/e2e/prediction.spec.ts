@@ -181,10 +181,16 @@ test("sends prediction request with active tab model", async ({ page }) => {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        model_id: mockModels[1].id,
-        prediction: "Normal",
-        confidence: 0.91,
-        image_s3_key: "uploads/scan-b.webp",
+        request_id: "request-1",
+        mode: "vitb16",
+        upload: { status: "ok", image_s3_key: "uploads/scan-b.webp" },
+        results: {
+          vitb16: {
+            status: "ok",
+            prediction: "Normal",
+            confidence: 0.91,
+          },
+        },
       }),
     });
   });
@@ -199,9 +205,7 @@ test("sends prediction request with active tab model", async ({ page }) => {
     .setInputFiles(makeFile("scan-b.webp", "image/webp"));
   await page.getByRole("button", { name: "Run prediction" }).click();
 
-  expect(requestedPredictionUrl).toContain(
-    `/model/${mockModels[1].id}/predict`,
-  );
+  expect(requestedPredictionUrl).toContain("/predict?model=vitb16");
   await expect(page.getByText("Normal", { exact: true })).toBeVisible();
 });
 
@@ -216,16 +220,28 @@ test("overwrites previous prediction result after new upload", async ({
     const body =
       predictionRequests === 1
         ? {
-            model_id: mockModels[0].id,
-            prediction: "Pneumonia",
-            confidence: 0.88,
-            image_s3_key: "uploads/scan-a.png",
+            request_id: "request-1",
+            mode: "effnetb0",
+            upload: { status: "ok", image_s3_key: "uploads/scan-a.png" },
+            results: {
+              effnetb0: {
+                status: "ok",
+                prediction: "Pneumonia",
+                confidence: 0.88,
+              },
+            },
           }
         : {
-            model_id: mockModels[0].id,
-            prediction: "Normal",
-            confidence: 0.67,
-            image_s3_key: "uploads/scan-b.png",
+            request_id: "request-2",
+            mode: "effnetb0",
+            upload: { status: "ok", image_s3_key: "uploads/scan-b.png" },
+            results: {
+              effnetb0: {
+                status: "ok",
+                prediction: "Normal",
+                confidence: 0.67,
+              },
+            },
           };
 
     await route.fulfill({
@@ -288,4 +304,40 @@ test("supports drag-and-drop upload path", async ({ page }) => {
       "Image ready. Review details below and run prediction when ready.",
     ),
   ).toBeVisible();
+});
+
+test("shows both model cards in compare mode", async ({ page }) => {
+  await page.route(predictionRoutePattern(), async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        request_id: "request-compare",
+        mode: "both",
+        upload: { status: "ok", image_s3_key: "uploads/scan-compare.png" },
+        results: {
+          effnetb0: {
+            status: "ok",
+            prediction: "Normal",
+            confidence: 0.93,
+          },
+          vitb16: {
+            status: "error",
+            error: "timeout",
+          },
+        },
+      }),
+    });
+  });
+  await openMockedDashboard(page);
+
+  await page.getByRole("tab", { name: "Compare both" }).click();
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles(makeFile("scan-compare.png", "image/png"));
+  await page.getByRole("button", { name: "Run prediction" }).click();
+
+  await expect(page.getByText("EffNetB0")).toBeVisible();
+  await expect(page.getByText("ViTB16")).toBeVisible();
+  await expect(page.getByText("timeout")).toBeVisible();
 });

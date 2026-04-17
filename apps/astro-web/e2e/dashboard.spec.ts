@@ -26,6 +26,7 @@ test("shows current user email and selects first model by default", async ({
     page.getByRole("tab", { name: mockModels[0].name }),
   ).toHaveAttribute("aria-selected", "true");
   await expect(page.getByText(mockModels[0].description)).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Compare both" })).toBeVisible();
 });
 
 test("clears session and redirects to login on logout", async ({ page }) => {

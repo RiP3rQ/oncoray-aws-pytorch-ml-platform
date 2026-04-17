@@ -22,19 +22,21 @@ export const mockUser = Object.freeze({
 
 export const mockModels = Object.freeze([
   {
-    id: "vit-optical-model",
-    name: "VIT optical model",
-    description:
-      "High-sensitivity transformer triage model for chest X-ray review.",
+    id: "22222222-2222-2222-2222-222222222222",
+    name: "EffNetB0",
+    slug: "effnetb0",
+    description: "EfficientNet-B0 classifier for chest X-ray inference.",
     version: "1.0.0",
     created_at: "2026-04-06T18:00:00Z",
     updated_at: "2026-04-06T18:00:00Z",
   },
   {
-    id: "effnetb2-model",
-    name: "EffectiveNetB2",
-    description: "Balanced baseline for lower-latency pneumonia review.",
-    version: "1.1.0",
+    id: "11111111-1111-1111-1111-111111111111",
+    name: "ViTB16",
+    slug: "vitb16",
+    description:
+      "Vision Transformer B/16 classifier for chest X-ray inference.",
+    version: "1.0.0",
     created_at: "2026-04-06T18:00:00Z",
     updated_at: "2026-04-06T18:00:00Z",
   },
@@ -59,7 +61,9 @@ function escapeRegex(value: string): string {
 }
 
 export function predictionRoutePattern(): RegExp {
-  return new RegExp(`^${escapeRegex(apiBaseUrl)}/model/[^/]+/predict$`);
+  return new RegExp(
+    `^${escapeRegex(apiBaseUrl)}/predict\\?model=(effnetb0|vitb16|both)$`,
+  );
 }
 
 export async function waitForAstroHydration(page: Page) {

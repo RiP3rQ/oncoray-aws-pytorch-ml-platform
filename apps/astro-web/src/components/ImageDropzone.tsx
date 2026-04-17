@@ -21,12 +21,12 @@ function formatFileSize(size: number) {
 }
 
 interface ImageDropzoneProps {
-  modelId: string;
-  onPrediction: (result: api.PredictionResponse | null) => void;
+  mode: api.PredictionMode | "";
+  onPrediction: (result: api.UnifiedPredictionResponse | null) => void;
 }
 
 export default function ImageDropzone({
-  modelId,
+  mode,
   onPrediction,
 }: ImageDropzoneProps) {
   const inputId = useId();
@@ -68,8 +68,8 @@ export default function ImageDropzone({
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !modelId) {
-      if (!modelId) {
+    if (!selectedFile || !mode) {
+      if (!mode) {
         toast.error("Select a model first.");
       }
       return;
@@ -77,9 +77,11 @@ export default function ImageDropzone({
 
     setUploading(true);
     try {
-      const result = await api.predict(modelId, selectedFile);
+      const result = await api.predict(mode, selectedFile);
       onPrediction(result);
-      toast.success("Prediction complete.");
+      toast.success(
+        mode === "both" ? "Compare run complete." : "Prediction complete.",
+      );
     } catch (err) {
       if (err instanceof api.ApiError) {
         if (err.status === 413) {
@@ -128,15 +130,15 @@ export default function ImageDropzone({
     }
   };
 
-  const canUpload = Boolean(selectedFile && modelId && !uploading);
+  const canUpload = Boolean(selectedFile && mode && !uploading);
   const helperTone = error
     ? "error"
-    : !modelId && selectedFile
+    : !mode && selectedFile
       ? "warning"
       : "muted";
   const helperMessage = error
     ? error
-    : !modelId && selectedFile
+    : !mode && selectedFile
       ? "Select a model before running classification."
       : selectedFile
         ? "Image ready. Review details below and run prediction when ready."
