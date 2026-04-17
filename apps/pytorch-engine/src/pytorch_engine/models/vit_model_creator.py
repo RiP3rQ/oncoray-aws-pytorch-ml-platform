@@ -1,7 +1,7 @@
 """ViT model creator for transfer learning image classification.
 
-Provides :func:`create_vit_model` which builds a pre-trained
-ViT feature extractor with a configurable classifier head.
+Provides :func:`create_vit_model` which builds a pre-trained ViT model with a
+configurable classifier head and optional partial fine-tuning.
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ class VitB16Model:
     """Return type for :func:`create_vit_model`.
 
     Attributes:
-        model: ViTB16 feature extractor with frozen backbone and
-            a fresh classifier head.
+        model: ViTB16 model with a fresh classifier head and optional
+            partially unfrozen encoder blocks.
         transforms: Image transforms matching the pre-trained weights.
     """
 
@@ -45,35 +45,30 @@ def create_vit_model(
     num_classes: int = 3,
     transforms: torchvision.transforms.Compose | None = None,
     seed: int = 42,
+    trainable_encoder_blocks: int = 0,
 ) -> VitB16Model:
-    """Create a ViTB16 feature extractor model and transforms.
+    """Create a ViTB16 transfer-learning model and matching transforms.
 
-    Loads pre-trained ImageNet weights, freezes the backbone, and replaces
-    the head with a dropout → linear layer suitable for
-    fine-tuning on *num_classes* target classes.
+    Loads pre-trained ImageNet weights, freezes the full model, replaces the
+    classifier head, and optionally unfreezes the last encoder blocks for
+    partial fine-tuning.
 
     Args:
-        num_classes: Number of output classes in the head.
-            Defaults to 3.
-        transforms: Image transforms to apply. When ``None``, uses the
-            default transforms that correspond to the pre-trained weights.
+        num_classes: Number of output classes in the classifier head.
+        transforms: Optional custom transforms. When ``None``, use the default
+            transforms that match the pre-trained weights.
         seed: Random seed for reproducible head initialisation.
-            Defaults to 42.
+        trainable_encoder_blocks: Number of final transformer encoder blocks
+            to unfreeze. ``0`` keeps the backbone frozen.
 
     Returns:
-        An :class:`VitB16Model` instance containing the model
-        and its matching transforms.
-
-    Example::
-
-        result = create_vit_model(num_classes=10, seed=0)
-        model = result.model
-        transforms = result.transforms
+        A :class:`VitB16Model` instance containing the model and transforms.
     """
     logger.info(
-        "Creating VitB16Model model — num_classes=%d seed=%d",
+        "Creating VitB16 model - num_classes=%d seed=%d trainable_encoder_blocks=%d",
         num_classes,
         seed,
+        trainable_encoder_blocks,
     )
 
     # 1. Load pre-trained ViTB16 weights
@@ -90,33 +85,55 @@ def create_vit_model(
     for param in model.parameters():
         param.requires_grad = False
         frozen_count += 1
-    logger.info("Frozen %d parameter groups in backbone", frozen_count)
+    logger.info("Frozen %d parameter groups in ViT backbone", frozen_count)
 
     # 5. Seed for reproducible head initialisation
     set_seeds(seed=seed)
 
-    # 6. Replace head — extract in_features dynamically
-    model_heads_classifier = model.heads
-    logger.info("Original head: %s", model_heads_classifier)
+    original_classifier = next(
+        (module for module in reversed(list(model.heads.modules())) if isinstance(module, nn.Linear)),
+        None,
+    )
+    if original_classifier is None:
+        raise TypeError(f"Expected nn.Linear inside model.heads, got {type(model.heads)}")
+
+    in_features = original_classifier.in_features
     model.heads = nn.Sequential(
-        nn.Linear(
-            in_features=768,  # keep this the same as original model
-            out_features=num_classes,
-        )
-    )  # update to reflect target number of classes
-    logger.info(
-        "Replaced head: in_features=%d → out_features=%d",
-        768,
-        num_classes,
+        nn.Linear(in_features=in_features, out_features=num_classes),
     )
 
-    # 7. Count trainable vs total parameters
+    if trainable_encoder_blocks > 0:
+        encoder_layers = getattr(model.encoder, "layers", None)
+        if encoder_layers is None:
+            raise AttributeError("ViT encoder does not expose encoder layers for partial fine-tuning.")
+
+        encoder_blocks = list(encoder_layers.children())
+        available_blocks = len(encoder_blocks)
+        blocks_to_unfreeze = min(trainable_encoder_blocks, available_blocks)
+
+        for encoder_block in encoder_blocks[-blocks_to_unfreeze:]:
+            for param in encoder_block.parameters():
+                param.requires_grad = True
+
+        encoder_ln = getattr(model.encoder, "ln", None)
+        if isinstance(encoder_ln, nn.Module):
+            for param in encoder_ln.parameters():
+                param.requires_grad = True
+
+        class_token = getattr(model, "class_token", None)
+        if isinstance(class_token, nn.Parameter):
+            class_token.requires_grad = True
+
+        pos_embedding = getattr(model.encoder, "pos_embedding", None)
+        if isinstance(pos_embedding, nn.Parameter):
+            pos_embedding.requires_grad = True
+
+        logger.info("Unfroze last %d/%d ViT encoder blocks", blocks_to_unfreeze, available_blocks)
+
+    logger.info("Replaced head: in_features=%d -> out_features=%d", in_features, num_classes)
+
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total = sum(p.numel() for p in model.parameters())
-    logger.info(
-        "VitB16Model model ready — %d trainable / %d total parameters",
-        trainable,
-        total,
-    )
+    logger.info("VitB16 model ready - %d trainable / %d total parameters", trainable, total)
 
     return VitB16Model(model=model, transforms=image_transforms)

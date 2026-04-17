@@ -4,14 +4,20 @@ from pytorch_engine.csv_dataset import CSVDataset, create_csv_dataloader
 from pytorch_engine.data_setup import (
     CHEST_XRAY_CLASS_NAMES,
     CHEST_XRAY_SPLITS,
+    ChestXrayGroupedSplitSummaryRow,
+    CrossSplitGroupLeak,
     DataLoaderResult,
     create_dataloader,
     download_and_prepare_kaggle_chest_xray_pneumonia_dataset,
     download_and_prepare_kaggle_ham10000_dataset,
     download_with_curl,
     find_cross_split_duplicate_files,
+    find_cross_split_group_leaks,
+    infer_chest_xray_patient_group_id,
+    prepare_grouped_chest_xray_pneumonia_dataset,
     prepare_kaggle_chest_xray_pneumonia_dataset,
     prepare_kaggle_ham10000_dataset,
+    summarize_chest_xray_group_splits,
     summarize_imagefolder_splits,
 )
 from pytorch_engine.data_split import split_csv_metadata
@@ -22,7 +28,11 @@ from pytorch_engine.save_model import (
     save_model,
     upload_model_file_to_huggingface,
 )
-from pytorch_engine.transforms import get_simple_train_transform, get_train_transform
+from pytorch_engine.transforms import (
+    get_chest_xray_train_transform,
+    get_simple_train_transform,
+    get_train_transform,
+)
 from pytorch_engine.utils import (
     accuracy_fn,
     get_current_device,
@@ -35,7 +45,9 @@ __all__ = [
     "CSVDataset",
     "CHEST_XRAY_CLASS_NAMES",
     "CHEST_XRAY_SPLITS",
+    "ChestXrayGroupedSplitSummaryRow",
     "ClassificationMetrics",
+    "CrossSplitGroupLeak",
     "DataLoaderResult",
     "accuracy_fn",
     "create_csv_dataloader",
@@ -46,10 +58,14 @@ __all__ = [
     "download_with_curl",
     "evaluate_classification_model",
     "find_cross_split_duplicate_files",
+    "find_cross_split_group_leaks",
     "get_current_device",
+    "get_chest_xray_train_transform",
     "get_simple_train_transform",
     "get_train_transform",
+    "infer_chest_xray_patient_group_id",
     "MixUpBatchTransform",
+    "prepare_grouped_chest_xray_pneumonia_dataset",
     "prepare_kaggle_chest_xray_pneumonia_dataset",
     "prepare_kaggle_ham10000_dataset",
     "print_train_time",
@@ -58,6 +74,7 @@ __all__ = [
     "set_seeds",
     "split_csv_metadata",
     "SoftTargetCrossEntropyLoss",
+    "summarize_chest_xray_group_splits",
     "summarize_imagefolder_splits",
     "upload_model_file_to_huggingface",
 ]

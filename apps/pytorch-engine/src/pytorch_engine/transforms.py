@@ -66,6 +66,61 @@ def get_simple_train_transform(
     )
 
 
+def get_chest_xray_train_transform(
+    image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
+    resize_size: tuple[int, int] = (256, 256),
+    normalize_mean: list[float] | None = None,
+    normalize_std: list[float] | None = None,
+    interpolation: transforms.InterpolationMode = DEFAULT_INTERPOLATION,
+    rotation_degrees: float = 7.0,
+    translate: tuple[float, float] = (0.02, 0.02),
+    scale: tuple[float, float] = (0.95, 1.05),
+    brightness: float = 0.08,
+    contrast: float = 0.12,
+) -> transforms.Compose:
+    """Training transform tuned for chest X-ray transfer learning.
+
+    Chest X-rays are medically structured images, so we avoid horizontal
+    flips and aggressive random crops that can remove diagnostic anatomy.
+    The pipeline keeps framing close to evaluation preprocessing while adding
+    small geometric and intensity perturbations for regularization.
+    """
+    return transforms.Compose(
+        [
+            transforms.Resize(resize_size, interpolation=interpolation, antialias=True),
+            transforms.RandomCrop(image_size),
+            transforms.RandomApply(
+                [
+                    transforms.RandomAffine(
+                        degrees=rotation_degrees,
+                        translate=translate,
+                        scale=scale,
+                        interpolation=interpolation,
+                        fill=0,
+                    )
+                ],
+                p=0.8,
+            ),
+            transforms.RandomApply(
+                [
+                    transforms.ColorJitter(
+                        brightness=brightness,
+                        contrast=contrast,
+                        saturation=0.0,
+                        hue=0.0,
+                    )
+                ],
+                p=0.35,
+            ),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=normalize_mean if normalize_mean is not None else IMAGENET_MEAN,
+                std=normalize_std if normalize_std is not None else IMAGENET_STD,
+            ),
+        ]
+    )
+
+
 def get_train_transform(
     image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
     normalize_mean: list[float] | None = None,

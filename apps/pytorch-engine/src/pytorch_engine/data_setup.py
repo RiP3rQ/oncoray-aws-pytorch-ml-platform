@@ -1,16 +1,20 @@
 """PyTorch DataLoader creation and data utilities for image classification datasets."""
 
 import hashlib
+import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import zipfile
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, TypedDict
 
 import requests
 import torch
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
@@ -26,6 +30,8 @@ DEFAULT_KAGGLE_CHEST_XRAY_PNEUMONIA_BALANCED_URL = (
 )
 CHEST_XRAY_SPLITS = ("train", "val", "test")
 CHEST_XRAY_CLASS_NAMES = ("NORMAL", "PNEUMONIA")
+_AUGMENTATION_SUFFIX_PATTERN = re.compile(r"_aug_\d+$")
+_GROUPED_SPLIT_MANIFEST_NAME = "grouped_split_manifest.json"
 
 
 def download_with_curl(
@@ -384,12 +390,279 @@ class CrossSplitDuplicateGroup(TypedDict):
     files: list[DuplicateImageRecord]
 
 
+class ChestXrayGroupedSplitSummaryRow(TypedDict):
+    """Summary row for grouped chest X-ray splits."""
+
+    split: str
+    NORMAL_images: int
+    PNEUMONIA_images: int
+    total_images: int
+    NORMAL_groups: int
+    PNEUMONIA_groups: int
+    total_groups: int
+
+
+class CrossSplitGroupLeak(TypedDict):
+    """Patient/group identifier that appears in multiple dataset splits."""
+
+    group_id: str
+    class_name: str
+    splits: list[str]
+
+
+class ChestXrayImageRecord(TypedDict):
+    """One chest X-ray file plus inferred grouping metadata."""
+
+    split: str
+    class_name: str
+    group_id: str
+    path: str
+
+
+def _strip_augmentation_suffix(stem: str) -> str:
+    """Remove repository-specific augmentation suffixes such as ``_aug_123``."""
+    return _AUGMENTATION_SUFFIX_PATTERN.sub("", stem)
+
+
+def infer_chest_xray_patient_group_id(path_or_name: str | Path) -> str:
+    """Infer a patient-style grouping key from a chest X-ray filename.
+
+    This dataset mixes several filename conventions:
+      - ``person1003_bacteria_2934.jpeg`` for pneumonia images
+      - ``IM-0678-0001.jpeg`` for normal images
+      - ``NORMAL2-IM-0173-0001-0002.jpeg`` for normal images with extra view ids
+      - ``*_aug_123.jpg`` for synthetic augmentations
+
+    We group synthetic augmentations with their source image and collapse file
+    names to a patient-style prefix so no patient/group can leak across
+    train/val/test splits.
+    """
+    stem = _strip_augmentation_suffix(Path(path_or_name).stem)
+    if stem.startswith("person"):
+        return stem.split("_")[0]
+
+    parts = stem.split("-")
+    if stem.startswith("NORMAL2-IM-") and len(parts) >= 3:
+        return "-".join(parts[:3])
+    if stem.startswith("IM-") and len(parts) >= 2:
+        return "-".join(parts[:2])
+    return stem
+
+
+def _iter_chest_xray_image_records(dataset_root: Path) -> list[ChestXrayImageRecord]:
+    """Collect all chest X-ray image records from an ImageFolder split root."""
+    records: list[ChestXrayImageRecord] = []
+    for split_name in CHEST_XRAY_SPLITS:
+        for class_name in CHEST_XRAY_CLASS_NAMES:
+            class_dir = dataset_root / split_name / class_name
+            if not class_dir.is_dir():
+                raise FileNotFoundError(f"Expected class directory not found: {class_dir}")
+            for file_path in sorted(path for path in class_dir.rglob("*") if path.is_file()):
+                records.append(
+                    ChestXrayImageRecord(
+                        split=split_name,
+                        class_name=class_name,
+                        group_id=infer_chest_xray_patient_group_id(file_path.name),
+                        path=str(file_path),
+                    )
+                )
+    return records
+
+
+def find_cross_split_group_leaks(
+    dataset_root: str | Path,
+) -> list[CrossSplitGroupLeak]:
+    """Find patient/group identifiers that span more than one split."""
+    root = Path(dataset_root)
+    splits_by_group: dict[tuple[str, str], set[str]] = defaultdict(set)
+
+    for record in _iter_chest_xray_image_records(root):
+        splits_by_group[(record["group_id"], record["class_name"])].add(record["split"])
+
+    leaks: list[CrossSplitGroupLeak] = []
+    for (group_id, class_name), split_names in sorted(splits_by_group.items()):
+        if len(split_names) < 2:
+            continue
+        leaks.append(
+            CrossSplitGroupLeak(
+                group_id=group_id,
+                class_name=class_name,
+                splits=sorted(split_names),
+            )
+        )
+    return leaks
+
+
+def summarize_chest_xray_group_splits(
+    dataset_root: str | Path,
+) -> list[ChestXrayGroupedSplitSummaryRow]:
+    """Return per-split image counts plus inferred patient/group counts."""
+    root = Path(dataset_root)
+    summary_rows: list[ChestXrayGroupedSplitSummaryRow] = []
+
+    for split_name in CHEST_XRAY_SPLITS:
+        split_dir = root / split_name
+        if not split_dir.is_dir():
+            raise FileNotFoundError(f"Expected split directory not found: {split_dir}")
+
+        image_counts: dict[str, int] = {}
+        group_sets: dict[str, set[str]] = {}
+        total_images = 0
+        total_groups = 0
+
+        for class_name in CHEST_XRAY_CLASS_NAMES:
+            class_dir = split_dir / class_name
+            if not class_dir.is_dir():
+                raise FileNotFoundError(f"Expected class directory not found: {class_dir}")
+            image_paths = [path for path in class_dir.rglob("*") if path.is_file()]
+            groups = {infer_chest_xray_patient_group_id(path.name) for path in image_paths}
+            image_counts[class_name] = len(image_paths)
+            group_sets[class_name] = groups
+            total_images += len(image_paths)
+            total_groups += len(groups)
+
+        summary_rows.append(
+            ChestXrayGroupedSplitSummaryRow(
+                split=split_name,
+                NORMAL_images=image_counts["NORMAL"],
+                PNEUMONIA_images=image_counts["PNEUMONIA"],
+                total_images=total_images,
+                NORMAL_groups=len(group_sets["NORMAL"]),
+                PNEUMONIA_groups=len(group_sets["PNEUMONIA"]),
+                total_groups=total_groups,
+            )
+        )
+
+    return summary_rows
+
+
+def _resolve_unique_destination_path(destination_dir: Path, source_path: Path) -> Path:
+    """Return a non-conflicting output path for a copied image."""
+    destination_path = destination_dir / source_path.name
+    if not destination_path.exists():
+        return destination_path
+
+    prefixed_name = f"{source_path.parent.parent.name}_{source_path.name}"
+    destination_path = destination_dir / prefixed_name
+    if not destination_path.exists():
+        return destination_path
+
+    digest = hashlib.sha256(str(source_path).encode("utf-8")).hexdigest()[:8]
+    return destination_dir / f"{source_path.stem}_{digest}{source_path.suffix}"
+
+
+def prepare_grouped_chest_xray_pneumonia_dataset(
+    source_root: str | Path,
+    destination: str | Path,
+    *,
+    val_size: float = 0.1,
+    test_size: float = 0.1,
+    random_state: int = 42,
+) -> Path:
+    """Create a leakage-resistant grouped chest X-ray split dataset.
+
+    Uses inferred patient-style group ids from filenames so all images from the
+    same patient/group stay within a single split. The destination uses the
+    same ImageFolder layout as the original dataset and is safe to train on
+    without the known cross-split leakage present in the bundled Kaggle split.
+    """
+    if not (0.0 < val_size < 1.0):
+        raise ValueError(f"val_size must be in (0, 1), got {val_size}")
+    if not (0.0 < test_size < 1.0):
+        raise ValueError(f"test_size must be in (0, 1), got {test_size}")
+    if (val_size + test_size) >= 1.0:
+        raise ValueError("val_size + test_size must be < 1")
+
+    source_root_path = Path(source_root)
+    destination_path = Path(destination)
+    manifest_path = destination_path / _GROUPED_SPLIT_MANIFEST_NAME
+
+    if manifest_path.is_file():
+        logger.info("Grouped chest X-ray dataset already prepared in '%s'; skipping rebuild.", destination_path)
+        return destination_path
+    if destination_path.exists() and any(destination_path.iterdir()):
+        raise FileExistsError(f"Destination already exists and is not a prepared grouped dataset: {destination_path}")
+
+    image_records = _iter_chest_xray_image_records(source_root_path)
+    if not image_records:
+        raise ValueError(f"No chest X-ray images found under '{source_root_path}'")
+
+    class_names_by_group: dict[str, set[str]] = defaultdict(set)
+    file_paths_by_group: dict[str, list[Path]] = defaultdict(list)
+    for record in image_records:
+        class_names_by_group[record["group_id"]].add(record["class_name"])
+        file_paths_by_group[record["group_id"]].append(Path(record["path"]))
+
+    group_ids: list[str] = []
+    group_labels: list[str] = []
+    for group_id in sorted(class_names_by_group):
+        class_names = class_names_by_group[group_id]
+        if len(class_names) != 1:
+            raise ValueError(
+                f"Group '{group_id}' spans multiple classes: {sorted(class_names)}. Cannot build grouped split safely."
+            )
+        group_ids.append(group_id)
+        group_labels.append(next(iter(class_names)))
+
+    train_val_group_ids, test_group_ids = train_test_split(
+        group_ids,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=group_labels,
+    )
+    train_val_labels = [next(iter(class_names_by_group[group_id])) for group_id in train_val_group_ids]
+    relative_val_size = val_size / (1.0 - test_size)
+    train_group_ids, val_group_ids = train_test_split(
+        train_val_group_ids,
+        test_size=relative_val_size,
+        random_state=random_state,
+        stratify=train_val_labels,
+    )
+
+    split_by_group = {
+        **{group_id: "train" for group_id in train_group_ids},
+        **{group_id: "val" for group_id in val_group_ids},
+        **{group_id: "test" for group_id in test_group_ids},
+    }
+
+    for split_name in CHEST_XRAY_SPLITS:
+        for class_name in CHEST_XRAY_CLASS_NAMES:
+            (destination_path / split_name / class_name).mkdir(parents=True, exist_ok=True)
+
+    for group_id, source_paths in file_paths_by_group.items():
+        target_split = split_by_group[group_id]
+        class_name = next(iter(class_names_by_group[group_id]))
+        destination_dir = destination_path / target_split / class_name
+        for source_path in sorted(source_paths):
+            target_path = _resolve_unique_destination_path(destination_dir, source_path)
+            shutil.copy2(source_path, target_path)
+
+    manifest = {
+        "source_root": str(source_root_path.resolve()),
+        "destination_root": str(destination_path.resolve()),
+        "random_state": random_state,
+        "val_size": val_size,
+        "test_size": test_size,
+        "summary": summarize_chest_xray_group_splits(destination_path),
+        "cross_split_group_leaks": find_cross_split_group_leaks(destination_path),
+        "cross_split_duplicates": find_cross_split_duplicate_files(destination_path),
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    logger.info("Prepared grouped chest X-ray dataset at '%s'", destination_path)
+
+    return destination_path
+
+
 def create_dataloader(
     data_dir: str,
     transform: transforms.Compose,
     batch_size: int,
     shuffle: bool = False,
     num_workers: int = NUM_WORKERS or 1,
+    drop_last: bool = False,
+    persistent_workers: bool | None = None,
+    prefetch_factor: int | None = None,
+    pin_memory: bool | None = None,
 ) -> DataLoaderResult:
     """Create a single DataLoader from directory-structured image data.
 
@@ -410,6 +683,12 @@ def create_dataloader(
             Defaults to ``False``.
         num_workers: Subprocess count for data loading. Defaults to
             ``os.cpu_count()`` or 1.
+        drop_last: Whether to drop the final smaller batch.
+        persistent_workers: Keep worker processes alive across epochs when
+            ``num_workers > 0``. Defaults to ``True`` when workers are used.
+        prefetch_factor: Number of batches loaded in advance by each worker.
+            Only applies when ``num_workers > 0``.
+        pin_memory: Override default CUDA-aware pin-memory behavior.
 
     Returns:
         A :class:`DataLoaderResult` dict with keys
@@ -436,12 +715,22 @@ def create_dataloader(
     """
     dataset = datasets.ImageFolder(root=data_dir, transform=transform)
 
+    resolved_pin_memory = torch.cuda.is_available() if pin_memory is None else pin_memory
+    dataloader_kwargs: dict[str, Any] = {
+        "dataset": dataset,
+        "batch_size": batch_size,
+        "shuffle": shuffle,
+        "num_workers": num_workers,
+        "drop_last": drop_last,
+        "pin_memory": resolved_pin_memory,
+    }
+    if num_workers > 0:
+        dataloader_kwargs["persistent_workers"] = True if persistent_workers is None else persistent_workers
+        if prefetch_factor is not None:
+            dataloader_kwargs["prefetch_factor"] = prefetch_factor
+
     dataloader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
-        pin_memory=torch.cuda.is_available(),
+        **dataloader_kwargs,
     )
 
     return DataLoaderResult(
