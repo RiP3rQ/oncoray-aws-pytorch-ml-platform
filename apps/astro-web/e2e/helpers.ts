@@ -5,6 +5,16 @@ import {
   type Page,
 } from "@playwright/test";
 
+interface MockModel {
+  id: string;
+  name: string;
+  slug: "effnetb0" | "vitb16";
+  description: string;
+  version: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export const apiBaseUrl = (
   process.env.E2E_API_BASE_URL ?? "http://localhost:8000"
 ).replace(/\/$/, "");
@@ -40,7 +50,7 @@ export const mockModels = Object.freeze([
     created_at: "2026-04-06T18:00:00Z",
     updated_at: "2026-04-06T18:00:00Z",
   },
-]);
+]) as readonly [MockModel, MockModel];
 
 export const authenticatedStorageState = {
   cookies: [],
@@ -50,7 +60,7 @@ export const authenticatedStorageState = {
       localStorage: [{ name: tokenKey, value: mockToken }],
     },
   ],
-} as const;
+};
 
 export function apiUrl(path: string): string {
   return new URL(path, apiBaseUrl).toString();

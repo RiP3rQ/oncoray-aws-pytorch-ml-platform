@@ -169,16 +169,22 @@ Test-ContentRule `
     -FailureMessage "defaultImageTag must not be 'latest'."
 
 Test-ContentRule `
-    -Label "Prod example model-service URL" `
+    -Label "Prod example model-service URLs" `
     -Path (Join-Path $repoRoot "infra/helm/values/prod.example.yaml") `
     -Predicate {
         param($content)
-        if ($content -match '(?ms)^\s*model-service:\s*.*?^\s+enabled:\s*false\s*$') {
-            return $content -match '(?m)^\s*MODEL_SERVICE_URL:\s*""\s*$'
+        if (
+            $content -match '(?ms)^\s*model-service-effnetb0:\s*.*?^\s+enabled:\s*false\s*$' -and
+            $content -match '(?ms)^\s*model-service-vitb16:\s*.*?^\s+enabled:\s*false\s*$'
+        ) {
+            return (
+                $content -match '(?m)^\s*MODEL_SERVICE_EFFNETB0_URL:\s*""\s*$' -and
+                $content -match '(?m)^\s*MODEL_SERVICE_VITB16_URL:\s*""\s*$'
+            )
         }
         return $true
     } `
-    -FailureMessage "MODEL_SERVICE_URL must be empty while example model-service stays disabled."
+    -FailureMessage "Model-service URLs must be empty while example model-service workloads stay disabled."
 
 Test-ContentRule `
     -Label "Terraform EKS endpoint CIDR default" `

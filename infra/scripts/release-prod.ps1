@@ -19,6 +19,8 @@ param(
     [string]$PublicApiBaseUrl = "",
     [switch]$BuildApiImage,
     [switch]$PushApiImage,
+    [switch]$BuildModelServiceImage,
+    [switch]$PushModelServiceImage,
     [switch]$BuildFrontend,
     [switch]$EnableModelService,
     [switch]$SyncApiEdge,
@@ -250,6 +252,14 @@ if (-not $WorkerImageTag) {
     $WorkerImageTag = $ApiImageTag
 }
 
+if ($EnableModelService -and -not $ModelServiceImageRepository) {
+    $ModelServiceImageRepository = $ecrRepositoryUrls.model_service
+}
+
+if ($EnableModelService -and -not $ModelServiceImageTag) {
+    $ModelServiceImageTag = $ApiImageTag
+}
+
 if (-not $SkipParameterSync) {
     $resolvedParameterManifestFile = if ($ParameterManifestFile) {
         Resolve-RepoPath -RepoRoot $repoRoot -PathValue $ParameterManifestFile
@@ -274,9 +284,6 @@ if (-not $SkipParameterSync) {
     $requiredParameterNames = @()
     $requiredParameterNames += @($expectedParameterStorePaths.api)
     $requiredParameterNames += @($expectedParameterStorePaths.worker)
-    if ($EnableModelService) {
-        $requiredParameterNames += @($expectedParameterStorePaths.model_service)
-    }
 
     $missingParameters = $requiredParameterNames | Where-Object {
         $_ -notin $mergedParameters.name
@@ -331,6 +338,33 @@ if ($BuildApiImage -or $PushApiImage) {
 
     if ($PushApiImage) {
         Invoke-External -FilePath "docker" -Arguments @("push", "$ApiImageRepository`:$ApiImageTag")
+    }
+}
+
+if ($EnableModelService -and ($BuildModelServiceImage -or $PushModelServiceImage)) {
+    Assert-Command -Name "docker"
+    if (-not $ModelServiceImageRepository) {
+        throw "ModelServiceImageRepository required when building or pushing model-service image."
+    }
+    if (-not $ModelServiceImageTag) {
+        throw "ModelServiceImageTag required when building or pushing model-service image."
+    }
+    if ($PushModelServiceImage) {
+        Invoke-External -FilePath "powershell" -Arguments @(
+            "-Command",
+            "aws ecr get-login-password --region '$awsRegion' | docker login --username AWS --password-stdin '$($ModelServiceImageRepository.Split('/')[0])'"
+        )
+    }
+
+    Invoke-External -FilePath "docker" -Arguments @(
+        "build",
+        "-t",
+        "$ModelServiceImageRepository`:$ModelServiceImageTag",
+        (Join-Path $repoRoot "apps/model-service")
+    )
+
+    if ($PushModelServiceImage) {
+        Invoke-External -FilePath "docker" -Arguments @("push", "$ModelServiceImageRepository`:$ModelServiceImageTag")
     }
 }
 

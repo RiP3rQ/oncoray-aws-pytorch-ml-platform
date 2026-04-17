@@ -125,7 +125,9 @@ export default function ModelSelector({
 
       <Tabs
         value={resolvedValue}
-        onValueChange={onValueChange}
+        onValueChange={(nextValue) =>
+          onValueChange(nextValue as PredictionMode)
+        }
         className="gap-4"
       >
         <TabsList className="w-full overflow-x-auto overflow-y-hidden whitespace-nowrap">
