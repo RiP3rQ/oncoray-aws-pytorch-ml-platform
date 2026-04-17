@@ -56,5 +56,6 @@ class LLMModel(TimestampedModel, table=True):
         sa_type=PG_UUID(as_uuid=True),
     )
     name: str = Field(nullable=False, max_length=100, index=True)
+    slug: str = Field(nullable=False, max_length=50, index=True, unique=True)
     description: str = Field(nullable=False, max_length=255)
     version: str = Field(nullable=False, max_length=50)

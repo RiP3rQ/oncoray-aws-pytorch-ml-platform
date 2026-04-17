@@ -8,6 +8,7 @@ master_router = APIRouter()
 
 master_router.include_router(kubernetes_router.router)
 master_router.include_router(model_router.router)
+master_router.include_router(model_router.public_router)
 master_router.include_router(user_router.router)
 
 if app_settings.APP_ENVIRONMENT != "production":

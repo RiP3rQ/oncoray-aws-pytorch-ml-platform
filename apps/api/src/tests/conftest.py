@@ -38,14 +38,16 @@ def create_fake_user(
 
 
 def create_fake_model(
-    name: str = "TestModel",
-    description: str = "A test model",
+    name: str = "ViTB16",
+    slug: str = "vitb16",
+    description: str = "Vision Transformer chest X-ray classifier",
     version: str = "v1",
 ) -> MagicMock:
     """Create a fake LLMModel instance."""
     model = MagicMock()
     model.id = uuid4()
     model.name = name
+    model.slug = slug
     model.description = description
     model.version = version
     model.created_at = datetime.now(UTC)
@@ -109,6 +111,33 @@ class MockModelService:
 
         raise EntityNotFound(f"Model '{model_id}' was not found.")
 
+    async def predict(self, mode, image_data: bytes, filename: str) -> dict:
+        result_map = {}
+        if mode in {"effnetb0", "both"}:
+            result_map["effnetb0"] = {
+                "status": "ok",
+                "prediction": "normal",
+                "confidence": 0.91,
+                "error": None,
+            }
+        if mode in {"vitb16", "both"}:
+            result_map["vitb16"] = {
+                "status": "ok",
+                "prediction": "pneumonia",
+                "confidence": 0.87,
+                "error": None,
+            }
+
+        return {
+            "request_id": str(uuid4()),
+            "mode": mode,
+            "upload": {
+                "status": "ok",
+                "image_s3_key": f"predictions/{uuid4()}.jpg",
+            },
+            "results": result_map,
+        }
+
 
 # =============================================================================
 # Mock Database Session
@@ -121,8 +150,8 @@ class MockAsyncSession:
     def __init__(self, user: MagicMock | None = None, models: list[MagicMock] | None = None):
         self._user = user or create_fake_user(email_verified=True)
         self._models = models or [
-            create_fake_model(),
-            create_fake_model(name="SecondModel"),
+            create_fake_model(name="ViTB16", slug="vitb16"),
+            create_fake_model(name="EffNetB0", slug="effnetb0"),
         ]
 
     async def get(self, model, id):
@@ -176,7 +205,10 @@ def mock_user():
 @pytest.fixture
 def mock_models():
     """Create mock models."""
-    return [create_fake_model(), create_fake_model(name="SecondModel")]
+    return [
+        create_fake_model(name="ViTB16", slug="vitb16"),
+        create_fake_model(name="EffNetB0", slug="effnetb0"),
+    ]
 
 
 @pytest.fixture

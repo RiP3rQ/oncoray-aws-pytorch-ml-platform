@@ -28,6 +28,7 @@ class TestGetAllModels:
         for model in models:
             assert "id" in model
             assert "name" in model
+            assert "slug" in model
             assert "description" in model
             assert "version" in model
             assert "created_at" in model
@@ -45,6 +46,7 @@ class TestGetModelById:
         data = response.json()
         assert data["id"] == str(model_id)
         assert data["name"] == mock_models[0].name
+        assert data["slug"] == mock_models[0].slug
 
     def test_get_model_by_invalid_id_format(self, client: TestClient):
         """GET /model/{invalid_uuid} should return 422 for invalid UUID."""
@@ -95,3 +97,28 @@ class TestPredictWithImage:
 
         response = client.post(f"/model/{non_existent_id}/predict", files=files)
         assert response.status_code == 404
+
+    def test_public_predict_single_model(self, client: TestClient):
+        """POST /predict should return unified single-model envelope."""
+        files = {"image": ("test.jpg", BytesIO(b"fake_image_data"), "image/jpeg")}
+
+        response = client.post("/predict?model=effnetb0", files=files)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mode"] == "effnetb0"
+        assert data["upload"]["status"] == "ok"
+        assert "effnetb0" in data["results"]
+        assert data["results"]["effnetb0"]["status"] == "ok"
+
+    def test_public_predict_both_models(self, client: TestClient):
+        """POST /predict?model=both should return both model results."""
+        files = {"image": ("test.jpg", BytesIO(b"fake_image_data"), "image/jpeg")}
+
+        response = client.post("/predict?model=both", files=files)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mode"] == "both"
+        assert "effnetb0" in data["results"]
+        assert "vitb16" in data["results"]

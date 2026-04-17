@@ -6,6 +6,8 @@ from urllib.parse import urlparse
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.types.enums import ModelSlug
+
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 APP_DIR = Path(__file__).resolve().parent
 TEMPLATE_DIR = PROJECT_DIR / "src" / "templates"
@@ -140,12 +142,17 @@ class S3Settings(BaseSettings):
 class ModelServiceSettings(BaseSettings):
     """Internal model-service connection settings."""
 
-    MODEL_SERVICE_URL: str | None = None
+    MODEL_SERVICE_EFFNETB0_URL: str | None = None
+    MODEL_SERVICE_VITB16_URL: str | None = None
     MODEL_SERVICE_TIMEOUT_SECONDS: float = 30.0
 
     model_config = _base_config
 
-    @field_validator("MODEL_SERVICE_URL", mode="before")
+    @field_validator(
+        "MODEL_SERVICE_EFFNETB0_URL",
+        "MODEL_SERVICE_VITB16_URL",
+        mode="before",
+    )
     @classmethod
     def normalize_model_service_url(cls, value: str | None) -> str | None:
         if value is None:
@@ -153,6 +160,15 @@ class ModelServiceSettings(BaseSettings):
 
         normalized = value.strip().rstrip("/")
         return normalized or None
+
+    @property
+    def model_service_urls(self) -> dict[ModelSlug, str]:
+        urls: dict[ModelSlug, str] = {}
+        if self.MODEL_SERVICE_EFFNETB0_URL:
+            urls[ModelSlug.EFFNETB0] = self.MODEL_SERVICE_EFFNETB0_URL
+        if self.MODEL_SERVICE_VITB16_URL:
+            urls[ModelSlug.VITB16] = self.MODEL_SERVICE_VITB16_URL
+        return urls
 
 
 class WorkerSettings(BaseSettings):

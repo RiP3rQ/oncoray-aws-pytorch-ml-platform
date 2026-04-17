@@ -196,12 +196,24 @@ class TestModelServiceSettings:
 
     def test_model_service_defaults(self):
         settings = ModelServiceSettings()
-        assert settings.MODEL_SERVICE_URL is None
+        assert settings.MODEL_SERVICE_EFFNETB0_URL is None
+        assert settings.MODEL_SERVICE_VITB16_URL is None
         assert settings.MODEL_SERVICE_TIMEOUT_SECONDS == 30.0
 
     def test_model_service_url_is_normalized(self):
-        settings = ModelServiceSettings(MODEL_SERVICE_URL=" http://model-service:8000/ ")
-        assert settings.MODEL_SERVICE_URL == "http://model-service:8000"
+        settings = ModelServiceSettings(MODEL_SERVICE_EFFNETB0_URL=" http://model-service:8000/ ")
+        assert settings.MODEL_SERVICE_EFFNETB0_URL == "http://model-service:8000"
+
+    def test_model_service_urls_property(self):
+        settings = ModelServiceSettings(
+            MODEL_SERVICE_EFFNETB0_URL="http://effnet:8000",
+            MODEL_SERVICE_VITB16_URL="http://vit:8000",
+        )
+
+        assert settings.model_service_urls == {
+            "effnetb0": "http://effnet:8000",
+            "vitb16": "http://vit:8000",
+        }
 
 
 class TestWorkerSettings:

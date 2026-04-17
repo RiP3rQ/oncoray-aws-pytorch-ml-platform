@@ -4,7 +4,6 @@ Tests for internal model-service HTTP client.
 
 import sys
 from pathlib import Path
-from uuid import uuid4
 
 import httpx
 import pytest
@@ -16,6 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.core.errors import ServiceUnavailable, UpstreamServiceError
 from src.services.model_runtime_client import ModelRuntimeClient
+from src.types.enums import ModelSlug
 
 
 class TestModelRuntimeClient:
@@ -23,8 +23,6 @@ class TestModelRuntimeClient:
 
     @pytest.mark.asyncio
     async def test_predict_returns_validated_payload(self):
-        model_id = uuid4()
-
         async def handler(request: httpx.Request) -> httpx.Response:
             assert request.url == httpx.URL("http://model-service:8000/predict")
             return httpx.Response(
@@ -34,11 +32,11 @@ class TestModelRuntimeClient:
 
         client = ModelRuntimeClient(
             base_url="http://model-service:8000",
+            model_slug=ModelSlug.EFFNETB0,
             transport=httpx.MockTransport(handler),
         )
 
         result = await client.predict(
-            model_id=model_id,
             image_data=b"data",
             filename="test.jpg",
         )
@@ -53,12 +51,12 @@ class TestModelRuntimeClient:
 
         client = ModelRuntimeClient(
             base_url="http://model-service:8000",
+            model_slug=ModelSlug.EFFNETB0,
             transport=httpx.MockTransport(handler),
         )
 
         with pytest.raises(ServiceUnavailable):
             await client.predict(
-                model_id=uuid4(),
                 image_data=b"data",
                 filename="test.jpg",
             )
@@ -74,12 +72,12 @@ class TestModelRuntimeClient:
 
         client = ModelRuntimeClient(
             base_url="http://model-service:8000",
+            model_slug=ModelSlug.EFFNETB0,
             transport=httpx.MockTransport(handler),
         )
 
         with pytest.raises(UpstreamServiceError):
             await client.predict(
-                model_id=uuid4(),
                 image_data=b"data",
                 filename="test.jpg",
             )
@@ -91,12 +89,12 @@ class TestModelRuntimeClient:
 
         client = ModelRuntimeClient(
             base_url="http://model-service:8000",
+            model_slug=ModelSlug.EFFNETB0,
             transport=httpx.MockTransport(handler),
         )
 
         with pytest.raises(UpstreamServiceError):
             await client.predict(
-                model_id=uuid4(),
                 image_data=b"data",
                 filename="test.jpg",
             )

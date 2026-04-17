@@ -151,7 +151,7 @@ class TestServiceDependencies:
         service = get_model_service(
             session=mock_session,
             s3_service=S3Service(),
-            model_runtime_client=None,
+            model_runtime_clients={},
         )
         assert isinstance(service, ModelService)
 
@@ -163,27 +163,31 @@ class TestServiceDependencies:
         service = get_s3_service()
         assert isinstance(service, S3Service)
 
-    def test_get_model_runtime_client_returns_none_without_url(self):
-        """get_model_runtime_client should return None when URL is unset."""
-        from src.core.dependencies import get_model_runtime_client
+    def test_get_model_runtime_clients_returns_empty_map_without_urls(self):
+        """get_model_runtime_clients should return empty map when URLs are unset."""
+        from src.core.dependencies import get_model_runtime_clients
 
         with patch("src.core.dependencies.model_service_settings") as mock_settings:
-            mock_settings.MODEL_SERVICE_URL = None
-            result = get_model_runtime_client()
+            mock_settings.model_service_urls = {}
+            result = get_model_runtime_clients()
 
-        assert result is None
+        assert result == {}
 
-    def test_get_model_runtime_client_builds_client_when_url_set(self):
-        """get_model_runtime_client should build client when URL exists."""
-        from src.core.dependencies import get_model_runtime_client
+    def test_get_model_runtime_clients_builds_clients_when_urls_set(self):
+        """get_model_runtime_clients should build clients when URLs exist."""
+        from src.core.dependencies import get_model_runtime_clients
         from src.services.model_runtime_client import ModelRuntimeClient
 
         with patch("src.core.dependencies.model_service_settings") as mock_settings:
-            mock_settings.MODEL_SERVICE_URL = "http://model-service:8000"
+            mock_settings.model_service_urls = {
+                "effnetb0": "http://effnet-service:8000",
+                "vitb16": "http://vit-service:8000",
+            }
             mock_settings.MODEL_SERVICE_TIMEOUT_SECONDS = 12.5
-            result = get_model_runtime_client()
+            result = get_model_runtime_clients()
 
-        assert isinstance(result, ModelRuntimeClient)
-        assert result is not None
-        assert result.base_url == "http://model-service:8000"
-        assert result.timeout_seconds == 12.5
+        assert isinstance(result["effnetb0"], ModelRuntimeClient)
+        assert isinstance(result["vitb16"], ModelRuntimeClient)
+        assert result["effnetb0"].base_url == "http://effnet-service:8000"
+        assert result["vitb16"].base_url == "http://vit-service:8000"
+        assert result["effnetb0"].timeout_seconds == 12.5

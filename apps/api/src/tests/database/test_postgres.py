@@ -99,6 +99,10 @@ class TestLLMModelModel:
         """LLMModel should have name field."""
         assert "name" in LLMModel.model_fields
 
+    def test_llm_model_has_slug_field(self):
+        """LLMModel should have slug field."""
+        assert "slug" in LLMModel.model_fields
+
     def test_llm_model_has_description_field(self):
         """LLMModel should have description field."""
         assert "description" in LLMModel.model_fields

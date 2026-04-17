@@ -1,11 +1,15 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from src.types.enums import ModelSlug, PredictionMode
+
 
 class BaseModelSchema(BaseModel):
     name: str = Field(max_length=100)
+    slug: str = Field(max_length=50)
     description: str = Field(max_length=100)
     version: str = Field(
         description="Model version",
@@ -32,8 +36,9 @@ class PredictionResponse(BaseModel):
         le=1.0,
         description="Confidence score between 0 and 1.",
     )
-    image_s3_key: str = Field(
+    image_s3_key: str | None = Field(
         description="S3 key where the uploaded image is stored.",
+        default=None,
     )
 
 
@@ -49,3 +54,28 @@ class ModelRuntimePrediction(BaseModel):
         le=1.0,
         description="Confidence score between 0 and 1.",
     )
+
+
+class PredictionUploadStatus(BaseModel):
+    """Best-effort image upload status."""
+
+    status: Literal["ok", "error"]
+    image_s3_key: str | None = None
+
+
+class PredictionResultStatus(BaseModel):
+    """Per-model prediction status."""
+
+    status: Literal["ok", "error"]
+    prediction: str | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    error: str | None = None
+
+
+class UnifiedPredictionResponse(BaseModel):
+    """Public prediction envelope for single-model and compare mode."""
+
+    request_id: UUID
+    mode: PredictionMode
+    upload: PredictionUploadStatus
+    results: dict[ModelSlug, PredictionResultStatus]

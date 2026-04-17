@@ -14,6 +14,7 @@ from src.services.model_runtime_client import ModelRuntimeClient
 from src.services.model_service import ModelService
 from src.services.s3_service import S3Service
 from src.services.user_service import UserService
+from src.types.enums import ModelSlug
 from src.utils.token_utils import decode_access_token
 
 # =============================== SESSION ===============================
@@ -97,19 +98,20 @@ S3ServiceDep = Annotated[
 # =============================== MODEL SERVICE ===============================
 
 
-def get_model_runtime_client() -> ModelRuntimeClient | None:
-    if model_service_settings.MODEL_SERVICE_URL is None:
-        return None
+def get_model_runtime_clients() -> dict[ModelSlug, ModelRuntimeClient]:
+    return {
+        slug: ModelRuntimeClient(
+            base_url=base_url,
+            model_slug=slug,
+            timeout_seconds=model_service_settings.MODEL_SERVICE_TIMEOUT_SECONDS,
+        )
+        for slug, base_url in model_service_settings.model_service_urls.items()
+    }
 
-    return ModelRuntimeClient(
-        base_url=model_service_settings.MODEL_SERVICE_URL,
-        timeout_seconds=model_service_settings.MODEL_SERVICE_TIMEOUT_SECONDS,
-    )
 
-
-ModelRuntimeClientDep = Annotated[
-    ModelRuntimeClient | None,
-    Depends(get_model_runtime_client),
+ModelRuntimeClientsDep = Annotated[
+    dict[ModelSlug, ModelRuntimeClient],
+    Depends(get_model_runtime_clients),
 ]
 
 
@@ -117,14 +119,14 @@ ModelRuntimeClientDep = Annotated[
 def get_model_service(
     session: SessionDep,
     s3_service: S3ServiceDep,
-    model_runtime_client: ModelRuntimeClientDep,
+    model_runtime_clients: ModelRuntimeClientsDep,
 ) -> ModelService:
     """Get model service"""
     return ModelService(
         model=LLMModel,
         session=session,
         s3_service=s3_service,
-        model_runtime_client=model_runtime_client,
+        model_runtime_clients=model_runtime_clients,
     )
 
 
