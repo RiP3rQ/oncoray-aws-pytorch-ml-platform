@@ -25,12 +25,17 @@ for (const file of stagedFiles) {
     continue;
   }
 
+  if (normalizedFile.startsWith("apps/model-service/")) {
+    addFile("apps/model-service", normalizedFile);
+    continue;
+  }
+
   unsupportedFiles.push(normalizedFile);
 }
 
 if (unsupportedFiles.length > 0) {
   console.error("ruff pre-commit: unsupported Python file location.");
-  console.error("Expected file under apps/api or apps/pytorch-engine.");
+  console.error("Expected file under apps/api, apps/pytorch-engine, or apps/model-service.");
   printFileList(unsupportedFiles);
   process.exit(1);
 }
