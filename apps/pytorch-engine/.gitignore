@@ -9,3 +9,6 @@ data/*
 
 # Env variables
 .env
+
+# Test fixtures
+tests/fixtures/*
