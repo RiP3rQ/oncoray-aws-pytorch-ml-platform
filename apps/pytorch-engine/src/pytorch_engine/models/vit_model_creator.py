@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import torch.nn as nn
 import torchvision
 
-from pytorch_engine import set_seeds
+from pytorch_engine.utils import set_seeds
 
 logger = logging.getLogger(__name__)
 

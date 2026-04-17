@@ -80,6 +80,35 @@ class EvaluateClassificationModelTests(unittest.TestCase):
         self.assertEqual(metrics["y_true"], [0, 1])
         self.assertEqual(len(metrics["y_pred"]), 2)
 
+    def test_returns_binary_probabilities_and_ranking_metrics(self) -> None:
+        features = torch.tensor(
+            [
+                [3.0, 1.0],
+                [1.0, 3.0],
+                [2.0, 1.0],
+                [1.0, 2.0],
+            ]
+        )
+        labels = torch.tensor([0, 1, 0, 1])
+        dataloader = DataLoader(TensorDataset(features, labels), batch_size=2, shuffle=False)
+
+        model = torch.nn.Linear(2, 2, bias=False)
+        with torch.no_grad():
+            model.weight.copy_(torch.eye(2))
+
+        metrics = evaluate_classification_model(
+            model=model,
+            dataloader=dataloader,
+            class_names=["NORMAL", "PNEUMONIA"],
+            device="cpu",
+        )
+
+        self.assertEqual(metrics["positive_class_index"], 1)
+        self.assertIsNotNone(metrics["y_prob"])
+        self.assertEqual(len(metrics["y_prob"] or []), 4)
+        self.assertAlmostEqual(metrics["auroc"] or 0.0, 1.0, places=6)
+        self.assertAlmostEqual(metrics["average_precision"] or 0.0, 1.0, places=6)
+
 
 class PlotConfusionMatrixTests(unittest.TestCase):
     def test_returns_figure(self) -> None:

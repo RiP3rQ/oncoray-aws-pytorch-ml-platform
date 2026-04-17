@@ -1,5 +1,12 @@
-"""pytorch_engine — PyTorch training and inference utilities."""
+"""pytorch_engine â€” PyTorch training and inference utilities."""
 
+from pytorch_engine.chest_xray_effnet_training import (
+    ChestXrayImageFolderLoaders,
+    ChestXrayTrainingConfig,
+    ChestXrayTrainingRun,
+    build_chest_xray_imagefolder_loaders,
+    run_chest_xray_effnet_training,
+)
 from pytorch_engine.csv_dataset import CSVDataset, create_csv_dataloader
 from pytorch_engine.data_setup import (
     CHEST_XRAY_CLASS_NAMES,
@@ -29,6 +36,7 @@ from pytorch_engine.save_model import (
     upload_model_file_to_huggingface,
 )
 from pytorch_engine.transforms import (
+    get_chest_xray_eval_transform,
     get_chest_xray_train_transform,
     get_simple_train_transform,
     get_train_transform,
@@ -46,10 +54,14 @@ __all__ = [
     "CHEST_XRAY_CLASS_NAMES",
     "CHEST_XRAY_SPLITS",
     "ChestXrayGroupedSplitSummaryRow",
+    "ChestXrayImageFolderLoaders",
+    "ChestXrayTrainingConfig",
+    "ChestXrayTrainingRun",
     "ClassificationMetrics",
     "CrossSplitGroupLeak",
     "DataLoaderResult",
     "accuracy_fn",
+    "build_chest_xray_imagefolder_loaders",
     "create_csv_dataloader",
     "create_dataloader",
     "create_milestone_checkpoint_callback",
@@ -59,8 +71,9 @@ __all__ = [
     "evaluate_classification_model",
     "find_cross_split_duplicate_files",
     "find_cross_split_group_leaks",
-    "get_current_device",
+    "get_chest_xray_eval_transform",
     "get_chest_xray_train_transform",
+    "get_current_device",
     "get_simple_train_transform",
     "get_train_transform",
     "infer_chest_xray_patient_group_id",
@@ -70,10 +83,11 @@ __all__ = [
     "prepare_kaggle_ham10000_dataset",
     "print_train_time",
     "resolve_device",
+    "run_chest_xray_effnet_training",
     "save_model",
     "set_seeds",
-    "split_csv_metadata",
     "SoftTargetCrossEntropyLoss",
+    "split_csv_metadata",
     "summarize_chest_xray_group_splits",
     "summarize_imagefolder_splits",
     "upload_model_file_to_huggingface",

@@ -5,8 +5,10 @@ a :func:`train_model` orchestrator that runs a full training run and returns
 per-epoch metrics.
 """
 
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from contextlib import nullcontext
 from copy import deepcopy
 from typing import Any, TypedDict, cast
@@ -23,6 +25,7 @@ TrainBatchTransform = Callable[
     [torch.Tensor, torch.Tensor],
     tuple[torch.Tensor, torch.Tensor, Callable[[torch.Tensor], float] | None],
 ]
+ValidationMetricsCallback = Callable[[int, torch.nn.Module], Mapping[str, float | None]]
 
 
 def _describe_train_batch_transform(train_batch_transform: TrainBatchTransform | None) -> str | None:
@@ -121,6 +124,46 @@ def _prepare_inputs(
     if use_channels_last and X.ndim == 4:
         X = X.contiguous(memory_format=torch.channels_last)
     return X, y
+
+
+def _resolve_selection_metric_value(
+    *,
+    selection_metric: str,
+    test_result: StepResult,
+    validation_metrics: Mapping[str, float | None] | None,
+) -> float:
+    """Return numeric metric value used for best-model selection."""
+    if selection_metric == "loss":
+        return float(test_result["loss"])
+    if selection_metric == "accuracy":
+        return float(test_result["accuracy"])
+    if validation_metrics is None or selection_metric not in validation_metrics:
+        raise ValueError(
+            f"selection_metric '{selection_metric}' requires validation_metrics_callback "
+            "or a metric available in test_result."
+        )
+
+    metric_value = validation_metrics[selection_metric]
+    if metric_value is None:
+        raise ValueError(f"selection_metric '{selection_metric}' resolved to None for current epoch.")
+    return float(metric_value)
+
+
+def _is_metric_improvement(
+    *,
+    current_value: float,
+    best_value: float | None,
+    selection_mode: str,
+    min_delta: float,
+) -> bool:
+    """Return True when *current_value* beats *best_value* by configured margin."""
+    if best_value is None:
+        return True
+    if selection_mode == "min":
+        return current_value < (best_value - min_delta)
+    if selection_mode == "max":
+        return current_value > (best_value + min_delta)
+    raise ValueError("selection_mode must be either 'min' or 'max'")
 
 
 # ---------------------------------------------------------------------------
@@ -436,6 +479,9 @@ def train_model(
     early_stopping_patience: int | None = 5,
     early_stopping_min_delta: float = 0.0,
     train_batch_transform: TrainBatchTransform | None = None,
+    validation_metrics_callback: ValidationMetricsCallback | None = None,
+    selection_metric: str = "loss",
+    selection_mode: str = "min",
 ) -> TrainResult:
     """Train and evaluate a model for multiple epochs.
 
@@ -467,10 +513,16 @@ def train_model(
         use_channels_last: Enable channels-last memory format for CUDA conv nets.
         early_stopping_patience: Number of consecutive non-improving epochs to
             tolerate before stopping. Set to ``None`` to disable early stopping.
-        early_stopping_min_delta: Minimum required decrease in test loss to
-            count as an improvement for early stopping.
+        early_stopping_min_delta: Minimum improvement required for the selected
+            validation metric before it resets early stopping.
         train_batch_transform: Optional training-only batch transform such as
             MixUp. Validation/test data stays unchanged.
+        validation_metrics_callback: Optional callback that computes extra
+            validation metrics from the current model after each epoch.
+        selection_metric: Metric name used for best-model restore and early
+            stopping. Defaults to ``"loss"`` for backward compatibility.
+        selection_mode: Whether lower (``"min"``) or higher (``"max"``)
+            values indicate improvement for ``selection_metric``.
 
     Returns:
         A :class:`TrainResult` dict with per-epoch metric lists.
@@ -541,12 +593,16 @@ def train_model(
     best_test_loss: float | None = None
     best_epoch: int | None = None
     best_model_state: dict[str, Any] | None = None
+    best_selection_value: float | None = None
     epochs_without_improvement = 0
+    resolved_early_stopping_patience = early_stopping_patience
 
-    if early_stopping_enabled and early_stopping_patience < 1:
+    if early_stopping_enabled and resolved_early_stopping_patience is not None and resolved_early_stopping_patience < 1:
         raise ValueError("early_stopping_patience must be >= 1 or None")
     if early_stopping_min_delta < 0:
         raise ValueError("early_stopping_min_delta must be >= 0")
+    if selection_mode not in {"min", "max"}:
+        raise ValueError("selection_mode must be either 'min' or 'max'")
 
     for epoch_idx in tqdm(range(epochs), desc="Epochs"):
         epoch = epoch_idx + 1
@@ -576,6 +632,14 @@ def train_model(
             amp_dtype=amp_dtype,
             use_channels_last=resolved_use_channels_last,
         )
+        validation_metrics = (
+            validation_metrics_callback(epoch, base_model) if validation_metrics_callback is not None else None
+        )
+        current_selection_value = _resolve_selection_metric_value(
+            selection_metric=selection_metric,
+            test_result=test_result,
+            validation_metrics=validation_metrics,
+        )
 
         if lr_scheduler is not None:
             _step_lr_scheduler(
@@ -599,6 +663,12 @@ def train_model(
             acc_gap,
             current_lr,
         )
+        if validation_metrics is not None:
+            logger.info(
+                "Epoch %d validation metrics - %s",
+                epoch,
+                {name: value for name, value in validation_metrics.items() if value is not None},
+            )
         logger.debug(
             "Epoch %d train metrics - loss=%.4f accuracy=%.4f",
             epoch,
@@ -612,8 +682,14 @@ def train_model(
         results["test_acc"].append(test_result["accuracy"])
 
         if early_stopping_enabled:
-            if best_test_loss is None or test_result["loss"] < (best_test_loss - early_stopping_min_delta):
+            if _is_metric_improvement(
+                current_value=current_selection_value,
+                best_value=best_selection_value,
+                selection_mode=selection_mode,
+                min_delta=early_stopping_min_delta,
+            ):
                 best_test_loss = test_result["loss"]
+                best_selection_value = current_selection_value
                 best_epoch = epoch
                 best_model_state = deepcopy(base_model.state_dict())
                 epochs_without_improvement = 0
@@ -626,19 +702,30 @@ def train_model(
             except Exception as error:  # pragma: no cover - callback runtime dependent
                 logger.warning("Epoch-end callback failed at epoch %d: %s", epoch, error)
 
-        if early_stopping_enabled and epochs_without_improvement >= early_stopping_patience:
+        if (
+            early_stopping_enabled
+            and resolved_early_stopping_patience is not None
+            and epochs_without_improvement >= resolved_early_stopping_patience
+        ):
             logger.info(
-                "Early stopping at epoch %d/%d - best test_loss=%.4f at epoch %d",
+                "Early stopping at epoch %d/%d - best %s=%.4f at epoch %d",
                 epoch,
                 epochs,
-                best_test_loss,
+                selection_metric,
+                best_selection_value if best_selection_value is not None else float("nan"),
                 best_epoch,
             )
             break
 
     if early_stopping_enabled and best_model_state is not None and best_epoch is not None:
         base_model.load_state_dict(best_model_state)
-        logger.info("Restored best model weights from epoch %d (test_loss=%.4f).", best_epoch, best_test_loss)
+        logger.info(
+            "Restored best model weights from epoch %d (%s=%.4f, test_loss=%.4f).",
+            best_epoch,
+            selection_metric,
+            best_selection_value if best_selection_value is not None else float("nan"),
+            best_test_loss if best_test_loss is not None else float("nan"),
+        )
 
     logger.info("Training complete - %d epochs finished", len(results["train_loss"]))
     return results

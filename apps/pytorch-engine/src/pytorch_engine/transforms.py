@@ -72,11 +72,13 @@ def get_chest_xray_train_transform(
     normalize_mean: list[float] | None = None,
     normalize_std: list[float] | None = None,
     interpolation: transforms.InterpolationMode = DEFAULT_INTERPOLATION,
-    rotation_degrees: float = 7.0,
+    rotation_degrees: float = 5.0,
     translate: tuple[float, float] = (0.02, 0.02),
     scale: tuple[float, float] = (0.95, 1.05),
-    brightness: float = 0.08,
-    contrast: float = 0.12,
+    brightness: float = 0.05,
+    contrast: float = 0.08,
+    affine_probability: float = 0.7,
+    jitter_probability: float = 0.3,
 ) -> transforms.Compose:
     """Training transform tuned for chest X-ray transfer learning.
 
@@ -99,7 +101,7 @@ def get_chest_xray_train_transform(
                         fill=0,
                     )
                 ],
-                p=0.8,
+                p=affine_probability,
             ),
             transforms.RandomApply(
                 [
@@ -110,8 +112,29 @@ def get_chest_xray_train_transform(
                         hue=0.0,
                     )
                 ],
-                p=0.35,
+                p=jitter_probability,
             ),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=normalize_mean if normalize_mean is not None else IMAGENET_MEAN,
+                std=normalize_std if normalize_std is not None else IMAGENET_STD,
+            ),
+        ]
+    )
+
+
+def get_chest_xray_eval_transform(
+    image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
+    resize_size: tuple[int, int] = (256, 256),
+    normalize_mean: list[float] | None = None,
+    normalize_std: list[float] | None = None,
+    interpolation: transforms.InterpolationMode = DEFAULT_INTERPOLATION,
+) -> transforms.Compose:
+    """Deterministic evaluation transform for chest X-ray classification."""
+    return transforms.Compose(
+        [
+            transforms.Resize(resize_size, interpolation=interpolation, antialias=True),
+            transforms.CenterCrop(image_size),
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=normalize_mean if normalize_mean is not None else IMAGENET_MEAN,

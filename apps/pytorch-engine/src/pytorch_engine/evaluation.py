@@ -10,9 +10,11 @@ import numpy as np
 import torch
 from sklearn.metrics import (
     accuracy_score,
+    average_precision_score,
     balanced_accuracy_score,
     confusion_matrix,
     precision_recall_fscore_support,
+    roc_auc_score,
 )
 from torch.utils.data import DataLoader
 
@@ -28,6 +30,8 @@ class ClassificationMetrics(TypedDict):
     macro_precision: float
     macro_recall: float
     weighted_f1: float
+    auroc: float | None
+    average_precision: float | None
     class_names: list[str]
     per_class_precision: dict[str, float]
     per_class_recall: dict[str, float]
@@ -35,8 +39,19 @@ class ClassificationMetrics(TypedDict):
     per_class_support: dict[str, int]
     confusion_matrix: list[list[int]]
     normalized_confusion_matrix: list[list[float]]
+    positive_class_index: int | None
+    y_prob: list[float] | None
     y_true: list[int]
     y_pred: list[int]
+
+
+def _resolve_positive_class_index(class_names: list[str]) -> int | None:
+    """Return positive-class index for binary classification metrics."""
+    if len(class_names) != 2:
+        return None
+    if "PNEUMONIA" in class_names:
+        return class_names.index("PNEUMONIA")
+    return 1
 
 
 def _autocast_context(
@@ -139,6 +154,8 @@ def evaluate_classification_model(
 
     true_batches: list[torch.Tensor] = []
     pred_batches: list[torch.Tensor] = []
+    prob_batches: list[torch.Tensor] = []
+    positive_class_index = _resolve_positive_class_index(class_names)
 
     with torch.inference_mode():
         for X, y in dataloader:
@@ -156,11 +173,15 @@ def evaluate_classification_model(
                 use_channels_last=use_channels_last,
             )
 
+            if positive_class_index is not None:
+                probabilities = torch.softmax(logits, dim=1)[:, positive_class_index].cpu()
+                prob_batches.append(probabilities)
             pred_batches.append(logits.argmax(dim=1).cpu())
             true_batches.append(y.cpu())
 
     y_true = torch.cat(true_batches).numpy()
     y_pred = torch.cat(pred_batches).numpy()
+    y_prob = torch.cat(prob_batches).numpy() if prob_batches else None
 
     labels = list(range(len(class_names)))
     per_class_precision, per_class_recall, per_class_f1, per_class_support = precision_recall_fscore_support(
@@ -192,6 +213,16 @@ def evaluate_classification_model(
         out=np.zeros_like(raw_confusion, dtype=np.float64),
         where=row_sums != 0,
     )
+    auroc: float | None = None
+    average_precision: float | None = None
+    if y_prob is not None:
+        try:
+            auroc = float(roc_auc_score(y_true, y_prob))
+            average_precision = float(average_precision_score(y_true, y_prob))
+        except ValueError:
+            # Small or pathological validation folds can contain one class only.
+            auroc = None
+            average_precision = None
 
     return ClassificationMetrics(
         accuracy=float(accuracy_score(y_true, y_pred)),
@@ -200,6 +231,8 @@ def evaluate_classification_model(
         macro_precision=float(macro_precision),
         macro_recall=float(macro_recall),
         weighted_f1=float(weighted_f1),
+        auroc=auroc,
+        average_precision=average_precision,
         class_names=class_names,
         per_class_precision={
             class_name: float(value) for class_name, value in zip(class_names, per_class_precision, strict=True)
@@ -213,6 +246,8 @@ def evaluate_classification_model(
         },
         confusion_matrix=raw_confusion.astype(int).tolist(),
         normalized_confusion_matrix=normalized_confusion.tolist(),
+        positive_class_index=positive_class_index,
+        y_prob=y_prob.astype(float).tolist() if y_prob is not None else None,
         y_true=y_true.astype(int).tolist(),
         y_pred=y_pred.astype(int).tolist(),
     )

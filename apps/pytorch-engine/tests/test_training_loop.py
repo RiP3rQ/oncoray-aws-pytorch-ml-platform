@@ -202,6 +202,54 @@ class TrainModelSchedulerTests(unittest.TestCase):
         self.assertEqual(mock_scheduler_step.call_args_list[1].args, (0.7,))
 
 
+class TrainModelSelectionMetricTests(unittest.TestCase):
+    @patch("pytorch_engine.training_loop.test_step")
+    @patch("pytorch_engine.training_loop.train_step")
+    def test_restores_best_epoch_using_validation_metric_callback(
+        self,
+        mock_train_step: Any,
+        mock_test_step: Any,
+    ) -> None:
+        features = torch.zeros((1, 1))
+        labels = torch.zeros((1,), dtype=torch.long)
+        dataloader = DataLoader(TensorDataset(features, labels), batch_size=1, shuffle=False)
+
+        model = torch.nn.Linear(1, 1, bias=False)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        loss_fn = torch.nn.CrossEntropyLoss()
+
+        validation_aurocs = [0.55, 0.72, 0.63]
+
+        def fake_train_step(*args: object, **kwargs: object) -> dict[str, float]:
+            epoch = cast(int, kwargs["epoch"])
+            patched_model = cast(torch.nn.Linear, kwargs["model"])
+            with torch.no_grad():
+                patched_model.weight.fill_(float(epoch))
+            return {"loss": 1.0 - (0.1 * epoch), "accuracy": 0.0}
+
+        def fake_test_step(*args: object, **kwargs: object) -> dict[str, float]:
+            return {"loss": 0.5, "accuracy": 0.0}
+
+        mock_train_step.side_effect = fake_train_step
+        mock_test_step.side_effect = fake_test_step
+
+        train_model(
+            model=model,
+            train_dataloader=dataloader,
+            test_dataloader=dataloader,
+            optimizer=optimizer,
+            loss_fn=loss_fn,
+            epochs=3,
+            device="cpu",
+            validation_metrics_callback=lambda epoch, _model: {"auroc": validation_aurocs[epoch - 1]},
+            selection_metric="auroc",
+            selection_mode="max",
+            early_stopping_patience=3,
+        )
+
+        self.assertAlmostEqual(model.weight.item(), 2.0, places=6)
+
+
 class TrainStepBatchNormTests(unittest.TestCase):
     def test_frozen_batchnorm_running_stats_do_not_update(self) -> None:
         features = torch.tensor(

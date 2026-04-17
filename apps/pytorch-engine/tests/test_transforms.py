@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from pytorch_engine.transforms import get_chest_xray_train_transform, get_simple_train_transform
+from pytorch_engine.transforms import (
+    get_chest_xray_eval_transform,
+    get_chest_xray_train_transform,
+    get_simple_train_transform,
+)
 from torchvision import transforms
 
 
@@ -54,6 +58,8 @@ class ChestXrayTrainTransformTests(unittest.TestCase):
             scale=(0.97, 1.03),
             brightness=0.05,
             contrast=0.07,
+            affine_probability=0.7,
+            jitter_probability=0.3,
         )
 
         self.assertIsInstance(transform, transforms.Compose)
@@ -77,8 +83,37 @@ class ChestXrayTrainTransformTests(unittest.TestCase):
 
         self.assertEqual(resize.size, (256, 256))
         self.assertEqual(crop.size, (224, 224))
-        self.assertEqual(affine_apply.p, 0.8)
-        self.assertEqual(jitter_apply.p, 0.35)
+        self.assertEqual(affine_apply.p, 0.7)
+        self.assertEqual(jitter_apply.p, 0.3)
+        self.assertEqual(normalize.mean, [0.1, 0.2, 0.3])
+        self.assertEqual(normalize.std, [0.4, 0.5, 0.6])
+
+    def test_builds_deterministic_eval_pipeline(self) -> None:
+        transform = get_chest_xray_eval_transform(
+            image_size=(224, 224),
+            resize_size=(256, 256),
+            normalize_mean=[0.1, 0.2, 0.3],
+            normalize_std=[0.4, 0.5, 0.6],
+            interpolation=transforms.InterpolationMode.BILINEAR,
+        )
+
+        self.assertIsInstance(transform, transforms.Compose)
+        self.assertEqual(
+            [type(step).__name__ for step in transform.transforms],
+            [
+                "Resize",
+                "CenterCrop",
+                "ToTensor",
+                "Normalize",
+            ],
+        )
+
+        resize = transform.transforms[0]
+        crop = transform.transforms[1]
+        normalize = transform.transforms[-1]
+
+        self.assertEqual(resize.size, (256, 256))
+        self.assertEqual(crop.size, (224, 224))
         self.assertEqual(normalize.mean, [0.1, 0.2, 0.3])
         self.assertEqual(normalize.std, [0.4, 0.5, 0.6])
 
