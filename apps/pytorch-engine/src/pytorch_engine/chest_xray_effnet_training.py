@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,6 +18,8 @@ from pytorch_engine.models import create_effnetb0_model
 from pytorch_engine.training_loop import StepResult, TrainResult, train_model
 from pytorch_engine.transforms import get_chest_xray_eval_transform, get_chest_xray_train_transform
 from pytorch_engine.utils import resolve_device, set_seeds
+
+EpochEndCallback = Callable[[int, torch.nn.Module, StepResult, StepResult], None]
 
 
 @dataclass
@@ -65,6 +68,7 @@ class ChestXrayTrainingConfig:
     positive_class_name: str = "PNEUMONIA"
     selection_metric: str = "auroc"
     selection_mode: str = "max"
+    fine_tune_epoch_end_callback: EpochEndCallback | None = None
 
     def __post_init__(self) -> None:
         if self.batch_size < 1:
@@ -349,6 +353,26 @@ def run_chest_xray_effnet_training(
         ) -> None:
             _save_checkpoint(callback_model, last_checkpoint_path)
 
+        def combined_epoch_end_callback(
+            epoch: int,
+            callback_model: torch.nn.Module,
+            train_result: StepResult,
+            test_result: StepResult,
+        ) -> None:
+            save_last_checkpoint_callback(
+                epoch,
+                callback_model,
+                train_result,
+                test_result,
+            )
+            if config.fine_tune_epoch_end_callback is not None:
+                config.fine_tune_epoch_end_callback(
+                    epoch,
+                    callback_model,
+                    train_result,
+                    test_result,
+                )
+
         fine_tune_results = train_model(
             model=model,
             train_dataloader=dataloaders.train_dataloader,
@@ -357,7 +381,7 @@ def run_chest_xray_effnet_training(
             loss_fn=loss_fn,
             epochs=config.fine_tune_epochs,
             device=config.device,
-            epoch_end_callback=save_last_checkpoint_callback,
+            epoch_end_callback=combined_epoch_end_callback,
             compile_model=config.compile_model,
             compile_mode=config.compile_mode,
             use_amp=config.use_amp,
