@@ -10,6 +10,7 @@ from uuid import uuid4
 from PIL import Image
 from pytorch_engine.data_setup import (
     create_dataloader,
+    download_and_prepare_kaggle_chest_xray_pneumonia_dataset,
     find_cross_split_duplicate_files,
     find_cross_split_group_leaks,
     infer_chest_xray_patient_group_id,
@@ -74,6 +75,20 @@ class CreateDataloaderTests(unittest.TestCase):
 
         self.assertEqual(result["class_names"], ["NORMAL"])
         self.assertFalse(result["dataloader"].pin_memory)
+
+
+class DownloadAndPrepareChestXrayDatasetTests(unittest.TestCase):
+    def test_skips_download_when_dataset_already_prepared(self) -> None:
+        with _workspace_tmp_dir() as root:
+            for split_name in ("train", "val", "test"):
+                for class_name in ("NORMAL", "PNEUMONIA"):
+                    _write_image(root / split_name / class_name / f"{split_name.lower()}_{class_name.lower()}.png")
+
+            with patch("pytorch_engine.data_setup.download_with_curl") as mocked_download:
+                dataset_root = download_and_prepare_kaggle_chest_xray_pneumonia_dataset(destination=root)
+
+        self.assertEqual(dataset_root, root)
+        mocked_download.assert_not_called()
 
 
 class FindCrossSplitDuplicateFilesTests(unittest.TestCase):
