@@ -1,4 +1,4 @@
-"""pytorch_engine â€” PyTorch training and inference utilities."""
+"""PyTorch training and inference utilities for vision experiments."""
 
 from pytorch_engine.chest_xray_effnet_training import (
     ChestXrayImageFolderLoaders,
@@ -6,6 +6,14 @@ from pytorch_engine.chest_xray_effnet_training import (
     ChestXrayTrainingRun,
     build_chest_xray_imagefolder_loaders,
     run_chest_xray_effnet_training,
+)
+from pytorch_engine.chest_xray_vit_training import (
+    ChestXrayVitImageFolderLoaders,
+    ChestXrayVitTrainingConfig,
+    ChestXrayVitTrainingRun,
+    OptimizerGroupSummary,
+    build_chest_xray_vit_imagefolder_loaders,
+    run_chest_xray_vit_training,
 )
 from pytorch_engine.csv_dataset import CSVDataset, create_csv_dataloader
 from pytorch_engine.data_setup import (
@@ -57,11 +65,18 @@ __all__ = [
     "ChestXrayImageFolderLoaders",
     "ChestXrayTrainingConfig",
     "ChestXrayTrainingRun",
+    "ChestXrayVitImageFolderLoaders",
+    "ChestXrayVitTrainingConfig",
+    "ChestXrayVitTrainingRun",
     "ClassificationMetrics",
     "CrossSplitGroupLeak",
     "DataLoaderResult",
+    "MixUpBatchTransform",
+    "OptimizerGroupSummary",
+    "SoftTargetCrossEntropyLoss",
     "accuracy_fn",
     "build_chest_xray_imagefolder_loaders",
+    "build_chest_xray_vit_imagefolder_loaders",
     "create_csv_dataloader",
     "create_dataloader",
     "create_milestone_checkpoint_callback",
@@ -77,16 +92,15 @@ __all__ = [
     "get_simple_train_transform",
     "get_train_transform",
     "infer_chest_xray_patient_group_id",
-    "MixUpBatchTransform",
     "prepare_grouped_chest_xray_pneumonia_dataset",
     "prepare_kaggle_chest_xray_pneumonia_dataset",
     "prepare_kaggle_ham10000_dataset",
     "print_train_time",
     "resolve_device",
     "run_chest_xray_effnet_training",
+    "run_chest_xray_vit_training",
     "save_model",
     "set_seeds",
-    "SoftTargetCrossEntropyLoss",
     "split_csv_metadata",
     "summarize_chest_xray_group_splits",
     "summarize_imagefolder_splits",
