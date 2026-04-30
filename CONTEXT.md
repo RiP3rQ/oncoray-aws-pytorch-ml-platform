@@ -29,6 +29,7 @@ _Avoid_: model service, prediction endpoint
 - A **Prediction** is produced from exactly one uploaded chest X-ray.
 - A **Prediction** may contain results from one or more **Model Runtimes**.
 - A **Chest X-ray Upload** is validated before any **Model Runtime** scores it.
+- **Chest X-ray Upload** validation is owned by **Prediction Orchestration** intake, not by **Model Runtimes**.
 - **Prediction Orchestration** selects one or more **Model Runtimes** for exactly one **Chest X-ray Upload**.
 - The **Model Catalog** is read-only metadata; it does not produce a **Prediction**.
 
