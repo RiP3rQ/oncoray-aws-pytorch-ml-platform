@@ -1,5 +1,4 @@
-import asyncio
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,12 +10,12 @@ from src.intake.chest_xray_upload import ChestXrayUpload
 from src.schemas.model_schemas import (
     ModelRead,
     PredictionResponse,
-    PredictionResultStatus,
     PredictionUploadStatus,
     UnifiedPredictionResponse,
 )
 from src.services.base import BaseService
 from src.services.model_runtime_client import ModelRuntimeClient
+from src.services.prediction_orchestration import PredictionOrchestration
 from src.services.s3_service import S3Service
 from src.types.enums import ModelSlug, PredictionMode
 
@@ -104,34 +103,12 @@ class ModelService(BaseService):
         mode: PredictionMode,
         upload: ChestXrayUpload,
     ) -> UnifiedPredictionResponse:
-        """Run public prediction flow for one or both internal model-services."""
-        request_id = uuid4()
-        upload_task = asyncio.create_task(self._upload_image_best_effort(upload))
-
-        if mode == PredictionMode.BOTH:
-            effnet_task = asyncio.create_task(self._predict_single_result(ModelSlug.EFFNETB0, upload))
-            vit_task = asyncio.create_task(self._predict_single_result(ModelSlug.VITB16, upload))
-            effnet_result, vit_result = await asyncio.gather(effnet_task, vit_task)
-            upload_status = await upload_task
-            return UnifiedPredictionResponse(
-                request_id=request_id,
-                mode=mode,
-                upload=upload_status,
-                results={
-                    ModelSlug.EFFNETB0: effnet_result,
-                    ModelSlug.VITB16: vit_result,
-                },
-            )
-
-        slug = ModelSlug(mode.value)
-        result = await self._predict_single_result(slug, upload)
-        upload_status = await upload_task
-        return UnifiedPredictionResponse(
-            request_id=request_id,
-            mode=mode,
-            upload=upload_status,
-            results={slug: result},
+        """Run public Prediction Orchestration."""
+        orchestration = PredictionOrchestration(
+            s3_service=self.s3_service,
+            model_runtime_clients=self.model_runtime_clients,
         )
+        return await orchestration.predict(mode=mode, upload=upload)
 
     def _to_model_read(self, model: LLMModel) -> ModelRead:
         return ModelRead(
@@ -155,30 +132,6 @@ class ModelService(BaseService):
         if runtime_client is None:
             raise ServiceUnavailable(f"Model-service for '{slug}' is not configured.")
         return runtime_client
-
-    async def _predict_single_result(
-        self,
-        slug: ModelSlug,
-        upload: ChestXrayUpload,
-    ) -> PredictionResultStatus:
-        try:
-            prediction = await self._get_runtime_client(slug).predict(
-                image_data=upload.data,
-                filename=upload.filename,
-            )
-        except ServiceUnavailable as exc:
-            logger.warning("Prediction failed for slug=%s: %s", slug, exc.detail)
-            return PredictionResultStatus(status="error", error=exc.detail)
-        except Exception as exc:
-            logger.warning("Prediction failed for slug=%s", slug, exc_info=True)
-            detail = getattr(exc, "detail", "Prediction failed.")
-            return PredictionResultStatus(status="error", error=detail)
-
-        return PredictionResultStatus(
-            status="ok",
-            prediction=prediction.prediction,
-            confidence=prediction.confidence,
-        )
 
     async def _upload_image_best_effort(
         self,

@@ -16,16 +16,24 @@ _Avoid_: model-service, backend model
 The uploaded PNG, JPG, or WEBP chest X-ray image submitted for a Prediction, before any Model Runtime scores it.
 _Avoid_: image blob, uploaded image, file
 
+**Prediction Orchestration**:
+The API-owned workflow that turns one Chest X-ray Upload and one requested prediction mode into one public Prediction.
+_Avoid_: model service, prediction service, inference flow
+
 ## Relationships
 
 - A **Prediction** is produced from exactly one uploaded chest X-ray.
 - A **Prediction** may contain results from one or more **Model Runtimes**.
 - A **Chest X-ray Upload** is validated before any **Model Runtime** scores it.
+- **Prediction Orchestration** selects one or more **Model Runtimes** for exactly one **Chest X-ray Upload**.
 
 ## Example dialogue
 
 > **Dev:** "Should the frontend type its **Prediction** from the internal runtime payload?"
 > **Domain expert:** "No. The API owns the public **Prediction** contract; each **Model Runtime** only contributes one internal result."
+>
+> **Dev:** "Should model catalog reads live inside **Prediction Orchestration**?"
+> **Domain expert:** "No. **Prediction Orchestration** only coordinates scoring and upload persistence for a requested **Prediction**."
 
 ## Flagged ambiguities
 
