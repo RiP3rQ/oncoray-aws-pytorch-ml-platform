@@ -145,14 +145,9 @@ class TestServiceDependencies:
         """get_model_service should return a ModelService instance."""
         from src.core.dependencies import get_model_service
         from src.services.model_service import ModelService
-        from src.services.s3_service import S3Service
 
         mock_session = MagicMock()
-        service = get_model_service(
-            session=mock_session,
-            s3_service=S3Service(),
-            model_runtime_clients={},
-        )
+        service = get_model_service(session=mock_session)
         assert isinstance(service, ModelService)
 
     def test_get_s3_service(self):
@@ -191,3 +186,11 @@ class TestServiceDependencies:
         assert result["effnetb0"].base_url == "http://effnet-service:8000"
         assert result["vitb16"].base_url == "http://vit-service:8000"
         assert result["effnetb0"].timeout_seconds == 12.5
+
+    def test_get_model_runtime_routing(self):
+        """get_model_runtime_routing should return a ModelRuntimeRouting instance."""
+        from src.core.dependencies import get_model_runtime_routing
+        from src.services.model_runtime_routing import ModelRuntimeRouting
+
+        service = get_model_runtime_routing(model_runtime_clients={})
+        assert isinstance(service, ModelRuntimeRouting)

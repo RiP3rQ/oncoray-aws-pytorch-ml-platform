@@ -3,11 +3,10 @@ from __future__ import annotations
 import asyncio
 from uuid import uuid4
 
-from src.core.errors import ServiceUnavailable
 from src.core.logger import get_logger
 from src.intake.chest_xray_upload import ChestXrayUpload
-from src.schemas.model_schemas import PredictionResultStatus, PredictionUploadStatus, UnifiedPredictionResponse
-from src.services.model_runtime_client import ModelRuntimeClient
+from src.schemas.model_schemas import PredictionUploadStatus, UnifiedPredictionResponse
+from src.services.model_runtime_routing import ModelRuntimeRouting
 from src.services.s3_service import S3Service
 from src.types.enums import ModelSlug, PredictionMode
 
@@ -20,10 +19,10 @@ class PredictionOrchestration:
     def __init__(
         self,
         s3_service: S3Service,
-        model_runtime_clients: dict[ModelSlug, ModelRuntimeClient] | None = None,
+        model_runtime_routing: ModelRuntimeRouting,
     ) -> None:
         self.s3_service = s3_service
-        self.model_runtime_clients = model_runtime_clients or {}
+        self.model_runtime_routing = model_runtime_routing
 
     async def predict(
         self,
@@ -33,9 +32,7 @@ class PredictionOrchestration:
         request_id = uuid4()
         slugs = _slugs_for_mode(mode)
         upload_task = asyncio.create_task(self._upload_image_best_effort(upload))
-        result_tasks = {slug: asyncio.create_task(self._predict_single_result(slug, upload)) for slug in slugs}
-
-        results = {slug: await result_task for slug, result_task in result_tasks.items()}
+        results = await self.model_runtime_routing.predict(slugs=slugs, upload=upload)
         upload_status = await upload_task
 
         return UnifiedPredictionResponse(
@@ -43,36 +40,6 @@ class PredictionOrchestration:
             mode=mode,
             upload=upload_status,
             results=results,
-        )
-
-    def _get_runtime_client(self, slug: ModelSlug) -> ModelRuntimeClient:
-        runtime_client = self.model_runtime_clients.get(slug)
-        if runtime_client is None:
-            raise ServiceUnavailable(f"Model Runtime for '{slug}' is not configured.")
-        return runtime_client
-
-    async def _predict_single_result(
-        self,
-        slug: ModelSlug,
-        upload: ChestXrayUpload,
-    ) -> PredictionResultStatus:
-        try:
-            prediction = await self._get_runtime_client(slug).predict(
-                image_data=upload.data,
-                filename=upload.filename,
-            )
-        except ServiceUnavailable as exc:
-            logger.warning("Prediction failed for slug=%s: %s", slug, exc.detail)
-            return PredictionResultStatus(status="error", error=exc.detail)
-        except Exception as exc:
-            logger.warning("Prediction failed for slug=%s", slug, exc_info=True)
-            detail = getattr(exc, "detail", "Prediction failed.")
-            return PredictionResultStatus(status="error", error=detail)
-
-        return PredictionResultStatus(
-            status="ok",
-            prediction=prediction.prediction,
-            confidence=prediction.confidence,
         )
 
     async def _upload_image_best_effort(
