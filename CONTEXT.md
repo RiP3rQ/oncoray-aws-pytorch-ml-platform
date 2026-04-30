@@ -20,12 +20,17 @@ _Avoid_: image blob, uploaded image, file
 The API-owned workflow that turns one Chest X-ray Upload and one requested prediction mode into one public Prediction.
 _Avoid_: model service, prediction service, inference flow
 
+**Model Catalog**:
+The API-owned read model describing available Model Runtimes and their display metadata.
+_Avoid_: model service, prediction endpoint
+
 ## Relationships
 
 - A **Prediction** is produced from exactly one uploaded chest X-ray.
 - A **Prediction** may contain results from one or more **Model Runtimes**.
 - A **Chest X-ray Upload** is validated before any **Model Runtime** scores it.
 - **Prediction Orchestration** selects one or more **Model Runtimes** for exactly one **Chest X-ray Upload**.
+- The **Model Catalog** is read-only metadata; it does not produce a **Prediction**.
 
 ## Example dialogue
 
@@ -38,3 +43,4 @@ _Avoid_: model service, prediction service, inference flow
 ## Flagged ambiguities
 
 - "prediction response" was used for both public API payloads and internal runtime payloads; resolved: **Prediction** means the API-owned public contract.
+- `/model/{model_id}/predict` mixed **Model Catalog** identity with **Prediction Orchestration**; resolved: public **Prediction** requests use prediction mode, not model metadata identity.
