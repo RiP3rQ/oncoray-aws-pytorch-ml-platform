@@ -28,6 +28,8 @@ _Avoid_: model service, prediction endpoint
 
 - A **Prediction** is produced from exactly one uploaded chest X-ray.
 - A **Prediction** may contain results from one or more **Model Runtimes**.
+- A **Prediction** can be partially successful: one **Model Runtime** may fail while another contributes a successful result.
+- A **Prediction** can succeed even when **Chest X-ray Upload** persistence fails; upload persistence is best-effort status.
 - A **Chest X-ray Upload** is validated before any **Model Runtime** scores it.
 - **Chest X-ray Upload** validation is owned by **Prediction Orchestration** intake, not by **Model Runtimes**.
 - **Prediction Orchestration** selects one or more **Model Runtimes** for exactly one **Chest X-ray Upload**.
