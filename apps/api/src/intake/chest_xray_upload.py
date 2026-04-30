@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from fastapi import UploadFile
 
-MAX_CHEST_XRAY_UPLOAD_BYTES = 2 * 1024 * 1024
-ACCEPTED_CHEST_XRAY_UPLOAD_CONTENT_TYPES = frozenset(
+DEFAULT_MAX_CHEST_XRAY_UPLOAD_BYTES = 2 * 1024 * 1024
+DEFAULT_ACCEPTED_CHEST_XRAY_UPLOAD_CONTENT_TYPES = frozenset(
     {
         "image/png",
         "image/jpeg",
         "image/webp",
     }
 )
-ACCEPTED_CHEST_XRAY_UPLOAD_EXTENSIONS = frozenset({".png", ".jpg", ".jpeg", ".webp"})
+DEFAULT_ACCEPTED_CHEST_XRAY_UPLOAD_EXTENSIONS = frozenset({".png", ".jpg", ".jpeg", ".webp"})
 
 
 class ChestXrayUploadTooLarge(ValueError):
@@ -22,7 +22,7 @@ class ChestXrayUploadTooLarge(ValueError):
     def __init__(
         self,
         size_bytes: int,
-        max_bytes: int = MAX_CHEST_XRAY_UPLOAD_BYTES,
+        max_bytes: int = DEFAULT_MAX_CHEST_XRAY_UPLOAD_BYTES,
     ) -> None:
         self.size_bytes = size_bytes
         self.max_bytes = max_bytes
@@ -39,6 +39,35 @@ class ChestXrayUploadUnsupportedType(ValueError):
 
 
 @dataclass(frozen=True)
+class ChestXrayUploadPolicy:
+    """Validation policy for a Chest X-ray Upload."""
+
+    max_bytes: int = DEFAULT_MAX_CHEST_XRAY_UPLOAD_BYTES
+    accepted_content_types: frozenset[str] = field(
+        default_factory=lambda: DEFAULT_ACCEPTED_CHEST_XRAY_UPLOAD_CONTENT_TYPES
+    )
+    accepted_extensions: frozenset[str] = field(default_factory=lambda: DEFAULT_ACCEPTED_CHEST_XRAY_UPLOAD_EXTENSIONS)
+
+    def validate(self, *, size_bytes: int, content_type: str | None, filename: str) -> None:
+        if size_bytes > self.max_bytes:
+            raise ChestXrayUploadTooLarge(size_bytes, self.max_bytes)
+        if not self.is_supported_image_type(content_type=content_type, filename=filename):
+            raise ChestXrayUploadUnsupportedType(content_type=content_type, filename=filename)
+
+    def is_supported_image_type(self, *, content_type: str | None, filename: str) -> bool:
+        normalized_content_type = content_type.lower().split(";", 1)[0].strip() if content_type else None
+        if normalized_content_type:
+            return normalized_content_type in self.accepted_content_types
+        return Path(filename).suffix.lower() in self.accepted_extensions
+
+
+DEFAULT_CHEST_XRAY_UPLOAD_POLICY = ChestXrayUploadPolicy()
+MAX_CHEST_XRAY_UPLOAD_BYTES = DEFAULT_CHEST_XRAY_UPLOAD_POLICY.max_bytes
+ACCEPTED_CHEST_XRAY_UPLOAD_CONTENT_TYPES = DEFAULT_CHEST_XRAY_UPLOAD_POLICY.accepted_content_types
+ACCEPTED_CHEST_XRAY_UPLOAD_EXTENSIONS = DEFAULT_CHEST_XRAY_UPLOAD_POLICY.accepted_extensions
+
+
+@dataclass(frozen=True)
 class ChestXrayUpload:
     """Validated Chest X-ray Upload ready for Prediction orchestration."""
 
@@ -46,21 +75,13 @@ class ChestXrayUpload:
     filename: str
 
     @classmethod
-    async def from_upload_file(cls, upload_file: UploadFile) -> ChestXrayUpload:
+    async def from_upload_file(
+        cls,
+        upload_file: UploadFile,
+        policy: ChestXrayUploadPolicy = DEFAULT_CHEST_XRAY_UPLOAD_POLICY,
+    ) -> ChestXrayUpload:
         data = await upload_file.read()
-        if len(data) > MAX_CHEST_XRAY_UPLOAD_BYTES:
-            raise ChestXrayUploadTooLarge(len(data))
-
         filename = upload_file.filename or "upload.jpg"
-        content_type = upload_file.content_type
-        if not _is_supported_image_type(content_type=content_type, filename=filename):
-            raise ChestXrayUploadUnsupportedType(content_type=content_type, filename=filename)
+        policy.validate(size_bytes=len(data), content_type=upload_file.content_type, filename=filename)
 
         return cls(data=data, filename=filename)
-
-
-def _is_supported_image_type(content_type: str | None, filename: str) -> bool:
-    normalized_content_type = content_type.lower().split(";", 1)[0].strip() if content_type else None
-    if normalized_content_type:
-        return normalized_content_type in ACCEPTED_CHEST_XRAY_UPLOAD_CONTENT_TYPES
-    return Path(filename).suffix.lower() in ACCEPTED_CHEST_XRAY_UPLOAD_EXTENSIONS

@@ -7,10 +7,12 @@ import {
   useState,
 } from "react";
 import * as api from "@/lib/api";
+import {
+  CHEST_XRAY_UPLOAD_ACCEPT_ATTRIBUTE,
+  validateChestXrayUploadDraft,
+} from "@/lib/chest-xray-upload";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 function formatFileSize(size: number) {
   if (size < 1024 * 1024) {
@@ -58,8 +60,9 @@ export default function ImageDropzone({
 
     onPrediction(null);
 
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      setError("Use a PNG, JPG, or WEBP image.");
+    const validation = validateChestXrayUploadDraft(file);
+    if (!validation.ok) {
+      setError(validation.message);
       return;
     }
 
@@ -175,7 +178,7 @@ export default function ImageDropzone({
           ref={inputRef}
           id={inputId}
           type="file"
-          accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+          accept={CHEST_XRAY_UPLOAD_ACCEPT_ATTRIBUTE}
           className="sr-only"
           onChange={onInputChange}
         />
