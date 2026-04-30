@@ -1,29 +1,21 @@
 """
-Tests for ModelService - Model Catalog reads.
+Tests for ModelCatalog reads.
 """
 
-import sys
 from datetime import UTC, datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
 
-# Add project root to Python path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 from src.core.errors import EntityNotFound
 from src.database.postgres import LLMModel
 from src.schemas.model_schemas import ModelRead
-from src.services.model_service import ModelService
+from src.services.model_catalog import ModelCatalog
 
 
 @pytest.fixture
 def mock_session():
-    """Create a mock AsyncSession for unit tests."""
     session = AsyncMock()
     session.get = AsyncMock()
     session.execute = AsyncMock()
@@ -32,7 +24,6 @@ def mock_session():
 
 @pytest.fixture
 def fake_model():
-    """Create a fake LLMModel instance."""
     model = MagicMock(spec=LLMModel)
     model.id = uuid4()
     model.name = "EffNetB0"
@@ -45,26 +36,20 @@ def fake_model():
 
 
 @pytest.fixture
-def model_service(mock_session):
-    """Create a ModelService instance with mocked dependencies."""
-    return ModelService(
-        model=LLMModel,
-        session=mock_session,
-    )
+def model_catalog(mock_session):
+    return ModelCatalog(session=mock_session)
 
 
-class TestGetAllModels:
-    """Tests for ModelService.get_all."""
-
+class TestListModels:
     @pytest.mark.asyncio
-    async def test_get_all_returns_model_reads(self, model_service, mock_session, fake_model):
+    async def test_list_models_returns_model_reads(self, model_catalog, mock_session, fake_model):
         mock_result = MagicMock()
         mock_scalars = MagicMock()
         mock_scalars.all.return_value = [fake_model]
         mock_result.scalars.return_value = mock_scalars
         mock_session.execute.return_value = mock_result
 
-        result = await model_service.get_all()
+        result = await model_catalog.list_models()
 
         assert isinstance(result, list)
         assert len(result) == 1
@@ -73,27 +58,24 @@ class TestGetAllModels:
         assert result[0].slug == "effnetb0"
 
     @pytest.mark.asyncio
-    async def test_get_all_empty_list(self, model_service, mock_session):
+    async def test_list_models_returns_empty_list(self, model_catalog, mock_session):
         mock_result = MagicMock()
         mock_scalars = MagicMock()
         mock_scalars.all.return_value = []
         mock_result.scalars.return_value = mock_scalars
         mock_session.execute.return_value = mock_result
 
-        result = await model_service.get_all()
+        result = await model_catalog.list_models()
 
-        assert isinstance(result, list)
-        assert len(result) == 0
+        assert result == []
 
 
-class TestGetModelById:
-    """Tests for ModelService.get."""
-
+class TestGetModel:
     @pytest.mark.asyncio
-    async def test_get_returns_model_read(self, model_service, mock_session, fake_model):
+    async def test_get_model_returns_model_read(self, model_catalog, mock_session, fake_model):
         mock_session.get.return_value = fake_model
 
-        result = await model_service.get(fake_model.id)
+        result = await model_catalog.get_model(fake_model.id)
 
         assert isinstance(result, ModelRead)
         assert result.id == fake_model.id
@@ -101,8 +83,8 @@ class TestGetModelById:
         assert result.slug == "effnetb0"
 
     @pytest.mark.asyncio
-    async def test_get_raises_entity_not_found(self, model_service, mock_session):
+    async def test_get_model_raises_entity_not_found(self, model_catalog, mock_session):
         mock_session.get.return_value = None
 
         with pytest.raises(EntityNotFound):
-            await model_service.get(uuid4())
+            await model_catalog.get_model(uuid4())

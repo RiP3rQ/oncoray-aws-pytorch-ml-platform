@@ -80,16 +80,16 @@ class MockUserService:
         pass
 
 
-class MockModelService:
-    """Mock ModelService for testing."""
+class MockModelCatalog:
+    """Mock ModelCatalog for testing."""
 
     def __init__(self, models: list[MagicMock] | None = None):
         self._models = models or [create_fake_model()]
 
-    async def get_all(self) -> list:
+    async def list_models(self) -> list:
         return self._models
 
-    async def get(self, model_id) -> MagicMock:
+    async def get_model(self, model_id) -> MagicMock:
         for m in self._models:
             if str(m.id) == str(model_id):
                 return m
@@ -206,9 +206,9 @@ def mock_user_service(mock_user):
 
 
 @pytest.fixture
-def mock_model_service(mock_models):
-    """Create a mock model service."""
-    return MockModelService(models=mock_models)
+def mock_model_catalog(mock_models):
+    """Create a mock Model Catalog."""
+    return MockModelCatalog(models=mock_models)
 
 
 @pytest.fixture
@@ -223,11 +223,11 @@ def mock_prediction_orchestration():
 
 
 @pytest.fixture
-def app(mock_session, mock_user_service, mock_model_service, mock_prediction_orchestration):
+def app(mock_session, mock_user_service, mock_model_catalog, mock_prediction_orchestration):
     """Create a FastAPI test app with mocked dependencies."""
     from main import app as main_app
 
-    from src.core.dependencies import get_model_service, get_prediction_orchestration, get_user_service
+    from src.core.dependencies import get_model_catalog, get_prediction_orchestration, get_user_service
     from src.database.session import get_session
 
     # Override FastAPI dependencies (bypass real DB/service wiring)
@@ -236,7 +236,7 @@ def app(mock_session, mock_user_service, mock_model_service, mock_prediction_orc
 
     main_app.dependency_overrides[get_session] = override_get_session
     main_app.dependency_overrides[get_user_service] = lambda: mock_user_service
-    main_app.dependency_overrides[get_model_service] = lambda: mock_model_service
+    main_app.dependency_overrides[get_model_catalog] = lambda: mock_model_catalog
     main_app.dependency_overrides[get_prediction_orchestration] = lambda: mock_prediction_orchestration
 
     # Patch real I/O calls that would hang without running services.

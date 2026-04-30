@@ -141,14 +141,14 @@ class TestServiceDependencies:
         service = get_user_service(session=mock_session)
         assert isinstance(service, UserService)
 
-    def test_get_model_service(self):
-        """get_model_service should return a ModelService instance."""
-        from src.core.dependencies import get_model_service
-        from src.services.model_service import ModelService
+    def test_get_model_catalog(self):
+        """get_model_catalog should return a ModelCatalog instance."""
+        from src.core.dependencies import get_model_catalog
+        from src.services.model_catalog import ModelCatalog
 
         mock_session = MagicMock()
-        service = get_model_service(session=mock_session)
-        assert isinstance(service, ModelService)
+        catalog = get_model_catalog(session=mock_session)
+        assert isinstance(catalog, ModelCatalog)
 
     def test_get_s3_service(self):
         """get_s3_service should return an S3Service instance."""

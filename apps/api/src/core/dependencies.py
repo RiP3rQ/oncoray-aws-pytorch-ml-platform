@@ -7,12 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import model_service_settings, s3_settings
 from src.core.errors import ClientNotAuthorized, InvalidToken
 from src.core.security import oauth2_scheme_user
-from src.database.postgres import LLMModel, User
+from src.database.postgres import User
 from src.database.redis import is_jti_blacklisted
 from src.database.session import get_session
+from src.services.model_catalog import ModelCatalog
 from src.services.model_runtime_client import ModelRuntimeClient
 from src.services.model_runtime_pool import ModelRuntimePool
-from src.services.model_service import ModelService
 from src.services.prediction_orchestration import PredictionOrchestration
 from src.services.s3_service import S3Service
 from src.services.user_service import UserService
@@ -97,7 +97,7 @@ S3ServiceDep = Annotated[
     Depends(get_s3_service),
 ]
 
-# =============================== MODEL SERVICE ===============================
+# =============================== MODEL CATALOG ===============================
 
 
 def get_model_runtime_clients() -> dict[ModelSlug, ModelRuntimeClient]:
@@ -129,21 +129,15 @@ ModelRuntimePoolDep = Annotated[
 ]
 
 
-# Get model service
-def get_model_service(
+def get_model_catalog(
     session: SessionDep,
-) -> ModelService:
-    """Get model service"""
-    return ModelService(
-        model=LLMModel,
-        session=session,
-    )
+) -> ModelCatalog:
+    return ModelCatalog(session=session)
 
 
-# Model service dep annotation
-ModelServiceDep = Annotated[
-    ModelService,
-    Depends(get_model_service),
+ModelCatalogDep = Annotated[
+    ModelCatalog,
+    Depends(get_model_catalog),
 ]
 
 

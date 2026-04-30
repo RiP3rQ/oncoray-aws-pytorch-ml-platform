@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, Path, Query, UploadFile, status
 
-from src.core.dependencies import ModelServiceDep, PredictionOrchestrationDep
+from src.core.dependencies import ModelCatalogDep, PredictionOrchestrationDep
 from src.core.logger import get_logger
 from src.intake.chest_xray_upload import ChestXrayUpload, ChestXrayUploadTooLarge, ChestXrayUploadUnsupportedType
 from src.schemas.model_schemas import ModelRead, UnifiedPredictionResponse
@@ -18,23 +18,23 @@ logger = get_logger(__name__)
 # GET /model/ - list all models
 # ---------------------------------------------------------------------------
 @router.get("/", response_model=list[ModelRead])
-async def get_all_models(service: ModelServiceDep) -> list[ModelRead]:
-    """Get all models from the database."""
-    logger.info("Received request to list all models")
-    return await service.get_all()
+async def list_model_catalog(catalog: ModelCatalogDep) -> list[ModelRead]:
+    """List Model Catalog items."""
+    logger.info("Received request to list Model Catalog")
+    return await catalog.list_models()
 
 
 # ---------------------------------------------------------------------------
 # GET /model/{model_id} - get a single model by id
 # ---------------------------------------------------------------------------
 @router.get("/{model_id}", response_model=ModelRead)
-async def get_model_by_id(
+async def get_model_catalog_item(
     model_id: Annotated[UUID, Path(..., description="The UUID of the model")],
-    service: ModelServiceDep,
+    catalog: ModelCatalogDep,
 ) -> ModelRead:
-    """Get a model by id."""
-    logger.info("Received model request for model_id=%s", model_id)
-    return await service.get(model_id)
+    """Get a Model Catalog item by id."""
+    logger.info("Received Model Catalog request for model_id=%s", model_id)
+    return await catalog.get_model(model_id)
 
 
 @public_router.post("/predict", response_model=UnifiedPredictionResponse)
