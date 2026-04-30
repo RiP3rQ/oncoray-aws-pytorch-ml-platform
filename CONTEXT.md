@@ -12,10 +12,15 @@ _Avoid_: inference response, model-service response
 A deployed classifier that can score an uploaded chest X-ray for one model slug.
 _Avoid_: model-service, backend model
 
+**Chest X-ray Upload**:
+The uploaded chest X-ray image submitted for a Prediction, before any Model Runtime scores it.
+_Avoid_: image blob, uploaded image, file
+
 ## Relationships
 
 - A **Prediction** is produced from exactly one uploaded chest X-ray.
 - A **Prediction** may contain results from one or more **Model Runtimes**.
+- A **Chest X-ray Upload** is validated before any **Model Runtime** scores it.
 
 ## Example dialogue
 

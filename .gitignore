@@ -10,6 +10,17 @@ coverage
 playwright-report
 blob-report
 test-results
+.pytest_cache/
+**/.pytest_cache/
+pytest-cache-files-*/
+**/pytest-cache-files-*/
+.coverage
+.ruff_cache/
+**/.ruff_cache/
+.mypy_cache/
+**/.mypy_cache/
+__pycache__/
+**/__pycache__/
 
 # next.js
 .next/
@@ -26,6 +37,11 @@ build
 *.tfstate.*
 crash.log
 infra/terraform/environments/prod/outputs.json
+tmp/
+**/tmp/
+.uv-cache/
+.venv/
+**/.venv/
 
 # debug
 npm-debug.log*
@@ -36,6 +52,7 @@ yarn-error.log*
 .coverage
 
 # local env files
+.env
 .env.local
 .env.development.local
 .env.test.local
