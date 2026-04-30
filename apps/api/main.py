@@ -20,7 +20,7 @@ Core API for the PyTorch Model
 ### LLM Model
 - Get all LLM models
 - Get an LLM model by ID
-- Run prediction on an image using the LLM model
+- Run public chest X-ray Prediction by mode
 
 ### User - CRUD operations + auth flow
 """

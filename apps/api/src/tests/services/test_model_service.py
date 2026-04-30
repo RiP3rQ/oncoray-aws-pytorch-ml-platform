@@ -1,5 +1,5 @@
 """
-Tests for ModelService - getting models and orchestrating predictions.
+Tests for ModelService - Model Catalog reads.
 """
 
 import sys
@@ -15,14 +15,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.core.errors import EntityNotFound, ServiceUnavailable
+from src.core.errors import EntityNotFound
 from src.database.postgres import LLMModel
-from src.intake.chest_xray_upload import ChestXrayUpload
-from src.schemas.model_schemas import ModelRead, PredictionResponse, UnifiedPredictionResponse
-from src.services.model_runtime_client import ModelRuntimeClient
+from src.schemas.model_schemas import ModelRead
 from src.services.model_service import ModelService
-from src.services.s3_service import S3Service
-from src.types.enums import ModelSlug, PredictionMode
 
 
 @pytest.fixture
@@ -32,32 +28,6 @@ def mock_session():
     session.get = AsyncMock()
     session.execute = AsyncMock()
     return session
-
-
-@pytest.fixture
-def mock_s3_service():
-    """Create a mock S3Service."""
-    s3 = MagicMock(spec=S3Service)
-    s3.upload_chest_xray = AsyncMock(return_value="predictions/test-uuid.jpg")
-    return s3
-
-
-@pytest.fixture
-def mock_runtime_client():
-    """Create a mock runtime client."""
-    runtime = MagicMock(spec=ModelRuntimeClient)
-    runtime.predict = AsyncMock(return_value=MagicMock(prediction="cat", confidence=0.95))
-    return runtime
-
-
-@pytest.fixture
-def mock_runtime_clients(mock_runtime_client):
-    vit_client = MagicMock(spec=ModelRuntimeClient)
-    vit_client.predict = AsyncMock(return_value=MagicMock(prediction="pneumonia", confidence=0.87))
-    return {
-        ModelSlug.EFFNETB0: mock_runtime_client,
-        ModelSlug.VITB16: vit_client,
-    }
 
 
 @pytest.fixture
@@ -75,18 +45,11 @@ def fake_model():
 
 
 @pytest.fixture
-def chest_xray_upload():
-    return ChestXrayUpload(data=b"fake_image_data", filename="test.jpg")
-
-
-@pytest.fixture
-def model_service(mock_session, mock_s3_service, mock_runtime_clients):
+def model_service(mock_session):
     """Create a ModelService instance with mocked dependencies."""
     return ModelService(
         model=LLMModel,
         session=mock_session,
-        s3_service=mock_s3_service,
-        model_runtime_clients=mock_runtime_clients,
     )
 
 
@@ -143,132 +106,3 @@ class TestGetModelById:
 
         with pytest.raises(EntityNotFound):
             await model_service.get(uuid4())
-
-
-class TestPredictWithImage:
-    """Tests for ModelService.predict_with_image."""
-
-    @pytest.mark.asyncio
-    async def test_predict_with_image_success(
-        self,
-        model_service,
-        mock_session,
-        mock_s3_service,
-        mock_runtime_clients,
-        fake_model,
-        chest_xray_upload,
-    ):
-        mock_session.get.return_value = fake_model
-
-        result = await model_service.predict_with_image(
-            model_id=fake_model.id,
-            upload=chest_xray_upload,
-        )
-
-        assert isinstance(result, PredictionResponse)
-        assert result.prediction == "cat"
-        assert result.confidence == 0.95
-        assert result.model_id == fake_model.id
-        mock_runtime_clients[ModelSlug.EFFNETB0].predict.assert_called_once_with(
-            image_data=b"fake_image_data",
-            filename="test.jpg",
-        )
-        mock_s3_service.upload_chest_xray.assert_called_once_with(chest_xray_upload)
-
-    @pytest.mark.asyncio
-    async def test_predict_with_image_model_not_found(self, model_service, mock_session, chest_xray_upload):
-        mock_session.get.return_value = None
-        model_id = uuid4()
-
-        with pytest.raises(EntityNotFound):
-            await model_service.predict_with_image(
-                model_id=model_id,
-                upload=chest_xray_upload,
-            )
-
-    @pytest.mark.asyncio
-    async def test_predict_with_image_requires_runtime_client(
-        self, mock_session, mock_s3_service, fake_model, chest_xray_upload
-    ):
-        service = ModelService(
-            model=LLMModel,
-            session=mock_session,
-            s3_service=mock_s3_service,
-            model_runtime_clients={},
-        )
-        mock_session.get.return_value = fake_model
-
-        with pytest.raises(ServiceUnavailable):
-            await service.predict_with_image(
-                model_id=fake_model.id,
-                upload=chest_xray_upload,
-            )
-
-    @pytest.mark.asyncio
-    async def test_predict_public_single_model(self, model_service, mock_s3_service, chest_xray_upload):
-        result = await model_service.predict(
-            mode=PredictionMode.EFFNETB0,
-            upload=chest_xray_upload,
-        )
-
-        assert isinstance(result, UnifiedPredictionResponse)
-        assert result.mode == PredictionMode.EFFNETB0
-        assert result.upload.status == "ok"
-        assert result.results[ModelSlug.EFFNETB0].status == "ok"
-        assert result.results[ModelSlug.EFFNETB0].prediction == "cat"
-        mock_s3_service.upload_chest_xray.assert_called_once_with(chest_xray_upload)
-
-    @pytest.mark.asyncio
-    async def test_predict_public_both_models_parallel_result_map(self, model_service, chest_xray_upload):
-        result = await model_service.predict(
-            mode=PredictionMode.BOTH,
-            upload=chest_xray_upload,
-        )
-
-        assert result.mode == PredictionMode.BOTH
-        assert result.results[ModelSlug.EFFNETB0].status == "ok"
-        assert result.results[ModelSlug.VITB16].status == "ok"
-
-    @pytest.mark.asyncio
-    async def test_predict_public_partial_success_when_one_model_fails(
-        self,
-        mock_session,
-        mock_s3_service,
-        mock_runtime_clients,
-        chest_xray_upload,
-    ):
-        mock_runtime_clients[ModelSlug.VITB16].predict.side_effect = ServiceUnavailable("timeout")
-        service = ModelService(
-            model=LLMModel,
-            session=mock_session,
-            s3_service=mock_s3_service,
-            model_runtime_clients=mock_runtime_clients,
-        )
-
-        result = await service.predict(
-            mode=PredictionMode.BOTH,
-            upload=chest_xray_upload,
-        )
-
-        assert result.results[ModelSlug.EFFNETB0].status == "ok"
-        assert result.results[ModelSlug.VITB16].status == "error"
-        assert result.results[ModelSlug.VITB16].error == "timeout"
-
-    @pytest.mark.asyncio
-    async def test_predict_with_image_s3_failure_is_best_effort(
-        self,
-        model_service,
-        mock_session,
-        mock_s3_service,
-        fake_model,
-        chest_xray_upload,
-    ):
-        mock_session.get.return_value = fake_model
-        mock_s3_service.upload_chest_xray.side_effect = RuntimeError("s3 down")
-
-        result = await model_service.predict_with_image(
-            model_id=fake_model.id,
-            upload=chest_xray_upload,
-        )
-
-        assert result.image_s3_key is None

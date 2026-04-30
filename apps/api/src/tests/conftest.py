@@ -97,20 +97,8 @@ class MockModelService:
 
         raise EntityNotFound(f"Model '{model_id}' was not found.")
 
-    async def predict_with_image(self, model_id, upload) -> dict:
-        from src.core.errors import EntityNotFound
 
-        for model in self._models:
-            if str(model.id) == str(model_id):
-                return {
-                    "model_id": model.id,
-                    "prediction": "cat",
-                    "confidence": 0.95,
-                    "image_s3_key": f"predictions/{uuid4()}.jpg",
-                }
-
-        raise EntityNotFound(f"Model '{model_id}' was not found.")
-
+class MockPredictionOrchestration:
     async def predict(self, mode, upload) -> dict:
         result_map = {}
         if mode in {"effnetb0", "both"}:
@@ -223,17 +211,23 @@ def mock_model_service(mock_models):
     return MockModelService(models=mock_models)
 
 
+@pytest.fixture
+def mock_prediction_orchestration():
+    """Create a mock Prediction Orchestration."""
+    return MockPredictionOrchestration()
+
+
 # =============================================================================
 # App Fixture
 # =============================================================================
 
 
 @pytest.fixture
-def app(mock_session, mock_user_service, mock_model_service):
+def app(mock_session, mock_user_service, mock_model_service, mock_prediction_orchestration):
     """Create a FastAPI test app with mocked dependencies."""
     from main import app as main_app
 
-    from src.core.dependencies import get_model_service, get_user_service
+    from src.core.dependencies import get_model_service, get_prediction_orchestration, get_user_service
     from src.database.session import get_session
 
     # Override FastAPI dependencies (bypass real DB/service wiring)
@@ -243,6 +237,7 @@ def app(mock_session, mock_user_service, mock_model_service):
     main_app.dependency_overrides[get_session] = override_get_session
     main_app.dependency_overrides[get_user_service] = lambda: mock_user_service
     main_app.dependency_overrides[get_model_service] = lambda: mock_model_service
+    main_app.dependency_overrides[get_prediction_orchestration] = lambda: mock_prediction_orchestration
 
     # Patch real I/O calls that would hang without running services.
     # Must patch at the import location (where the name is used), not the

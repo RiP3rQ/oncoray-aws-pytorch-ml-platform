@@ -23,25 +23,6 @@ class ModelRead(BaseModelSchema):
     updated_at: datetime
 
 
-class PredictionResponse(BaseModel):
-    """Response returned after an image prediction."""
-
-    model_id: UUID
-    prediction: str = Field(
-        description="Predicted label returned by model-service.",
-        examples=["cat", "dog"],
-    )
-    confidence: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Confidence score between 0 and 1.",
-    )
-    image_s3_key: str | None = Field(
-        description="S3 key where the uploaded image is stored.",
-        default=None,
-    )
-
-
 class ModelRuntimePrediction(BaseModel):
     """Normalized prediction payload returned by model-service."""
 

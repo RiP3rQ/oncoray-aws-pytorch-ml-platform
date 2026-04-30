@@ -3,10 +3,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, Path, Query, UploadFile, status
 
-from src.core.dependencies import ModelServiceDep
+from src.core.dependencies import ModelServiceDep, PredictionOrchestrationDep
 from src.core.logger import get_logger
 from src.intake.chest_xray_upload import ChestXrayUpload, ChestXrayUploadTooLarge, ChestXrayUploadUnsupportedType
-from src.schemas.model_schemas import ModelRead, PredictionResponse, UnifiedPredictionResponse
+from src.schemas.model_schemas import ModelRead, UnifiedPredictionResponse
 from src.types.enums import APITag, PredictionMode
 
 router = APIRouter(prefix="/model", tags=[APITag.MODEL])
@@ -37,29 +37,9 @@ async def get_model_by_id(
     return await service.get(model_id)
 
 
-# ---------------------------------------------------------------------------
-# POST /model/{model_id}/predict - internal model-service prediction
-# ---------------------------------------------------------------------------
-@router.post("/{model_id}/predict", response_model=PredictionResponse)
-async def predict(
-    model_id: Annotated[UUID, Path(..., description="The UUID of the model")],
-    service: ModelServiceDep,
-    image: Annotated[UploadFile, File(..., description="Image file (max 2 MB)")],
-) -> PredictionResponse:
-    """Run image prediction through the internal model-service."""
-    logger.info("Received prediction request for model_id=%s", model_id)
-
-    upload = await _read_chest_xray_upload(image)
-
-    return await service.predict_with_image(
-        model_id=model_id,
-        upload=upload,
-    )
-
-
 @public_router.post("/predict", response_model=UnifiedPredictionResponse)
 async def predict_public(
-    service: ModelServiceDep,
+    orchestration: PredictionOrchestrationDep,
     model: Annotated[
         PredictionMode,
         Query(..., description="Prediction target: effnetb0, vitb16, or both."),
@@ -69,7 +49,7 @@ async def predict_public(
     """Run public prediction flow against one or both model-services."""
     logger.info("Received public prediction request for mode=%s", model)
     upload = await _read_chest_xray_upload(image)
-    return await service.predict(
+    return await orchestration.predict(
         mode=model,
         upload=upload,
     )

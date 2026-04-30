@@ -12,6 +12,7 @@ from src.database.redis import is_jti_blacklisted
 from src.database.session import get_session
 from src.services.model_runtime_client import ModelRuntimeClient
 from src.services.model_service import ModelService
+from src.services.prediction_orchestration import PredictionOrchestration
 from src.services.s3_service import S3Service
 from src.services.user_service import UserService
 from src.types.enums import ModelSlug
@@ -118,15 +119,11 @@ ModelRuntimeClientsDep = Annotated[
 # Get model service
 def get_model_service(
     session: SessionDep,
-    s3_service: S3ServiceDep,
-    model_runtime_clients: ModelRuntimeClientsDep,
 ) -> ModelService:
     """Get model service"""
     return ModelService(
         model=LLMModel,
         session=session,
-        s3_service=s3_service,
-        model_runtime_clients=model_runtime_clients,
     )
 
 
@@ -134,4 +131,20 @@ def get_model_service(
 ModelServiceDep = Annotated[
     ModelService,
     Depends(get_model_service),
+]
+
+
+def get_prediction_orchestration(
+    s3_service: S3ServiceDep,
+    model_runtime_clients: ModelRuntimeClientsDep,
+) -> PredictionOrchestration:
+    return PredictionOrchestration(
+        s3_service=s3_service,
+        model_runtime_clients=model_runtime_clients,
+    )
+
+
+PredictionOrchestrationDep = Annotated[
+    PredictionOrchestration,
+    Depends(get_prediction_orchestration),
 ]

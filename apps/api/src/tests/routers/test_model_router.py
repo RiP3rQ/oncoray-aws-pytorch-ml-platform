@@ -60,50 +60,16 @@ class TestGetModelById:
         assert response.status_code == 404
 
 
-class TestPredictWithImage:
-    """Tests for POST /model/{model_id}/predict"""
+class TestPrediction:
+    """Tests for public Prediction endpoints."""
 
-    def test_predict_with_image(self, client: TestClient, mock_models: list[MagicMock]):
-        """POST /model/{model_id}/predict should return prediction."""
+    def test_model_id_prediction_route_is_removed(self, client: TestClient, mock_models: list[MagicMock]):
+        """POST /model/{model_id}/predict should not exist."""
         model_id = mock_models[0].id
-        image_data = b"fake_image_data"
-        files = {"image": ("test.jpg", BytesIO(image_data), "image/jpeg")}
+        files = {"image": ("test.jpg", BytesIO(b"fake_image_data"), "image/jpeg")}
 
         response = client.post(f"/model/{model_id}/predict", files=files)
-        assert response.status_code == 200
-        data = response.json()
-        assert "model_id" in data
-        assert "prediction" in data
-        assert "confidence" in data
-        assert "image_s3_key" in data
-        assert data["prediction"] == "cat"
-        assert data["confidence"] == 0.95
 
-    def test_predict_with_image_too_large(self, client: TestClient, mock_models: list[MagicMock]):
-        """POST /model/{model_id}/predict with oversized image should return 413."""
-        model_id = mock_models[0].id
-        # Create image data larger than 2MB
-        large_image = b"x" * (3 * 1024 * 1024)
-        files = {"image": ("large.jpg", BytesIO(large_image), "image/jpeg")}
-
-        response = client.post(f"/model/{model_id}/predict", files=files)
-        assert response.status_code == 413
-
-    def test_predict_with_unsupported_image_type(self, client: TestClient, mock_models: list[MagicMock]):
-        """POST /model/{model_id}/predict with unsupported type should return 415."""
-        model_id = mock_models[0].id
-        files = {"image": ("notes.txt", BytesIO(b"not-image"), "text/plain")}
-
-        response = client.post(f"/model/{model_id}/predict", files=files)
-        assert response.status_code == 415
-
-    def test_predict_nonexistent_model_returns_404(self, client: TestClient):
-        """POST /model/{non_existent_id}/predict should return 404."""
-        non_existent_id = uuid4()
-        image_data = b"fake_image_data"
-        files = {"image": ("test.jpg", BytesIO(image_data), "image/jpeg")}
-
-        response = client.post(f"/model/{non_existent_id}/predict", files=files)
         assert response.status_code == 404
 
     def test_public_predict_single_model(self, client: TestClient):
