@@ -64,26 +64,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/model/{model_id}/predict": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Predict
-     * @description Run image prediction through the internal model-service.
-     */
-    post: operations["predict"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/predict": {
     parameters: {
       query?: never;
@@ -212,14 +192,6 @@ export interface components {
       /** Username */
       username: string;
     };
-    /** Body_predict */
-    Body_predict: {
-      /**
-       * Image
-       * @description Image file (max 2 MB)
-       */
-      image: string;
-    };
     /** Body_predict_public */
     Body_predict_public: {
       /**
@@ -276,34 +248,6 @@ export interface components {
      * @enum {string}
      */
     PredictionMode: "effnetb0" | "vitb16" | "both";
-    /**
-     * PredictionResponse
-     * @description Response returned after an image prediction.
-     */
-    PredictionResponse: {
-      /**
-       * Confidence
-       * @description Confidence score between 0 and 1.
-       */
-      confidence: number;
-      /**
-       * Image S3 Key
-       * @description S3 key where the uploaded image is stored.
-       */
-      image_s3_key?: string | null;
-      /**
-       * Model Id
-       * Format: uuid
-       */
-      model_id: string;
-      /**
-       * Prediction
-       * @description Predicted label returned by model-service.
-       * @example cat
-       * @example dog
-       */
-      prediction: string;
-    };
     /**
      * PredictionResultStatus
      * @description Per-model prediction status.
@@ -481,42 +425,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ModelRead"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  predict: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description The UUID of the model */
-        model_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "multipart/form-data": components["schemas"]["Body_predict"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["PredictionResponse"];
         };
       };
       /** @description Validation Error */
