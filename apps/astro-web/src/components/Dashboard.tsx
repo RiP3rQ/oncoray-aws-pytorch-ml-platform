@@ -1,11 +1,10 @@
-import { startTransition, useState } from "react";
 import { AuthProvider } from "@/hooks/useAuth";
+import { usePredictionWorkflow } from "@/hooks/usePredictionWorkflow";
 import AuthGuard from "@/components/AuthGuard";
 import ModelSelector from "@/components/ModelSelector";
 import ImageDropzone from "@/components/ImageDropzone";
 import PredictionResult from "@/components/PredictionResult";
 import { useAuthContext } from "@/lib/auth";
-import type { PredictionMode, UnifiedPredictionResponse } from "@/lib/api";
 
 export default function Dashboard() {
   return (
@@ -17,16 +16,7 @@ export default function Dashboard() {
 
 function DashboardInner() {
   const { user, logout } = useAuthContext();
-  const [selectedMode, setSelectedMode] = useState<PredictionMode | "">("");
-  const [prediction, setPrediction] =
-    useState<UnifiedPredictionResponse | null>(null);
-
-  const handleModelChange = (mode: PredictionMode) => {
-    startTransition(() => {
-      setSelectedMode(mode);
-      setPrediction(null);
-    });
-  };
+  const predictionWorkflow = usePredictionWorkflow();
 
   return (
     <AuthGuard>
@@ -60,16 +50,24 @@ function DashboardInner() {
 
           <section className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200">
             <ModelSelector
-              value={selectedMode}
-              onValueChange={handleModelChange}
+              value={predictionWorkflow.selectedMode}
+              onValueChange={predictionWorkflow.selectMode}
             />
           </section>
 
           <section className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200">
-            <ImageDropzone mode={selectedMode} onPrediction={setPrediction} />
+            <ImageDropzone
+              selectedMode={predictionWorkflow.selectedMode}
+              uploadDraft={predictionWorkflow.uploadDraft}
+              isRunning={predictionWorkflow.isRunning}
+              canRun={predictionWorkflow.canRun}
+              onSelectUpload={predictionWorkflow.selectUpload}
+              onClearUpload={predictionWorkflow.clearUpload}
+              onRunPrediction={predictionWorkflow.runPrediction}
+            />
           </section>
 
-          <PredictionResult prediction={prediction} />
+          <PredictionResult prediction={predictionWorkflow.prediction} />
         </div>
       </div>
     </AuthGuard>

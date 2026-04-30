@@ -1,103 +1,66 @@
 import {
   type ChangeEvent,
   type DragEvent,
-  useEffect,
   useId,
   useRef,
   useState,
 } from "react";
-import * as api from "@/lib/api";
-import {
-  CHEST_XRAY_UPLOAD_ACCEPT_ATTRIBUTE,
-  validateChestXrayUploadDraft,
-} from "@/lib/chest-xray-upload";
+import { CHEST_XRAY_UPLOAD_ACCEPT_ATTRIBUTE } from "@/lib/chest-xray-upload";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-function formatFileSize(size: number) {
-  if (size < 1024 * 1024) {
-    return `${(size / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
+import type { PredictionMode } from "@/lib/api";
+import type {
+  ChestXrayUploadDraft,
+  PredictionRunOutcome,
+} from "@/lib/prediction-workflow";
 
 interface ImageDropzoneProps {
-  mode: api.PredictionMode | "";
-  onPrediction: (result: api.UnifiedPredictionResponse | null) => void;
+  selectedMode: PredictionMode | "";
+  uploadDraft: ChestXrayUploadDraft;
+  isRunning: boolean;
+  canRun: boolean;
+  onSelectUpload: (file: File | undefined) => void;
+  onClearUpload: () => void;
+  onRunPrediction: () => Promise<PredictionRunOutcome>;
 }
 
 export default function ImageDropzone({
-  mode,
-  onPrediction,
+  selectedMode,
+  uploadDraft,
+  isRunning,
+  canRun,
+  onSelectUpload,
+  onClearUpload,
+  onRunPrediction,
 }: ImageDropzoneProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-
-  useEffect(() => {
-    if (!selectedFile) {
-      setPreviewUrl(null);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(selectedFile);
-    setPreviewUrl(objectUrl);
-
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [selectedFile]);
+  const selectedFile = uploadDraft.status === "ready" ? uploadDraft.file : null;
+  const previewUrl =
+    uploadDraft.status === "ready" ? uploadDraft.previewUrl : null;
+  const error = uploadDraft.status === "invalid" ? uploadDraft.message : null;
 
   const applyFile = (file: File | undefined) => {
-    if (!file) {
+    if (isRunning) {
       return;
     }
 
-    onPrediction(null);
-
-    const validation = validateChestXrayUploadDraft(file);
-    if (!validation.ok) {
-      setError(validation.message);
-      return;
-    }
-
-    setSelectedFile(file);
-    setError(null);
+    onSelectUpload(file);
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !mode) {
-      if (!mode) {
-        toast.error("Select a model first.");
-      }
+    const outcome = await onRunPrediction();
+    if (outcome.ok) {
+      toast.success(
+        selectedMode === "both"
+          ? "Compare run complete."
+          : "Prediction complete.",
+      );
       return;
     }
 
-    setUploading(true);
-    try {
-      const result = await api.predict(mode, selectedFile);
-      onPrediction(result);
-      toast.success(
-        mode === "both" ? "Compare run complete." : "Prediction complete.",
-      );
-    } catch (err) {
-      if (err instanceof api.ApiError) {
-        if (err.status === 413) {
-          toast.error("Image exceeds 2 MB limit.");
-        } else {
-          toast.error(err.message || "Prediction failed.");
-        }
-      } else {
-        toast.error("Network error. Try again.");
-      }
-    } finally {
-      setUploading(false);
-    }
+    toast.error(outcome.failure.message);
   };
 
   const onInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -124,24 +87,21 @@ export default function ImageDropzone({
   };
 
   const clearFile = () => {
-    setSelectedFile(null);
-    setError(null);
-    onPrediction(null);
+    onClearUpload();
 
     if (inputRef.current) {
       inputRef.current.value = "";
     }
   };
 
-  const canUpload = Boolean(selectedFile && mode && !uploading);
   const helperTone = error
     ? "error"
-    : !mode && selectedFile
+    : !selectedMode && selectedFile
       ? "warning"
       : "muted";
   const helperMessage = error
     ? error
-    : !mode && selectedFile
+    : !selectedMode && selectedFile
       ? "Select a model before running classification."
       : selectedFile
         ? "Image ready. Review details below and run prediction when ready."
@@ -166,9 +126,9 @@ export default function ImageDropzone({
               : selectedFile
                 ? "border-[var(--color-opencode-success)]"
                 : "border-border hover:border-[var(--color-opencode-border-outline)]",
-          uploading && "opacity-85",
+          isRunning && "opacity-85",
         )}
-        aria-busy={uploading}
+        aria-busy={isRunning}
         aria-describedby={`${inputId}-helper`}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
@@ -179,6 +139,7 @@ export default function ImageDropzone({
           id={inputId}
           type="file"
           accept={CHEST_XRAY_UPLOAD_ACCEPT_ATTRIBUTE}
+          disabled={isRunning}
           className="sr-only"
           onChange={onInputChange}
         />
@@ -234,7 +195,9 @@ export default function ImageDropzone({
             Selected file
           </span>
           <strong className="text-foreground mt-1 block text-sm font-bold [overflow-wrap:anywhere] sm:text-base">
-            {selectedFile?.name ?? "No file selected"}
+            {uploadDraft.status === "ready"
+              ? uploadDraft.displayName
+              : "No file selected"}
           </strong>
         </div>
         <div className="min-w-0 sm:w-32">
@@ -242,13 +205,13 @@ export default function ImageDropzone({
             File size
           </span>
           <strong className="text-foreground mt-1 block text-sm font-bold sm:text-base">
-            {selectedFile ? formatFileSize(selectedFile.size) : "-"}
+            {uploadDraft.status === "ready" ? uploadDraft.displaySize : "-"}
           </strong>
         </div>
         <button
           type="button"
           onClick={clearFile}
-          disabled={!selectedFile || uploading}
+          disabled={!selectedFile || isRunning}
           className="inline-flex min-h-10 items-center justify-center rounded-[4px] border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.08)] px-4 py-1 text-sm font-medium text-[var(--color-opencode-danger)] transition-[border-color,background-color] duration-150 hover:border-[var(--color-opencode-danger)] hover:bg-[rgba(255,59,48,0.15)] disabled:cursor-not-allowed disabled:opacity-50 sm:ml-auto sm:min-w-[9rem]"
         >
           Remove image
@@ -260,10 +223,10 @@ export default function ImageDropzone({
           type="button"
           onClick={handleUpload}
           className="inline-flex min-h-11 w-full items-center justify-center rounded-[4px] bg-[var(--color-opencode-accent-blue)] px-5 py-2 text-base leading-[1.5] font-bold text-white transition-[background-color,color] duration-150 hover:bg-[var(--color-opencode-accent-blue-hover)] active:bg-[var(--color-opencode-accent-blue-active)] disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit sm:min-w-[12rem]"
-          disabled={!canUpload}
-          aria-busy={uploading}
+          disabled={!canRun}
+          aria-busy={isRunning}
         >
-          {uploading ? "Processing..." : "Run prediction"}
+          {isRunning ? "Processing..." : "Run prediction"}
         </button>
 
         <p

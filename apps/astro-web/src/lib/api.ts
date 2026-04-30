@@ -131,6 +131,7 @@ export type PredictionResultStatus =
   components["schemas"]["PredictionResultStatus"];
 export type UnifiedPredictionResponse =
   components["schemas"]["UnifiedPredictionResponse"];
+export type Prediction = UnifiedPredictionResponse;
 
 export function predict(
   mode: PredictionMode,
