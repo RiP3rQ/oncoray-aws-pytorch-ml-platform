@@ -10,7 +10,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 import torchvision
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from torchvision.transforms import InterpolationMode
 
 from src.config import Settings
@@ -140,9 +140,12 @@ class InferenceRuntime:
         )
 
     def predict(self, image_data: bytes) -> PredictionResponse:
-        with Image.open(BytesIO(image_data)) as image:
-            rgb_image = image.convert("RGB")
-            transformed = self.transform(rgb_image)
+        try:
+            with Image.open(BytesIO(image_data)) as image:
+                rgb_image = image.convert("RGB")
+                transformed = self.transform(rgb_image)
+        except UnidentifiedImageError as exc:
+            raise ValueError("Invalid image data.") from exc
 
         if not isinstance(transformed, torch.Tensor):
             raise TypeError("Transform must produce a torch.Tensor.")

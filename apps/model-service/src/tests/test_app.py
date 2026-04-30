@@ -17,6 +17,13 @@ class FixedPredictionRuntime:
         return {"prediction": "NORMAL", "confidence": 0.99}
 
 
+class InvalidImageRuntime:
+    slug = ModelSlug.EFFNETB0
+
+    def predict(self, image_data: bytes):
+        raise ValueError("Invalid image data.")
+
+
 def make_png_bytes() -> bytes:
     buffer = BytesIO()
     Image.new("RGB", (32, 32), color=(240, 240, 240)).save(buffer, format="PNG")
@@ -48,23 +55,24 @@ def test_predict_endpoint_returns_normalized_payload():
         assert response.json() == {"prediction": "NORMAL", "confidence": 0.99}
 
 
-def test_predict_endpoint_rejects_oversized_image():
+def test_predict_endpoint_maps_invalid_image_data_to_bad_request():
+    app = create_app(runtime=InvalidImageRuntime())
+    with TestClient(app) as client:
+        response = client.post(
+            "/predict",
+            files={"image": ("scan.png", b"not-image", "image/png")},
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "Invalid image data."}
+
+
+def test_predict_endpoint_treats_multipart_as_transport_only():
     app = create_app(runtime=FixedPredictionRuntime(ModelSlug.EFFNETB0))
     with TestClient(app) as client:
         response = client.post(
             "/predict",
-            files={"image": ("scan.png", b"x" * (3 * 1024 * 1024), "image/png")},
+            files={"image": ("scan.txt", make_png_bytes(), "text/plain")},
         )
 
-        assert response.status_code == 413
-
-
-def test_predict_endpoint_rejects_unsupported_image_type():
-    app = create_app(runtime=FixedPredictionRuntime(ModelSlug.EFFNETB0))
-    with TestClient(app) as client:
-        response = client.post(
-            "/predict",
-            files={"image": ("scan.txt", b"not-image", "text/plain")},
-        )
-
-        assert response.status_code == 415
+        assert response.status_code == 200

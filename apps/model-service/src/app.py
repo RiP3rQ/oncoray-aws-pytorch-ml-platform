@@ -7,7 +7,6 @@ from typing import Annotated, Any
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
 
 from src.config import Settings, settings
-from src.intake.chest_xray_upload import ChestXrayUpload, ChestXrayUploadTooLarge, ChestXrayUploadUnsupportedType
 from src.runtime import InferenceRuntime
 from src.schemas import PredictionResponse
 
@@ -69,20 +68,7 @@ def create_app(
         image: Annotated[UploadFile, File(..., description="Image file (max 2 MB)")],
     ) -> PredictionResponse:
         try:
-            upload = await ChestXrayUpload.from_upload_file(image)
-        except ChestXrayUploadTooLarge as exc:
-            raise HTTPException(
-                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                detail=str(exc),
-            ) from exc
-        except ChestXrayUploadUnsupportedType as exc:
-            raise HTTPException(
-                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail=str(exc),
-            ) from exc
-
-        try:
-            return get_runtime(app).predict(upload.data)
+            return get_runtime(app).predict(await image.read())
         except HTTPException:
             raise
         except ValueError as exc:
