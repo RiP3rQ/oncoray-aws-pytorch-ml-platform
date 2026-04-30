@@ -15,6 +15,7 @@
     "format": "prettier --write './src/**/*.ts' './src/**/*.astro' '*.ts'",
     "format:check": "prettier --check './src/**/*.ts' './src/**/*.astro' '*.ts'",
     "check-types": "astro check",
+    "test:unit": "bun test src/**/*.test.ts",
     "astro": "astro",
     "test:e2e": "playwright test",
     "test:e2e:debug": "playwright test --debug",

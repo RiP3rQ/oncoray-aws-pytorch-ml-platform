@@ -24,6 +24,10 @@ _Avoid_: model service, prediction service, inference flow
 The API-owned read model describing available Model Runtimes and their display metadata.
 _Avoid_: model service, prediction endpoint
 
+**Prediction Workflow**:
+The frontend-owned user flow for selecting a prediction mode, preparing one Chest X-ray Upload, running a Prediction request, and presenting the latest Prediction.
+_Avoid_: prediction orchestration, inference flow
+
 ## Relationships
 
 - A **Prediction** is produced from exactly one uploaded chest X-ray.
@@ -34,6 +38,7 @@ _Avoid_: model service, prediction endpoint
 - **Chest X-ray Upload** validation is owned by **Prediction Orchestration** intake, not by **Model Runtimes**.
 - **Prediction Orchestration** selects one or more **Model Runtimes** for exactly one **Chest X-ray Upload**.
 - The **Model Catalog** is read-only metadata; it does not produce a **Prediction**.
+- A **Prediction Workflow** calls **Prediction Orchestration**; it does not score **Chest X-ray Uploads** itself.
 
 ## Example dialogue
 
