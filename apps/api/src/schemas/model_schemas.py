@@ -9,7 +9,7 @@ from src.types.enums import ModelSlug, PredictionMode
 
 class BaseModelSchema(BaseModel):
     name: str = Field(max_length=100)
-    slug: str = Field(max_length=50)
+    slug: ModelSlug = Field(max_length=50)
     description: str = Field(max_length=100)
     version: str = Field(
         description="Model version",

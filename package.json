@@ -8,6 +8,9 @@
     "lint:fix": "turbo run lint:fix",
     "check-types": "turbo run check-types",
     "check-types:python": "turbo run check-types --filter=fastapi-core-api --filter=pytorch-engine --filter=model-service",
+    "contract:openapi": "bun run --cwd apps/api openapi:export -- ../../tmp/openapi.json",
+    "contract:generate": "bun run contract:openapi && bunx openapi-typescript tmp/openapi.json -o apps/astro-web/src/lib/generated/api-types.ts",
+    "contract:check": "bun run contract:generate && git diff --exit-code -- apps/astro-web/src/lib/generated/api-types.ts",
     "format": "turbo run format",
     "infra:validate": "terraform -chdir=infra/terraform/environments/prod validate",
     "prod:release": "powershell -ExecutionPolicy Bypass -File infra/scripts/release-prod.ps1",
@@ -19,6 +22,7 @@
   "devDependencies": {
     "husky": "^9.1.0",
     "lint-staged": "^15.5.0",
+    "openapi-typescript": "^7.13.0",
     "prettier": "^3.6.0",
     "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-tailwindcss": "^0.7.1",
