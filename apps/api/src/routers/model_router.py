@@ -5,8 +5,8 @@ from fastapi import APIRouter, File, HTTPException, Path, Query, UploadFile, sta
 
 from src.core.dependencies import ModelServiceDep
 from src.core.logger import get_logger
+from src.intake.chest_xray_upload import ChestXrayUpload, ChestXrayUploadTooLarge
 from src.schemas.model_schemas import ModelRead, PredictionResponse, UnifiedPredictionResponse
-from src.services.s3_service import MAX_IMAGE_SIZE_BYTES
 from src.types.enums import APITag, PredictionMode
 
 router = APIRouter(prefix="/model", tags=[APITag.MODEL])
@@ -49,12 +49,12 @@ async def predict(
     """Run image prediction through the internal model-service."""
     logger.info("Received prediction request for model_id=%s", model_id)
 
-    image_data = await _read_and_validate_image(image)
+    upload = await _read_chest_xray_upload(image)
 
     return await service.predict_with_image(
         model_id=model_id,
-        image_data=image_data,
-        filename=image.filename or "upload.jpg",
+        image_data=upload.data,
+        filename=upload.filename,
     )
 
 
@@ -69,24 +69,19 @@ async def predict_public(
 ) -> UnifiedPredictionResponse:
     """Run public prediction flow against one or both model-services."""
     logger.info("Received public prediction request for mode=%s", model)
-    image_data = await _read_and_validate_image(image)
+    upload = await _read_chest_xray_upload(image)
     return await service.predict(
         mode=model,
-        image_data=image_data,
-        filename=image.filename or "upload.jpg",
+        image_data=upload.data,
+        filename=upload.filename,
     )
 
 
-async def _read_and_validate_image(image: UploadFile) -> bytes:
-    image_data = await image.read()
-
-    if len(image_data) > MAX_IMAGE_SIZE_BYTES:
+async def _read_chest_xray_upload(image: UploadFile) -> ChestXrayUpload:
+    try:
+        return await ChestXrayUpload.from_upload_file(image)
+    except ChestXrayUploadTooLarge as exc:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=(
-                f"Image size {len(image_data)} bytes exceeds the maximum"
-                f" allowed size of {MAX_IMAGE_SIZE_BYTES} bytes (2 MB)."
-            ),
-        )
-
-    return image_data
+            detail=str(exc),
+        ) from exc

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
 
 from src.config import Settings, settings
-from src.runtime import InferenceRuntime, MAX_IMAGE_SIZE_BYTES
+from src.intake.chest_xray_upload import ChestXrayUpload, ChestXrayUploadTooLarge
+from src.runtime import InferenceRuntime
 from src.schemas import PredictionResponse
 
 
@@ -65,20 +66,18 @@ def create_app(
 
     @app.post("/predict", response_model=PredictionResponse)
     async def predict(
-        image: UploadFile = File(..., description="Image file (max 2 MB)"),
+        image: Annotated[UploadFile, File(..., description="Image file (max 2 MB)")],
     ) -> PredictionResponse:
-        image_data = await image.read()
-        if len(image_data) > MAX_IMAGE_SIZE_BYTES:
+        try:
+            upload = await ChestXrayUpload.from_upload_file(image)
+        except ChestXrayUploadTooLarge as exc:
             raise HTTPException(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                detail=(
-                    f"Image size {len(image_data)} bytes exceeds the maximum allowed size of "
-                    f"{MAX_IMAGE_SIZE_BYTES} bytes (2 MB)."
-                ),
-            )
+                detail=str(exc),
+            ) from exc
 
         try:
-            return get_runtime(app).predict(image_data)
+            return get_runtime(app).predict(upload.data)
         except HTTPException:
             raise
         except ValueError as exc:

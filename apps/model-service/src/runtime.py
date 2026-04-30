@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -17,8 +18,6 @@ from src.schemas import PredictionResponse
 from src.types import ModelSlug
 
 logger = logging.getLogger(__name__)
-
-MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -110,7 +109,7 @@ class InferenceRuntime:
     device: torch.device
 
     @classmethod
-    def from_settings(cls, settings: Settings) -> "InferenceRuntime":
+    def from_settings(cls, settings: Settings) -> InferenceRuntime:
         configure_torch_threads(settings.MODEL_NUM_THREADS)
 
         artifact_path = settings.MODEL_ARTIFACT_PATH
@@ -141,11 +140,6 @@ class InferenceRuntime:
         )
 
     def predict(self, image_data: bytes) -> PredictionResponse:
-        if len(image_data) > MAX_IMAGE_SIZE_BYTES:
-            raise ValueError(
-                f"Image size {len(image_data)} bytes exceeds the maximum allowed size of {MAX_IMAGE_SIZE_BYTES} bytes."
-            )
-
         with Image.open(BytesIO(image_data)) as image:
             rgb_image = image.convert("RGB")
             transformed = self.transform(rgb_image)
@@ -194,4 +188,3 @@ def load_state_dict(artifact_path: Path, map_location: torch.device) -> dict[str
                 return nested
 
     raise TypeError(f"Unsupported model artifact payload at {artifact_path}")
-

@@ -7,11 +7,12 @@ from mimetypes import guess_type
 import boto3
 
 from src.core.logger import get_logger
+from src.intake.chest_xray_upload import MAX_CHEST_XRAY_UPLOAD_BYTES
 
 logger = get_logger(__name__)
 
 # Maximum image size: 2 MB
-MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024
+MAX_IMAGE_SIZE_BYTES = MAX_CHEST_XRAY_UPLOAD_BYTES
 
 
 class ImageSizeError(Exception):
