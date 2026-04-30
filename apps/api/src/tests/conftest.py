@@ -97,7 +97,7 @@ class MockModelService:
 
         raise EntityNotFound(f"Model '{model_id}' was not found.")
 
-    async def predict_with_image(self, model_id, image_data: bytes, filename: str) -> dict:
+    async def predict_with_image(self, model_id, upload) -> dict:
         from src.core.errors import EntityNotFound
 
         for model in self._models:
@@ -111,7 +111,7 @@ class MockModelService:
 
         raise EntityNotFound(f"Model '{model_id}' was not found.")
 
-    async def predict(self, mode, image_data: bytes, filename: str) -> dict:
+    async def predict(self, mode, upload) -> dict:
         result_map = {}
         if mode in {"effnetb0", "both"}:
             result_map["effnetb0"] = {

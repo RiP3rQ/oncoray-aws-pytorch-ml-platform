@@ -7,7 +7,7 @@ from typing import Annotated, Any
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
 
 from src.config import Settings, settings
-from src.intake.chest_xray_upload import ChestXrayUpload, ChestXrayUploadTooLarge
+from src.intake.chest_xray_upload import ChestXrayUpload, ChestXrayUploadTooLarge, ChestXrayUploadUnsupportedType
 from src.runtime import InferenceRuntime
 from src.schemas import PredictionResponse
 
@@ -73,6 +73,11 @@ def create_app(
         except ChestXrayUploadTooLarge as exc:
             raise HTTPException(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail=str(exc),
+            ) from exc
+        except ChestXrayUploadUnsupportedType as exc:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail=str(exc),
             ) from exc
 

@@ -6,13 +6,15 @@ from src.intake.chest_xray_upload import (
     MAX_CHEST_XRAY_UPLOAD_BYTES,
     ChestXrayUpload,
     ChestXrayUploadTooLarge,
+    ChestXrayUploadUnsupportedType,
 )
 
 
 class FakeUploadFile:
-    def __init__(self, data: bytes, filename: str | None = "scan.png") -> None:
+    def __init__(self, data: bytes, filename: str | None = "scan.png", content_type: str | None = "image/png") -> None:
         self._data = data
         self.filename = filename
+        self.content_type = content_type
 
     async def read(self) -> bytes:
         return self._data
@@ -40,3 +42,16 @@ async def test_chest_xray_upload_rejects_oversized_data():
 
     assert exc_info.value.size_bytes == MAX_CHEST_XRAY_UPLOAD_BYTES + 1
     assert exc_info.value.max_bytes == MAX_CHEST_XRAY_UPLOAD_BYTES
+
+
+@pytest.mark.asyncio
+async def test_chest_xray_upload_rejects_unsupported_content_type():
+    with pytest.raises(ChestXrayUploadUnsupportedType):
+        await ChestXrayUpload.from_upload_file(FakeUploadFile(b"image-data", "scan.txt", "text/plain"))
+
+
+@pytest.mark.asyncio
+async def test_chest_xray_upload_uses_extension_when_content_type_missing():
+    upload = await ChestXrayUpload.from_upload_file(FakeUploadFile(b"image-data", "scan.webp", None))
+
+    assert upload.filename == "scan.webp"

@@ -17,6 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.core.errors import EntityNotFound, ServiceUnavailable
 from src.database.postgres import LLMModel
+from src.intake.chest_xray_upload import ChestXrayUpload
 from src.schemas.model_schemas import ModelRead, PredictionResponse, UnifiedPredictionResponse
 from src.services.model_runtime_client import ModelRuntimeClient
 from src.services.model_service import ModelService
@@ -37,7 +38,7 @@ def mock_session():
 def mock_s3_service():
     """Create a mock S3Service."""
     s3 = MagicMock(spec=S3Service)
-    s3.upload_image = AsyncMock(return_value="predictions/test-uuid.jpg")
+    s3.upload_chest_xray = AsyncMock(return_value="predictions/test-uuid.jpg")
     return s3
 
 
@@ -71,6 +72,11 @@ def fake_model():
     model.created_at = datetime.now(UTC)
     model.updated_at = datetime.now(UTC)
     return model
+
+
+@pytest.fixture
+def chest_xray_upload():
+    return ChestXrayUpload(data=b"fake_image_data", filename="test.jpg")
 
 
 @pytest.fixture
@@ -150,13 +156,13 @@ class TestPredictWithImage:
         mock_s3_service,
         mock_runtime_clients,
         fake_model,
+        chest_xray_upload,
     ):
         mock_session.get.return_value = fake_model
 
         result = await model_service.predict_with_image(
             model_id=fake_model.id,
-            image_data=b"fake_image_data",
-            filename="test.jpg",
+            upload=chest_xray_upload,
         )
 
         assert isinstance(result, PredictionResponse)
@@ -167,25 +173,23 @@ class TestPredictWithImage:
             image_data=b"fake_image_data",
             filename="test.jpg",
         )
-        mock_s3_service.upload_image.assert_called_once_with(
-            b"fake_image_data",
-            "test.jpg",
-        )
+        mock_s3_service.upload_chest_xray.assert_called_once_with(chest_xray_upload)
 
     @pytest.mark.asyncio
-    async def test_predict_with_image_model_not_found(self, model_service, mock_session):
+    async def test_predict_with_image_model_not_found(self, model_service, mock_session, chest_xray_upload):
         mock_session.get.return_value = None
         model_id = uuid4()
 
         with pytest.raises(EntityNotFound):
             await model_service.predict_with_image(
                 model_id=model_id,
-                image_data=b"fake_image_data",
-                filename="test.jpg",
+                upload=chest_xray_upload,
             )
 
     @pytest.mark.asyncio
-    async def test_predict_with_image_requires_runtime_client(self, mock_session, mock_s3_service, fake_model):
+    async def test_predict_with_image_requires_runtime_client(
+        self, mock_session, mock_s3_service, fake_model, chest_xray_upload
+    ):
         service = ModelService(
             model=LLMModel,
             session=mock_session,
@@ -197,16 +201,14 @@ class TestPredictWithImage:
         with pytest.raises(ServiceUnavailable):
             await service.predict_with_image(
                 model_id=fake_model.id,
-                image_data=b"fake_image_data",
-                filename="test.jpg",
+                upload=chest_xray_upload,
             )
 
     @pytest.mark.asyncio
-    async def test_predict_public_single_model(self, model_service, mock_s3_service):
+    async def test_predict_public_single_model(self, model_service, mock_s3_service, chest_xray_upload):
         result = await model_service.predict(
             mode=PredictionMode.EFFNETB0,
-            image_data=b"fake_image_data",
-            filename="test.jpg",
+            upload=chest_xray_upload,
         )
 
         assert isinstance(result, UnifiedPredictionResponse)
@@ -214,14 +216,13 @@ class TestPredictWithImage:
         assert result.upload.status == "ok"
         assert result.results[ModelSlug.EFFNETB0].status == "ok"
         assert result.results[ModelSlug.EFFNETB0].prediction == "cat"
-        mock_s3_service.upload_image.assert_called_once_with(b"fake_image_data", "test.jpg")
+        mock_s3_service.upload_chest_xray.assert_called_once_with(chest_xray_upload)
 
     @pytest.mark.asyncio
-    async def test_predict_public_both_models_parallel_result_map(self, model_service):
+    async def test_predict_public_both_models_parallel_result_map(self, model_service, chest_xray_upload):
         result = await model_service.predict(
             mode=PredictionMode.BOTH,
-            image_data=b"fake_image_data",
-            filename="test.jpg",
+            upload=chest_xray_upload,
         )
 
         assert result.mode == PredictionMode.BOTH
@@ -234,6 +235,7 @@ class TestPredictWithImage:
         mock_session,
         mock_s3_service,
         mock_runtime_clients,
+        chest_xray_upload,
     ):
         mock_runtime_clients[ModelSlug.VITB16].predict.side_effect = ServiceUnavailable("timeout")
         service = ModelService(
@@ -245,8 +247,7 @@ class TestPredictWithImage:
 
         result = await service.predict(
             mode=PredictionMode.BOTH,
-            image_data=b"fake_image_data",
-            filename="test.jpg",
+            upload=chest_xray_upload,
         )
 
         assert result.results[ModelSlug.EFFNETB0].status == "ok"
@@ -260,14 +261,14 @@ class TestPredictWithImage:
         mock_session,
         mock_s3_service,
         fake_model,
+        chest_xray_upload,
     ):
         mock_session.get.return_value = fake_model
-        mock_s3_service.upload_image.side_effect = RuntimeError("s3 down")
+        mock_s3_service.upload_chest_xray.side_effect = RuntimeError("s3 down")
 
         result = await model_service.predict_with_image(
             model_id=fake_model.id,
-            image_data=b"fake_image_data",
-            filename="test.jpg",
+            upload=chest_xray_upload,
         )
 
         assert result.image_s3_key is None

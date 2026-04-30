@@ -57,3 +57,14 @@ def test_predict_endpoint_rejects_oversized_image():
         )
 
         assert response.status_code == 413
+
+
+def test_predict_endpoint_rejects_unsupported_image_type():
+    app = create_app(runtime=FixedPredictionRuntime(ModelSlug.EFFNETB0))
+    with TestClient(app) as client:
+        response = client.post(
+            "/predict",
+            files={"image": ("scan.txt", b"not-image", "text/plain")},
+        )
+
+        assert response.status_code == 415

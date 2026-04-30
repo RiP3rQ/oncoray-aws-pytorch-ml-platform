@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.errors import EntityNotFound, ServiceUnavailable
 from src.core.logger import get_logger
 from src.database.postgres import LLMModel
+from src.intake.chest_xray_upload import ChestXrayUpload
 from src.schemas.model_schemas import (
     ModelRead,
     PredictionResponse,
@@ -69,8 +70,7 @@ class ModelService(BaseService):
     async def predict_with_image(
         self,
         model_id: UUID,
-        image_data: bytes,
-        filename: str,
+        upload: ChestXrayUpload,
     ) -> PredictionResponse:
         """
         Run prediction through internal model-service.
@@ -82,8 +82,8 @@ class ModelService(BaseService):
         """
         model = await self._get_model_or_raise(model_id)
         runtime_client = self._get_runtime_client(ModelSlug(model.slug))
-        prediction = await runtime_client.predict(image_data=image_data, filename=filename)
-        upload_status = await self._upload_image_best_effort(image_data, filename)
+        prediction = await runtime_client.predict(image_data=upload.data, filename=upload.filename)
+        upload_status = await self._upload_image_best_effort(upload)
 
         logger.info(
             "Prediction for model %s with image %s -> %s (confidence=%.4f)",
@@ -102,16 +102,15 @@ class ModelService(BaseService):
     async def predict(
         self,
         mode: PredictionMode,
-        image_data: bytes,
-        filename: str,
+        upload: ChestXrayUpload,
     ) -> UnifiedPredictionResponse:
         """Run public prediction flow for one or both internal model-services."""
         request_id = uuid4()
-        upload_task = asyncio.create_task(self._upload_image_best_effort(image_data, filename))
+        upload_task = asyncio.create_task(self._upload_image_best_effort(upload))
 
         if mode == PredictionMode.BOTH:
-            effnet_task = asyncio.create_task(self._predict_single_result(ModelSlug.EFFNETB0, image_data, filename))
-            vit_task = asyncio.create_task(self._predict_single_result(ModelSlug.VITB16, image_data, filename))
+            effnet_task = asyncio.create_task(self._predict_single_result(ModelSlug.EFFNETB0, upload))
+            vit_task = asyncio.create_task(self._predict_single_result(ModelSlug.VITB16, upload))
             effnet_result, vit_result = await asyncio.gather(effnet_task, vit_task)
             upload_status = await upload_task
             return UnifiedPredictionResponse(
@@ -125,7 +124,7 @@ class ModelService(BaseService):
             )
 
         slug = ModelSlug(mode.value)
-        result = await self._predict_single_result(slug, image_data, filename)
+        result = await self._predict_single_result(slug, upload)
         upload_status = await upload_task
         return UnifiedPredictionResponse(
             request_id=request_id,
@@ -160,13 +159,12 @@ class ModelService(BaseService):
     async def _predict_single_result(
         self,
         slug: ModelSlug,
-        image_data: bytes,
-        filename: str,
+        upload: ChestXrayUpload,
     ) -> PredictionResultStatus:
         try:
             prediction = await self._get_runtime_client(slug).predict(
-                image_data=image_data,
-                filename=filename,
+                image_data=upload.data,
+                filename=upload.filename,
             )
         except ServiceUnavailable as exc:
             logger.warning("Prediction failed for slug=%s: %s", slug, exc.detail)
@@ -184,13 +182,12 @@ class ModelService(BaseService):
 
     async def _upload_image_best_effort(
         self,
-        image_data: bytes,
-        filename: str,
+        upload: ChestXrayUpload,
     ) -> PredictionUploadStatus:
         try:
-            s3_key = await self.s3_service.upload_image(image_data, filename)
+            s3_key = await self.s3_service.upload_chest_xray(upload)
         except Exception:
-            logger.warning("Image upload failed for filename=%s", filename, exc_info=True)
+            logger.warning("Image upload failed for filename=%s", upload.filename, exc_info=True)
             return PredictionUploadStatus(status="error")
 
         return PredictionUploadStatus(status="ok", image_s3_key=s3_key)

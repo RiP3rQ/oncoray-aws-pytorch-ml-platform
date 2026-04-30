@@ -5,7 +5,7 @@ from fastapi import APIRouter, File, HTTPException, Path, Query, UploadFile, sta
 
 from src.core.dependencies import ModelServiceDep
 from src.core.logger import get_logger
-from src.intake.chest_xray_upload import ChestXrayUpload, ChestXrayUploadTooLarge
+from src.intake.chest_xray_upload import ChestXrayUpload, ChestXrayUploadTooLarge, ChestXrayUploadUnsupportedType
 from src.schemas.model_schemas import ModelRead, PredictionResponse, UnifiedPredictionResponse
 from src.types.enums import APITag, PredictionMode
 
@@ -53,8 +53,7 @@ async def predict(
 
     return await service.predict_with_image(
         model_id=model_id,
-        image_data=upload.data,
-        filename=upload.filename,
+        upload=upload,
     )
 
 
@@ -72,8 +71,7 @@ async def predict_public(
     upload = await _read_chest_xray_upload(image)
     return await service.predict(
         mode=model,
-        image_data=upload.data,
-        filename=upload.filename,
+        upload=upload,
     )
 
 
@@ -83,5 +81,10 @@ async def _read_chest_xray_upload(image: UploadFile) -> ChestXrayUpload:
     except ChestXrayUploadTooLarge as exc:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=str(exc),
+        ) from exc
+    except ChestXrayUploadUnsupportedType as exc:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail=str(exc),
         ) from exc

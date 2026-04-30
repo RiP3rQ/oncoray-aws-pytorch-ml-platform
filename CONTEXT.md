@@ -13,7 +13,7 @@ A deployed classifier that can score an uploaded chest X-ray for one model slug.
 _Avoid_: model-service, backend model
 
 **Chest X-ray Upload**:
-The uploaded chest X-ray image submitted for a Prediction, before any Model Runtime scores it.
+The uploaded PNG, JPG, or WEBP chest X-ray image submitted for a Prediction, before any Model Runtime scores it.
 _Avoid_: image blob, uploaded image, file
 
 ## Relationships

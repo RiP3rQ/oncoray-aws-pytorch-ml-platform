@@ -89,6 +89,14 @@ class TestPredictWithImage:
         response = client.post(f"/model/{model_id}/predict", files=files)
         assert response.status_code == 413
 
+    def test_predict_with_unsupported_image_type(self, client: TestClient, mock_models: list[MagicMock]):
+        """POST /model/{model_id}/predict with unsupported type should return 415."""
+        model_id = mock_models[0].id
+        files = {"image": ("notes.txt", BytesIO(b"not-image"), "text/plain")}
+
+        response = client.post(f"/model/{model_id}/predict", files=files)
+        assert response.status_code == 415
+
     def test_predict_nonexistent_model_returns_404(self, client: TestClient):
         """POST /model/{non_existent_id}/predict should return 404."""
         non_existent_id = uuid4()
@@ -122,3 +130,11 @@ class TestPredictWithImage:
         assert data["mode"] == "both"
         assert "effnetb0" in data["results"]
         assert "vitb16" in data["results"]
+
+    def test_public_predict_unsupported_image_type(self, client: TestClient):
+        """POST /predict with unsupported type should return 415."""
+        files = {"image": ("notes.txt", BytesIO(b"not-image"), "text/plain")}
+
+        response = client.post("/predict?model=effnetb0", files=files)
+
+        assert response.status_code == 415
