@@ -11,7 +11,7 @@ from src.database.postgres import LLMModel, User
 from src.database.redis import is_jti_blacklisted
 from src.database.session import get_session
 from src.services.model_runtime_client import ModelRuntimeClient
-from src.services.model_runtime_routing import ModelRuntimeRouting
+from src.services.model_runtime_pool import ModelRuntimePool
 from src.services.model_service import ModelService
 from src.services.prediction_orchestration import PredictionOrchestration
 from src.services.s3_service import S3Service
@@ -117,15 +117,15 @@ ModelRuntimeClientsDep = Annotated[
 ]
 
 
-def get_model_runtime_routing(
+def get_model_runtime_pool(
     model_runtime_clients: ModelRuntimeClientsDep,
-) -> ModelRuntimeRouting:
-    return ModelRuntimeRouting(model_runtime_clients=model_runtime_clients)
+) -> ModelRuntimePool:
+    return ModelRuntimePool(model_runtime_clients=model_runtime_clients)
 
 
-ModelRuntimeRoutingDep = Annotated[
-    ModelRuntimeRouting,
-    Depends(get_model_runtime_routing),
+ModelRuntimePoolDep = Annotated[
+    ModelRuntimePool,
+    Depends(get_model_runtime_pool),
 ]
 
 
@@ -149,11 +149,11 @@ ModelServiceDep = Annotated[
 
 def get_prediction_orchestration(
     s3_service: S3ServiceDep,
-    model_runtime_routing: ModelRuntimeRoutingDep,
+    model_runtime_pool: ModelRuntimePoolDep,
 ) -> PredictionOrchestration:
     return PredictionOrchestration(
         s3_service=s3_service,
-        model_runtime_routing=model_runtime_routing,
+        model_runtime_pool=model_runtime_pool,
     )
 
 

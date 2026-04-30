@@ -1,19 +1,33 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 
 from src.core.errors import ServiceUnavailable
 from src.core.logger import get_logger
 from src.intake.chest_xray_upload import ChestXrayUpload
-from src.schemas.model_schemas import PredictionResultStatus
 from src.services.model_runtime_client import ModelRuntimeClient
 from src.types.enums import ModelSlug
 
 logger = get_logger(__name__)
 
 
-class ModelRuntimeRouting:
-    """Routes a Chest X-ray Upload to selected Model Runtimes."""
+@dataclass(frozen=True)
+class ModelRuntimeScore:
+    prediction: str
+    confidence: float
+
+
+@dataclass(frozen=True)
+class ModelRuntimeFailure:
+    error: str
+
+
+ModelRuntimeContribution = ModelRuntimeScore | ModelRuntimeFailure
+
+
+class ModelRuntimePool:
+    """Scores a Chest X-ray Upload with selected Model Runtimes."""
 
     def __init__(
         self,
@@ -21,12 +35,12 @@ class ModelRuntimeRouting:
     ) -> None:
         self.model_runtime_clients = model_runtime_clients or {}
 
-    async def predict(
+    async def score(
         self,
         slugs: tuple[ModelSlug, ...],
         upload: ChestXrayUpload,
-    ) -> dict[ModelSlug, PredictionResultStatus]:
-        tasks = {slug: asyncio.create_task(self._predict_single_result(slug, upload)) for slug in slugs}
+    ) -> dict[ModelSlug, ModelRuntimeContribution]:
+        tasks = {slug: asyncio.create_task(self._score_single_runtime(slug, upload)) for slug in slugs}
         return {slug: await task for slug, task in tasks.items()}
 
     def _get_runtime_client(self, slug: ModelSlug) -> ModelRuntimeClient:
@@ -35,11 +49,11 @@ class ModelRuntimeRouting:
             raise ServiceUnavailable(f"Model Runtime for '{slug}' is not configured.")
         return runtime_client
 
-    async def _predict_single_result(
+    async def _score_single_runtime(
         self,
         slug: ModelSlug,
         upload: ChestXrayUpload,
-    ) -> PredictionResultStatus:
+    ) -> ModelRuntimeContribution:
         try:
             prediction = await self._get_runtime_client(slug).predict(
                 image_data=upload.data,
@@ -47,14 +61,13 @@ class ModelRuntimeRouting:
             )
         except ServiceUnavailable as exc:
             logger.warning("Prediction failed for slug=%s: %s", slug, exc.detail)
-            return PredictionResultStatus(status="error", error=exc.detail)
+            return ModelRuntimeFailure(error=exc.detail)
         except Exception as exc:
             logger.warning("Prediction failed for slug=%s", slug, exc_info=True)
             detail = getattr(exc, "detail", "Prediction failed.")
-            return PredictionResultStatus(status="error", error=detail)
+            return ModelRuntimeFailure(error=detail)
 
-        return PredictionResultStatus(
-            status="ok",
+        return ModelRuntimeScore(
             prediction=prediction.prediction,
             confidence=prediction.confidence,
         )

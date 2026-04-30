@@ -187,10 +187,10 @@ class TestServiceDependencies:
         assert result["vitb16"].base_url == "http://vit-service:8000"
         assert result["effnetb0"].timeout_seconds == 12.5
 
-    def test_get_model_runtime_routing(self):
-        """get_model_runtime_routing should return a ModelRuntimeRouting instance."""
-        from src.core.dependencies import get_model_runtime_routing
-        from src.services.model_runtime_routing import ModelRuntimeRouting
+    def test_get_model_runtime_pool(self):
+        """get_model_runtime_pool should return a ModelRuntimePool instance."""
+        from src.core.dependencies import get_model_runtime_pool
+        from src.services.model_runtime_pool import ModelRuntimePool
 
-        service = get_model_runtime_routing(model_runtime_clients={})
-        assert isinstance(service, ModelRuntimeRouting)
+        service = get_model_runtime_pool(model_runtime_clients={})
+        assert isinstance(service, ModelRuntimePool)
