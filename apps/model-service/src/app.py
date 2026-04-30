@@ -7,6 +7,7 @@ from typing import Annotated, Any
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
 
 from src.config import Settings, settings
+from src.model_runtime_factory import ModelRuntimeFactory
 from src.runtime import InferenceRuntime
 from src.schemas import PredictionResponse
 
@@ -28,7 +29,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if runtime is None:
-            app.state.runtime = InferenceRuntime.from_settings(resolved_settings)
+            app.state.runtime = ModelRuntimeFactory.from_settings(resolved_settings).build()
         yield
 
     app = FastAPI(
