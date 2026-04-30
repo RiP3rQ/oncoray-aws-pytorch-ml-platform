@@ -1,4 +1,5 @@
 import { getStoredToken, removeToken } from "./auth.js";
+import type { components } from "./generated/api-types";
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "")
   .trim()
@@ -112,15 +113,7 @@ export function getMe(): Promise<{
 }
 
 // Model endpoints
-export interface ModelRead {
-  id: string;
-  name: string;
-  slug: ModelSlug;
-  description: string;
-  version: string;
-  created_at: string;
-  updated_at: string;
-}
+export type ModelRead = components["schemas"]["ModelRead"];
 
 export function getModels(): Promise<ModelRead[]> {
   return request("/model/", { method: "GET" });
@@ -130,27 +123,14 @@ export function getModel(modelId: string): Promise<ModelRead> {
   return request(`/model/${modelId}`, { method: "GET" });
 }
 
-export type ModelSlug = "effnetb0" | "vitb16";
-export type PredictionMode = ModelSlug | "both";
-
-export interface PredictionUploadStatus {
-  status: "ok" | "error";
-  image_s3_key?: string | null;
-}
-
-export interface PredictionResultStatus {
-  status: "ok" | "error";
-  prediction?: string | null;
-  confidence?: number | null;
-  error?: string | null;
-}
-
-export interface UnifiedPredictionResponse {
-  request_id: string;
-  mode: PredictionMode;
-  upload: PredictionUploadStatus;
-  results: Partial<Record<ModelSlug, PredictionResultStatus>>;
-}
+export type ModelSlug = components["schemas"]["ModelSlug"];
+export type PredictionMode = components["schemas"]["PredictionMode"];
+export type PredictionUploadStatus =
+  components["schemas"]["PredictionUploadStatus"];
+export type PredictionResultStatus =
+  components["schemas"]["PredictionResultStatus"];
+export type UnifiedPredictionResponse =
+  components["schemas"]["UnifiedPredictionResponse"];
 
 export function predict(
   mode: PredictionMode,
