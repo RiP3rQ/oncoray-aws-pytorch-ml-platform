@@ -22,7 +22,7 @@ async def is_jti_blacklisted(jti: str) -> bool:
     """
     Check if a JTI is in the blacklist
     """
-    return await redis_instance.exists(jti)
+    return bool(await redis_instance.exists(jti))
 
 
 async def ping_redis() -> bool:
@@ -30,6 +30,9 @@ async def ping_redis() -> bool:
     Check whether Redis is reachable.
     """
     try:
-        return bool(await redis_instance.ping())
+        ping_result = redis_instance.ping()
+        if isinstance(ping_result, bool):
+            return ping_result
+        return bool(await ping_result)
     except RedisError:
         return False

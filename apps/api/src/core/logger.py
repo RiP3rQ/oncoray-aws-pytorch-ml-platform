@@ -40,7 +40,8 @@ class PrettyFormatter(logging.Formatter):
 
 
 def _resolve_log_level(level: str | None = None) -> int:
-    raw_level = (level or os.getenv("LOG_LEVEL", "INFO")).upper()
+    raw_level = level or os.getenv("LOG_LEVEL") or "INFO"
+    raw_level = raw_level.upper()
     return getattr(logging, raw_level, logging.INFO)
 
 

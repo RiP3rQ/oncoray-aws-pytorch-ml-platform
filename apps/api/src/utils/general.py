@@ -7,7 +7,7 @@ from rich import print
 from rich.panel import Panel
 
 
-def print_label(data: Any, title: str | None = None):
+def print_label(data: Any, title: str | None = None) -> None:
     """
     Print a label with the data.
     """

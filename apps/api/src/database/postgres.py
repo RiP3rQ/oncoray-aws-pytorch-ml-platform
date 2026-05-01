@@ -15,12 +15,12 @@ def utc_now() -> datetime:
 class TimestampedModel(SQLModel):
     """Shared timestamp fields for database tables."""
 
-    created_at: datetime = Field(
+    created_at: datetime = Field(  # type: ignore[call-overload]
         default_factory=utc_now,
         nullable=False,
         sa_type=TIMESTAMP(timezone=True),
     )
-    updated_at: datetime = Field(
+    updated_at: datetime = Field(  # type: ignore[call-overload]
         default_factory=utc_now,
         nullable=False,
         sa_type=TIMESTAMP(timezone=True),
@@ -33,7 +33,7 @@ class User(TimestampedModel, table=True):
 
     __tablename__ = "users"
 
-    id: UUID = Field(
+    id: UUID = Field(  # type: ignore[call-overload]
         default_factory=uuid4,
         primary_key=True,
         nullable=False,
@@ -49,7 +49,7 @@ class LLMModel(TimestampedModel, table=True):
 
     __tablename__ = "llm_models"
 
-    id: UUID = Field(
+    id: UUID = Field(  # type: ignore[call-overload]
         default_factory=uuid4,
         primary_key=True,
         nullable=False,

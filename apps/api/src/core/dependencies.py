@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends
@@ -25,7 +25,7 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
 # Access token data dep
-async def _get_access_token(token: str) -> dict:
+async def _get_access_token(token: str) -> dict[str, Any]:
     data = decode_access_token(token)
 
     # Validate the token
@@ -38,7 +38,7 @@ async def _get_access_token(token: str) -> dict:
 # User access token data
 async def get_user_access_token(
     token: Annotated[str, Depends(oauth2_scheme_user)],
-) -> dict:
+) -> dict[str, Any]:
     """
     Get the user access token data.
     """
@@ -48,9 +48,9 @@ async def get_user_access_token(
 # =============================== USER SERVICE ===============================
 # Logged In User
 async def get_current_user(
-    token_data: Annotated[dict, Depends(get_user_access_token)],
+    token_data: Annotated[dict[str, Any], Depends(get_user_access_token)],
     session: SessionDep,
-):
+) -> User:
     """
     Get the logged in user.
     """
@@ -66,7 +66,7 @@ async def get_current_user(
 
 
 # User service dep
-def get_user_service(session: SessionDep):
+def get_user_service(session: SessionDep) -> UserService:
     return UserService(model=User, session=session)
 
 

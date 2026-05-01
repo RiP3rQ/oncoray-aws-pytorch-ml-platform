@@ -3,11 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 from scalar_fastapi import get_scalar_api_reference
 
+from src.api_types.enums import APITag
 from src.core.config import app_settings
 from src.core.errors import add_exception_handlers
 from src.core.logger import configure_logging, get_logger
 from src.routers.master_router import master_router
-from src.types.enums import APITag
 
 # =============================== LOGGER ===============================
 configure_logging()

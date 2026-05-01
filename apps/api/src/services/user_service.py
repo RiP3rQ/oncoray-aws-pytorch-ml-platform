@@ -1,10 +1,11 @@
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from src.core.config import app_settings
 from src.core.errors import (
@@ -33,7 +34,7 @@ MAX_BCRYPT_PASSWORD_BYTES = 72
 class UserService(BaseService):
     """Handle user registration, email verification, and login."""
 
-    def __init__(self, model: type[User], session: AsyncSession):
+    def __init__(self, model: type[User], session: AsyncSession) -> None:
         super().__init__()
         self.model = model
         self.session = session
@@ -149,7 +150,7 @@ class UserService(BaseService):
     async def _get_user_by_email(self, email: str) -> User | None:
         """Look up a user by email address."""
 
-        return await self.session.scalar(select(self.model).where(self.model.email == email))
+        return cast(User | None, await self.session.scalar(select(self.model).where(col(self.model.email) == email)))
 
     async def _authenticate_user(self, email: str, password: str) -> User:
         """Return the authenticated user or raise `BadCredentials`."""

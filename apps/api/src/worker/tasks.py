@@ -1,3 +1,5 @@
+from typing import Any
+
 from asgiref.sync import async_to_sync
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from pydantic import EmailStr
@@ -18,12 +20,12 @@ fast_mail = FastMail(
 send_message = async_to_sync(fast_mail.send_message)
 
 
-@app.task
+@app.task  # type: ignore[untyped-decorator]
 def send_mail(
-    recipients: list[str],
+    recipients: list[Any],
     subject: str,
     body: str,
-):
+) -> str:
     """Send an email."""
     send_message(
         message=MessageSchema(
@@ -37,13 +39,13 @@ def send_mail(
     return "Message Sent!"
 
 
-@app.task
+@app.task  # type: ignore[untyped-decorator]
 def send_email_with_template(
-    recipients: list[EmailStr],
+    recipients: list[Any],
     subject: str,
-    context: dict,
+    context: dict[str, Any],
     template_name: str,
-):
+) -> str:
     """Send an email with a Jinja2 template."""
     send_message(
         message=MessageSchema(
@@ -59,11 +61,11 @@ def send_email_with_template(
 
 
 async def send_email_with_template_async(
-    recipients: list[EmailStr],
+    recipients: list[Any],
     subject: str,
-    context: dict,
+    context: dict[str, Any],
     template_name: str,
-):
+) -> str:
     """Send an email inline without going through Celery."""
     await fast_mail.send_message(
         message=MessageSchema(
@@ -81,7 +83,7 @@ async def send_email_with_template_async(
 async def dispatch_email_with_template(
     recipients: list[EmailStr],
     subject: str,
-    context: dict,
+    context: dict[str, Any],
     template_name: str,
 ) -> str:
     """Queue email through Celery when broker is configured, else send inline."""

@@ -9,41 +9,13 @@ locals {
       service_account = var.worker_service_account_name
     }
   }
-}
 
-data "aws_iam_policy_document" "app_irsa_assume_role" {
-  for_each = local.app_service_accounts
-
-  statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [module.eks.oidc_provider_arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(data.aws_eks_cluster.current.identity[0].oidc[0].issuer, "https://", "")}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(data.aws_eks_cluster.current.identity[0].oidc[0].issuer, "https://", "")}:sub"
-      values = [
-        "system:serviceaccount:${each.value.namespace}:${each.value.service_account}",
-      ]
+  model_runtime_service_accounts = {
+    for slug, service_account in var.model_runtime_service_account_names : slug => {
+      namespace       = var.kubernetes_namespace
+      service_account = service_account
     }
   }
-}
-
-resource "aws_iam_role" "app_irsa" {
-  for_each = local.app_service_accounts
-
-  name               = "${local.name_prefix}-${each.key}"
-  assume_role_policy = data.aws_iam_policy_document.app_irsa_assume_role[each.key].json
 }
 
 data "aws_iam_policy_document" "api_runtime" {
@@ -103,19 +75,16 @@ data "aws_iam_policy_document" "worker_runtime" {
   }
 }
 
-resource "aws_iam_policy" "app_runtime" {
-  for_each = {
+module "workload_identities" {
+  source = "../../modules/workload-identities"
+
+  app_runtime_policy_json = {
     api    = data.aws_iam_policy_document.api_runtime.json
     worker = data.aws_iam_policy_document.worker_runtime.json
   }
-
-  name   = "${local.name_prefix}-${each.key}-runtime"
-  policy = each.value
-}
-
-resource "aws_iam_role_policy_attachment" "app_runtime" {
-  for_each = aws_iam_policy.app_runtime
-
-  role       = aws_iam_role.app_irsa[each.key].name
-  policy_arn = each.value.arn
+  app_service_accounts           = local.app_service_accounts
+  model_runtime_service_accounts = local.model_runtime_service_accounts
+  name_prefix                    = local.name_prefix
+  oidc_issuer_url                = data.aws_eks_cluster.current.identity[0].oidc[0].issuer
+  oidc_provider_arn              = module.eks.oidc_provider_arn
 }

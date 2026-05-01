@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from io import BytesIO
 from mimetypes import guess_type
+from typing import Any
 
 import boto3
 
@@ -25,7 +26,7 @@ class S3Service:
         bucket_name: str = "model-predictions",
         region_name: str = "us-east-1",
         upload_mode: str = "mock",
-        s3_client=None,
+        s3_client: Any = None,
     ) -> None:
         self.bucket_name = bucket_name
         self.region_name = region_name

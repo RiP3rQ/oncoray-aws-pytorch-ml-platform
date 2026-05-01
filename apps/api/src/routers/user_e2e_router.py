@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from pydantic import EmailStr
 from sqlalchemy import select
+from sqlmodel import col
 
 from src.api_types.enums import APITag
 from src.core.dependencies import SessionDep
@@ -33,10 +34,10 @@ def _assert_allowed_e2e_email(email: str) -> None:
 async def create_or_update_test_user(
     payload: UserCreate,
     session: SessionDep,
-):
+) -> User:
     _assert_allowed_e2e_email(payload.email)
 
-    user = await session.scalar(select(User).where(User.email == payload.email))
+    user = await session.scalar(select(User).where(col(User.email) == payload.email))
     password_hash = UserService._hash_password(payload.password)
 
     if user is None:
@@ -62,10 +63,10 @@ async def create_or_update_test_user(
 async def delete_test_user(
     session: SessionDep,
     email: Annotated[EmailStr, Query()],
-):
+) -> Response:
     _assert_allowed_e2e_email(email)
 
-    user = await session.scalar(select(User).where(User.email == email))
+    user = await session.scalar(select(User).where(col(User.email) == email))
     if user is not None:
         await session.delete(user)
         await session.commit()

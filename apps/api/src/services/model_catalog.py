@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api_types.enums import ModelSlug
 from src.core.errors import EntityNotFound
 from src.core.logger import get_logger
 from src.database.postgres import LLMModel
@@ -19,7 +20,7 @@ class ModelCatalog:
 
     async def list_models(self) -> list[ModelRead]:
         logger.info("Fetching Model Catalog from database")
-        result = await self.session.execute(select(LLMModel).order_by(desc(LLMModel.created_at)))
+        result = await self.session.execute(select(LLMModel).order_by(desc("created_at")))
         models = result.scalars().all()
         logger.info("Found %d Model Catalog items", len(models))
         return [self._to_model_read(model) for model in models]
@@ -37,7 +38,7 @@ class ModelCatalog:
         return ModelRead(
             id=model.id,
             name=model.name,
-            slug=model.slug,
+            slug=ModelSlug(model.slug),
             description=model.description,
             version=model.version,
             created_at=model.created_at,

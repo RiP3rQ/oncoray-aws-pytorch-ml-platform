@@ -42,6 +42,17 @@ show_missing = true
 skip_empty = true
 fail_under = 0
 
+[tool.mypy]
+strict = true
+warn_return_any = true
+disallow_untyped_defs = true
+python_version = "3.11"
+exclude = ["src/tests", "src/migrations"]
+
+[[tool.mypy.overrides]]
+module = ["boto3", "celery"]
+ignore_missing_imports = true
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",

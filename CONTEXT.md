@@ -20,6 +20,10 @@ _Avoid_: prediction response, model-service response, inference response
 The trained weights file loaded by one Model Runtime before it can score Chest X-ray Uploads.
 _Avoid_: model blob, checkpoint file, Hugging Face model
 
+**Model Runtime Definition**:
+The deploy-time recipe that binds one Model Runtime to its Model Artifact source, class labels, architecture, and load policy.
+_Avoid_: model-service config, runtime settings bundle
+
 **Chest X-ray Upload**:
 The uploaded PNG, JPG, or WEBP chest X-ray image submitted for a Prediction, before any Model Runtime scores it.
 _Avoid_: image blob, uploaded image, file
@@ -37,7 +41,7 @@ The frontend-owned user flow for selecting a prediction mode, preparing one Ches
 _Avoid_: prediction orchestration, inference flow
 
 **Production Deployment Contract**:
-The resolved production deployment facts shared between Terraform, Helm, and release scripts for one environment.
+The authoritative resolved production deployment facts for one environment, excluding operator-provided secret values.
 _Avoid_: runtime contract, infra contract, deployment config
 
 ## Relationships
@@ -46,6 +50,8 @@ _Avoid_: runtime contract, infra contract, deployment config
 - A **Prediction** may contain results from one or more **Model Runtimes**.
 - A **Prediction** can be partially successful: one **Model Runtime** may fail while another contributes a successful result.
 - A **Model Runtime Prediction** belongs to exactly one **Model Runtime** and one **Chest X-ray Upload**.
+- A **Model Runtime Definition** defines exactly one deployable **Model Runtime**.
+- A **Model Runtime Definition** names exactly one **Model Artifact** source for its **Model Runtime**.
 - A **Model Runtime** must load exactly one **Model Artifact** before it can produce a **Model Runtime Prediction**.
 - **Prediction Orchestration** turns one or more **Model Runtime Predictions** into one public **Prediction**.
 - A **Prediction** can succeed even when **Chest X-ray Upload** persistence fails; upload persistence is best-effort status.
@@ -55,6 +61,10 @@ _Avoid_: runtime contract, infra contract, deployment config
 - The **Model Catalog** is read-only metadata; it does not produce a **Prediction**.
 - A **Prediction Workflow** calls **Prediction Orchestration**; it does not score **Chest X-ray Uploads** itself.
 - A **Production Deployment Contract** is produced for one environment and consumed by production deployment tooling.
+- A **Production Deployment Contract** includes generated or derived deployment facts; it names expected secret locations but does not contain secret values.
+- A **Production Deployment Contract** includes the resolved image repositories and image tags used for one release.
+- A **Production Deployment Contract** identifies **Model Runtime** deployment facts by model slug, not by deployment tool resource name.
+- A **Production Deployment Contract** may be retained as a release artifact for audit and deployment debugging.
 
 ## Example dialogue
 

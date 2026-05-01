@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "global": {
+      "type": "object"
+    },
+    "workloads": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/workload"
+      },
+      "not": {
+        "anyOf": [
+          {
+            "required": ["model-service-effnetb0"]
+          },
+          {
+            "required": ["model-service-vitb16"]
+          }
+        ]
+      }
+    },
+    "modelRuntimeDefaults": {
+      "$ref": "#/definitions/workload"
+    },
+    "modelRuntimes": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/modelRuntime"
+      }
+    }
+  },
+  "required": ["global", "workloads", "modelRuntimeDefaults", "modelRuntimes"],
+  "definitions": {
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["string", "number", "boolean", "null"]
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "repository": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "pullPolicy": {
+          "type": "string"
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "annotations": {
+          "$ref": "#/definitions/stringMap"
+        }
+      }
+    },
+    "externalSecret": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "targetName": {
+          "type": "string"
+        },
+        "data": {
+          "type": "array"
+        }
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
+        "serviceAccount": {
+          "$ref": "#/definitions/serviceAccount"
+        },
+        "env": {
+          "$ref": "#/definitions/stringMap"
+        },
+        "externalSecret": {
+          "$ref": "#/definitions/externalSecret"
+        }
+      }
+    },
+    "modelRuntime": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "workloadName": {
+          "type": "string",
+          "pattern": "^model-service-[a-z0-9-]+$"
+        },
+        "artifactPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
+        "serviceAccount": {
+          "$ref": "#/definitions/serviceAccount"
+        },
+        "env": {
+          "$ref": "#/definitions/stringMap"
+        },
+        "externalSecret": {
+          "$ref": "#/definitions/externalSecret"
+        }
+      },
+      "required": ["enabled", "modelSlug", "workloadName", "artifactPath"]
+    }
+  }
+}

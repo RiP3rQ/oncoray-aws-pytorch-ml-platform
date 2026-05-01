@@ -39,3 +39,24 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- default "default" $workload.serviceAccount.name -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "backend-stack.modelRuntimeWorkload" -}}
+{{- $root := .root -}}
+{{- $slug := .slug -}}
+{{- $runtime := .runtime -}}
+{{- $defaults := default (dict) $root.Values.modelRuntimeDefaults -}}
+{{- $workload := mergeOverwrite (deepCopy $defaults) (deepCopy $runtime) -}}
+{{- $modelSlug := default $slug $runtime.modelSlug -}}
+{{- $workloadName := default (printf "model-service-%s" $slug) $runtime.workloadName -}}
+{{- $env := mergeOverwrite (deepCopy (default (dict) $defaults.env)) (dict "MODEL_SLUG" $modelSlug "MODEL_ARTIFACT_PATH" $runtime.artifactPath) (default (dict) $runtime.env) -}}
+{{- $_ := set $workload "env" $env -}}
+{{- $_ := set $workload "enabled" (default false $runtime.enabled) -}}
+{{- $_ := set $workload "workloadName" $workloadName -}}
+{{- if not $workload.serviceAccount.name -}}
+{{- $_ := set $workload.serviceAccount "name" (printf "pytorch-model-model-service-%s" $slug) -}}
+{{- end -}}
+{{- if not $workload.externalSecret.targetName -}}
+{{- $_ := set $workload.externalSecret "targetName" (printf "model-service-%s-secrets" $slug) -}}
+{{- end -}}
+{{- toYaml $workload -}}
+{{- end -}}

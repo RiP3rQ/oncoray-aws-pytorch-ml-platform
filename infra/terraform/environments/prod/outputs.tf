@@ -116,19 +116,17 @@ output "cluster_addon_role_arns" {
 
 output "app_workload_role_arns" {
   description = "IRSA roles for application workloads."
-  value = {
-    api    = aws_iam_role.app_irsa["api"].arn
-    worker = aws_iam_role.app_irsa["worker"].arn
-  }
+  value       = module.workload_identities.role_arns
 }
 
 output "kubernetes_service_accounts" {
   description = "Stable Kubernetes service account names expected by Helm values and IRSA."
   value = {
-    namespace     = var.kubernetes_namespace
-    api           = var.api_service_account_name
-    worker        = var.worker_service_account_name
-    model_service = var.model_service_service_account_name
+    namespace      = var.kubernetes_namespace
+    api            = var.api_service_account_name
+    worker         = var.worker_service_account_name
+    model_service  = var.model_service_service_account_name
+    model_runtimes = var.model_runtime_service_account_names
   }
 }
 

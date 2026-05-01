@@ -1,6 +1,17 @@
 {{- $root := . -}}
-{{- range $name, $workload := .Values.workloads }}
+{{- $workloads := deepCopy .Values.workloads -}}
+{{- range $slug, $runtime := .Values.modelRuntimes }}
+{{- $name := default (printf "model-service-%s" $slug) $runtime.workloadName -}}
+{{- $workload := include "backend-stack.modelRuntimeWorkload" (dict "root" $root "slug" $slug "runtime" $runtime) | fromYaml -}}
+{{- $_ := set $workloads $name $workload -}}
+{{- end }}
+{{- range $name, $workload := $workloads }}
 {{- if $workload.enabled }}
+{{- if and (hasPrefix "model-service-" $name) (eq (toString (get $workload.env "APP_ENVIRONMENT")) "production") }}
+{{- if or (empty (get $workload.env "HF_MODEL_REPOSITORY")) (empty (get $workload.env "HF_MODEL_FILENAME")) }}
+{{- fail (printf "%s production Model Runtime requires HF_MODEL_REPOSITORY and HF_MODEL_FILENAME" $name) }}
+{{- end }}
+{{- end }}
 {{- $labels := merge (dict) (default (dict) $root.Values.global.commonLabels) (default (dict) $workload.extraLabels) -}}
 {{- $podAnnotations := merge (dict) (default (dict) $root.Values.global.podAnnotations) (default (dict) $workload.podAnnotations) -}}
 {{- $podSecurityContext := merge (dict) (default (dict) $root.Values.global.podSecurityContext) (default (dict) $workload.podSecurityContext) -}}

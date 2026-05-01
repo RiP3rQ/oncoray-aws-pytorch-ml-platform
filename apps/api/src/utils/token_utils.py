@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 from uuid import uuid4
 
 import jwt
@@ -14,7 +15,7 @@ def _get_url_safe_serializer() -> URLSafeTimedSerializer:
 
 
 def generate_access_token(
-    data: dict,
+    data: dict[str, Any],
     expiry: timedelta | None = None,
 ) -> str:
     """
@@ -33,7 +34,7 @@ def generate_access_token(
     )
 
 
-def decode_access_token(token: str) -> dict | None:
+def decode_access_token(token: str) -> dict[str, Any] | None:
     """
     Decode an access token.
     """
@@ -47,7 +48,7 @@ def decode_access_token(token: str) -> dict | None:
         return None
 
 
-def generate_url_safe_token(data: dict, salt: str | None = None) -> str:
+def generate_url_safe_token(data: dict[str, Any], salt: str | None = None) -> str:
     """
     Generate a URL safe token.
     """
@@ -58,15 +59,19 @@ def decode_url_safe_token(
     token: str,
     salt: str | None = None,
     expiry: timedelta | None = None,
-) -> dict | None:
+) -> dict[str, Any] | None:
     """
     Decode a URL safe token.
     """
     try:
-        return _get_url_safe_serializer().loads(
-            token,
-            salt=salt,
-            max_age=expiry.total_seconds() if expiry else None,
+        max_age = int(expiry.total_seconds()) if expiry else None
+        return cast(
+            dict[str, Any],
+            _get_url_safe_serializer().loads(
+                token,
+                salt=salt,
+                max_age=max_age,
+            ),
         )
     except (BadSignature, SignatureExpired):
         return None

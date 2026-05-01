@@ -2,8 +2,7 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.core.config import db_settings
 
@@ -20,9 +19,8 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Get a session from the database
     """
-    async_session = sessionmaker(
+    async_session = async_sessionmaker(
         bind=engine,
-        class_=AsyncSession,
         expire_on_commit=False,
     )
 
