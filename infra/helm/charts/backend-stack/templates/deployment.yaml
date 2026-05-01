@@ -16,6 +16,7 @@
 {{- $podAnnotations := merge (dict) (default (dict) $root.Values.global.podAnnotations) (default (dict) $workload.podAnnotations) -}}
 {{- $podSecurityContext := merge (dict) (default (dict) $root.Values.global.podSecurityContext) (default (dict) $workload.podSecurityContext) -}}
 {{- $containerSecurityContext := merge (dict) (default (dict) $root.Values.global.containerSecurityContext) (default (dict) $workload.securityContext) -}}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -130,6 +131,5 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
----
 {{- end }}
 {{- end }}

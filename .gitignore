@@ -38,6 +38,7 @@ build
 crash.log
 infra/terraform/environments/prod/outputs.json
 infra/generated/
+infra/helm/values/ssm-parameters.prod.json
 tmp/
 **/tmp/
 .uv-cache/
