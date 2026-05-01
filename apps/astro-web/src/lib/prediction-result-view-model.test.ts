@@ -66,7 +66,7 @@ describe("Prediction result view model", () => {
     const viewModel = createPredictionResultViewModel({
       request_id: "request-compare",
       mode: "both",
-      upload: { status: "failed", image_s3_key: null },
+      upload: { status: "error", image_s3_key: null },
       results: {
         vitb16: {
           status: "error",

@@ -11,9 +11,9 @@ from src.database.postgres import User
 from src.database.redis import is_jti_blacklisted
 from src.database.session import get_session
 from src.services.model_catalog import ModelCatalog
-from src.services.model_runtime_client import ModelRuntimeClient
-from src.services.model_runtime_pool import ModelRuntimePool
-from src.services.prediction_orchestration import PredictionOrchestration
+from src.services.model_runtime_pool import ModelRuntimeAdapter, ModelRuntimePool
+from src.services.model_runtime_registry import ModelRuntimeRegistry
+from src.services.prediction_orchestration import ChestXrayUploadPersistence, PredictionOrchestration
 from src.services.s3_service import S3Service
 from src.services.user_service import UserService
 from src.types.enums import ModelSlug
@@ -92,35 +92,32 @@ def get_s3_service() -> S3Service:
     )
 
 
-S3ServiceDep = Annotated[
-    S3Service,
+ChestXrayUploadPersistenceDep = Annotated[
+    ChestXrayUploadPersistence,
     Depends(get_s3_service),
 ]
 
 # =============================== MODEL CATALOG ===============================
 
 
-def get_model_runtime_clients() -> dict[ModelSlug, ModelRuntimeClient]:
-    return {
-        slug: ModelRuntimeClient(
-            base_url=base_url,
-            model_slug=slug,
-            timeout_seconds=model_service_settings.MODEL_SERVICE_TIMEOUT_SECONDS,
-        )
-        for slug, base_url in model_service_settings.model_service_urls.items()
-    }
+def get_model_runtime_adapters() -> dict[ModelSlug, ModelRuntimeAdapter]:
+    registry = ModelRuntimeRegistry(
+        runtime_urls=model_service_settings.model_service_urls,
+        timeout_seconds=model_service_settings.MODEL_SERVICE_TIMEOUT_SECONDS,
+    )
+    return registry.build_adapters()
 
 
-ModelRuntimeClientsDep = Annotated[
-    dict[ModelSlug, ModelRuntimeClient],
-    Depends(get_model_runtime_clients),
+ModelRuntimeAdaptersDep = Annotated[
+    dict[ModelSlug, ModelRuntimeAdapter],
+    Depends(get_model_runtime_adapters),
 ]
 
 
 def get_model_runtime_pool(
-    model_runtime_clients: ModelRuntimeClientsDep,
+    model_runtime_adapters: ModelRuntimeAdaptersDep,
 ) -> ModelRuntimePool:
-    return ModelRuntimePool(model_runtime_clients=model_runtime_clients)
+    return ModelRuntimePool(model_runtime_adapters=model_runtime_adapters)
 
 
 ModelRuntimePoolDep = Annotated[
@@ -142,11 +139,11 @@ ModelCatalogDep = Annotated[
 
 
 def get_prediction_orchestration(
-    s3_service: S3ServiceDep,
+    upload_persistence: ChestXrayUploadPersistenceDep,
     model_runtime_pool: ModelRuntimePoolDep,
 ) -> PredictionOrchestration:
     return PredictionOrchestration(
-        s3_service=s3_service,
+        upload_persistence=upload_persistence,
         model_runtime_pool=model_runtime_pool,
     )
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Protocol
 from uuid import uuid4
 
-from src.core.logger import get_logger
 from src.intake.chest_xray_upload import ChestXrayUpload
 from src.schemas.model_schemas import PredictionResultStatus, PredictionUploadStatus, UnifiedPredictionResponse
 from src.services.model_runtime_pool import (
@@ -12,10 +12,16 @@ from src.services.model_runtime_pool import (
     ModelRuntimePool,
     ModelRuntimeScore,
 )
-from src.services.s3_service import S3Service
 from src.types.enums import ModelSlug, PredictionMode
 
-logger = get_logger(__name__)
+
+class ChestXrayUploadPersistence(Protocol):
+    """Adapter that persists a Chest X-ray Upload for a public Prediction."""
+
+    async def persist_chest_xray_upload(
+        self,
+        upload: ChestXrayUpload,
+    ) -> PredictionUploadStatus: ...
 
 
 class PredictionOrchestration:
@@ -23,10 +29,10 @@ class PredictionOrchestration:
 
     def __init__(
         self,
-        s3_service: S3Service,
+        upload_persistence: ChestXrayUploadPersistence,
         model_runtime_pool: ModelRuntimePool,
     ) -> None:
-        self.s3_service = s3_service
+        self.upload_persistence = upload_persistence
         self.model_runtime_pool = model_runtime_pool
 
     async def predict(
@@ -36,7 +42,7 @@ class PredictionOrchestration:
     ) -> UnifiedPredictionResponse:
         request_id = uuid4()
         slugs = _slugs_for_mode(mode)
-        upload_task = asyncio.create_task(self._upload_image_best_effort(upload))
+        upload_task = asyncio.create_task(self.upload_persistence.persist_chest_xray_upload(upload))
         contributions = await self.model_runtime_pool.score(slugs=slugs, upload=upload)
         upload_status = await upload_task
 
@@ -46,18 +52,6 @@ class PredictionOrchestration:
             upload=upload_status,
             results=_prediction_results_from_contributions(contributions),
         )
-
-    async def _upload_image_best_effort(
-        self,
-        upload: ChestXrayUpload,
-    ) -> PredictionUploadStatus:
-        try:
-            s3_key = await self.s3_service.upload_chest_xray(upload)
-        except Exception:
-            logger.warning("Image upload failed for filename=%s", upload.filename, exc_info=True)
-            return PredictionUploadStatus(status="error")
-
-        return PredictionUploadStatus(status="ok", image_s3_key=s3_key)
 
 
 def _slugs_for_mode(mode: PredictionMode) -> tuple[ModelSlug, ...]:

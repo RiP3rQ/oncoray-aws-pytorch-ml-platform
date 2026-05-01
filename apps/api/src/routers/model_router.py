@@ -1,11 +1,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, File, HTTPException, Path, Query, UploadFile, status
+from fastapi import APIRouter, File, Path, Query, UploadFile
 
 from src.core.dependencies import ModelCatalogDep, PredictionOrchestrationDep
 from src.core.logger import get_logger
-from src.intake.chest_xray_upload import ChestXrayUpload, ChestXrayUploadTooLarge, ChestXrayUploadUnsupportedType
+from src.intake.fastapi_chest_xray_upload import read_chest_xray_upload
 from src.schemas.model_schemas import ModelRead, UnifiedPredictionResponse
 from src.types.enums import APITag, PredictionMode
 
@@ -48,23 +48,8 @@ async def predict_public(
 ) -> UnifiedPredictionResponse:
     """Run public prediction flow against one or both model-services."""
     logger.info("Received public prediction request for mode=%s", model)
-    upload = await _read_chest_xray_upload(image)
+    upload = await read_chest_xray_upload(image)
     return await orchestration.predict(
         mode=model,
         upload=upload,
     )
-
-
-async def _read_chest_xray_upload(image: UploadFile) -> ChestXrayUpload:
-    try:
-        return await ChestXrayUpload.from_upload_file(image)
-    except ChestXrayUploadTooLarge as exc:
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=str(exc),
-        ) from exc
-    except ChestXrayUploadUnsupportedType as exc:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=str(exc),
-        ) from exc

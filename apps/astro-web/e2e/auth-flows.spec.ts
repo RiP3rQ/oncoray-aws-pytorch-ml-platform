@@ -7,6 +7,7 @@ import {
   gotoLogin,
   gotoRegister,
   mockApiText,
+  routeSignupToE2ETestUser,
   toastByText,
 } from "./helpers";
 
@@ -88,13 +89,14 @@ test("shows fallback toast for generic registration network failure", async ({
   await expect(toastByText(page, "Network error. Try again.")).toHaveCount(1);
 });
 
-test("registers and redirects to login through real API", async ({
+test("registers and redirects to login without sending verification email", async ({
   page,
   request,
 }) => {
   const e2eUserEmail = createUniqueE2EEmail();
 
   try {
+    await routeSignupToE2ETestUser(page, request);
     await gotoRegister(page);
 
     await submitRegisterForm(page, e2eUserEmail, e2eUserPassword);

@@ -122,14 +122,39 @@ export async function createVerifiedTestUser(
   request: APIRequestContext,
   email: string,
 ) {
-  const response = await request.post(apiUrl("/user/e2e/test-user"), {
-    data: {
-      email,
-      password: e2eUserPassword,
-    },
+  const response = await upsertE2ETestUser(request, {
+    email,
+    password: e2eUserPassword,
   });
 
   expect(response.ok()).toBeTruthy();
+}
+
+export async function upsertE2ETestUser(
+  request: APIRequestContext,
+  payload: { email: string; password: string },
+) {
+  return request.post(apiUrl("/user/e2e/test-user"), {
+    data: payload,
+  });
+}
+
+export async function routeSignupToE2ETestUser(
+  page: Page,
+  request: APIRequestContext,
+) {
+  await page.route(apiUrl("/user/signup"), async (route) => {
+    const response = await upsertE2ETestUser(
+      request,
+      route.request().postDataJSON() as { email: string; password: string },
+    );
+
+    await route.fulfill({
+      status: response.status(),
+      contentType: response.headers()["content-type"] ?? "application/json",
+      body: await response.text(),
+    });
+  });
 }
 
 export async function cleanupTestUser(

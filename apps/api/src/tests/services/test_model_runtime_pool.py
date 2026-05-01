@@ -24,7 +24,7 @@ def make_runtime_client(prediction: str, confidence: float) -> MagicMock:
 @pytest.mark.asyncio
 async def test_score_routes_upload_to_selected_runtime(chest_xray_upload: ChestXrayUpload) -> None:
     effnet_client = make_runtime_client("NORMAL", 0.91)
-    pool = ModelRuntimePool(model_runtime_clients={ModelSlug.EFFNETB0: effnet_client})
+    pool = ModelRuntimePool(model_runtime_adapters={ModelSlug.EFFNETB0: effnet_client})
 
     result = await pool.score(slugs=(ModelSlug.EFFNETB0,), upload=chest_xray_upload)
 
@@ -41,7 +41,7 @@ async def test_score_returns_partial_failure_when_one_runtime_fails(chest_xray_u
     vit_client = make_runtime_client("PNEUMONIA", 0.87)
     vit_client.predict.side_effect = ServiceUnavailable("timeout")
     pool = ModelRuntimePool(
-        model_runtime_clients={
+        model_runtime_adapters={
             ModelSlug.EFFNETB0: effnet_client,
             ModelSlug.VITB16: vit_client,
         }
@@ -55,7 +55,7 @@ async def test_score_returns_partial_failure_when_one_runtime_fails(chest_xray_u
 
 @pytest.mark.asyncio
 async def test_missing_runtime_returns_runtime_failure(chest_xray_upload: ChestXrayUpload) -> None:
-    pool = ModelRuntimePool(model_runtime_clients={})
+    pool = ModelRuntimePool(model_runtime_adapters={})
 
     result = await pool.score(slugs=(ModelSlug.VITB16,), upload=chest_xray_upload)
 

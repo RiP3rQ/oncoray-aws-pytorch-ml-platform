@@ -3,10 +3,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.intake.chest_xray_upload import ChestXrayUpload
-from src.schemas.model_schemas import UnifiedPredictionResponse
+from src.schemas.model_schemas import PredictionUploadStatus, UnifiedPredictionResponse
 from src.services.model_runtime_pool import ModelRuntimeFailure, ModelRuntimePool, ModelRuntimeScore
 from src.services.prediction_orchestration import PredictionOrchestration
-from src.services.s3_service import S3Service
 from src.types.enums import ModelSlug, PredictionMode
 
 
@@ -16,10 +15,12 @@ def chest_xray_upload() -> ChestXrayUpload:
 
 
 @pytest.fixture
-def mock_s3_service() -> MagicMock:
-    s3_service = MagicMock(spec=S3Service)
-    s3_service.upload_chest_xray = AsyncMock(return_value="predictions/test-uuid.jpg")
-    return s3_service
+def mock_upload_persistence() -> MagicMock:
+    upload_persistence = MagicMock()
+    upload_persistence.persist_chest_xray_upload = AsyncMock(
+        return_value=PredictionUploadStatus(status="ok", image_s3_key="predictions/test-uuid.jpg")
+    )
+    return upload_persistence
 
 
 def make_runtime_pool(results: dict[ModelSlug, ModelRuntimeScore | ModelRuntimeFailure]) -> MagicMock:
@@ -30,7 +31,7 @@ def make_runtime_pool(results: dict[ModelSlug, ModelRuntimeScore | ModelRuntimeF
 
 @pytest.mark.asyncio
 async def test_single_model_prediction_returns_public_prediction(
-    mock_s3_service: MagicMock,
+    mock_upload_persistence: MagicMock,
     chest_xray_upload: ChestXrayUpload,
 ) -> None:
     runtime_pool = make_runtime_pool(
@@ -42,7 +43,7 @@ async def test_single_model_prediction_returns_public_prediction(
         }
     )
     orchestration = PredictionOrchestration(
-        s3_service=mock_s3_service,
+        upload_persistence=mock_upload_persistence,
         model_runtime_pool=runtime_pool,
     )
 
@@ -62,7 +63,7 @@ async def test_single_model_prediction_returns_public_prediction(
 
 @pytest.mark.asyncio
 async def test_both_mode_expands_to_both_model_runtimes(
-    mock_s3_service: MagicMock,
+    mock_upload_persistence: MagicMock,
     chest_xray_upload: ChestXrayUpload,
 ) -> None:
     runtime_pool = make_runtime_pool(
@@ -72,7 +73,7 @@ async def test_both_mode_expands_to_both_model_runtimes(
         }
     )
     orchestration = PredictionOrchestration(
-        s3_service=mock_s3_service,
+        upload_persistence=mock_upload_persistence,
         model_runtime_pool=runtime_pool,
     )
 
@@ -89,14 +90,14 @@ async def test_both_mode_expands_to_both_model_runtimes(
 
 @pytest.mark.asyncio
 async def test_single_model_runtime_errors_stay_inside_prediction_envelope(
-    mock_s3_service: MagicMock,
+    mock_upload_persistence: MagicMock,
     chest_xray_upload: ChestXrayUpload,
 ) -> None:
     runtime_pool = make_runtime_pool(
         {ModelSlug.VITB16: ModelRuntimeFailure(error="Model Runtime for 'vitb16' is not configured.")}
     )
     orchestration = PredictionOrchestration(
-        s3_service=mock_s3_service,
+        upload_persistence=mock_upload_persistence,
         model_runtime_pool=runtime_pool,
     )
 
@@ -109,10 +110,10 @@ async def test_single_model_runtime_errors_stay_inside_prediction_envelope(
 
 @pytest.mark.asyncio
 async def test_upload_failure_is_best_effort(
-    mock_s3_service: MagicMock,
+    mock_upload_persistence: MagicMock,
     chest_xray_upload: ChestXrayUpload,
 ) -> None:
-    mock_s3_service.upload_chest_xray.side_effect = RuntimeError("s3 down")
+    mock_upload_persistence.persist_chest_xray_upload.return_value = PredictionUploadStatus(status="error")
     runtime_pool = make_runtime_pool(
         {
             ModelSlug.EFFNETB0: ModelRuntimeScore(
@@ -122,7 +123,7 @@ async def test_upload_failure_is_best_effort(
         }
     )
     orchestration = PredictionOrchestration(
-        s3_service=mock_s3_service,
+        upload_persistence=mock_upload_persistence,
         model_runtime_pool=runtime_pool,
     )
 

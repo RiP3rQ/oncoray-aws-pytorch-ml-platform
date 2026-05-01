@@ -87,3 +87,26 @@ class TestUploadChestXray:
 
         assert result.startswith("predictions/")
         client.upload_fileobj.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_persist_chest_xray_upload_returns_ok_status(self, chest_xray_upload):
+        """persist_chest_xray_upload should return public upload status."""
+        service = S3Service()
+
+        result = await service.persist_chest_xray_upload(chest_xray_upload)
+
+        assert result.status == "ok"
+        assert result.image_s3_key is not None
+        assert result.image_s3_key.startswith("predictions/")
+
+    @pytest.mark.asyncio
+    async def test_persist_chest_xray_upload_returns_error_status_on_failure(self, chest_xray_upload):
+        """persist_chest_xray_upload should keep upload persistence best-effort."""
+        client = Mock()
+        client.upload_fileobj.side_effect = RuntimeError("s3 down")
+        service = S3Service(upload_mode="aws", s3_client=client)
+
+        result = await service.persist_chest_xray_upload(chest_xray_upload)
+
+        assert result.status == "error"
+        assert result.image_s3_key is None

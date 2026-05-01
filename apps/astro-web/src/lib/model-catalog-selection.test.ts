@@ -6,7 +6,7 @@ import {
   sortModelCatalog,
 } from "./model-catalog-selection";
 
-function model(slug: ModelRead["slug"], name = slug): ModelRead {
+function model(slug: ModelRead["slug"], name: string = slug): ModelRead {
   return {
     id: `${slug}-id`,
     slug,

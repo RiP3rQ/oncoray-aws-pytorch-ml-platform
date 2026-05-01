@@ -16,6 +16,10 @@ _Avoid_: model-service, backend model
 The internal classification payload returned by one Model Runtime for one Chest X-ray Upload.
 _Avoid_: prediction response, model-service response, inference response
 
+**Model Artifact**:
+The trained weights file loaded by one Model Runtime before it can score Chest X-ray Uploads.
+_Avoid_: model blob, checkpoint file, Hugging Face model
+
 **Chest X-ray Upload**:
 The uploaded PNG, JPG, or WEBP chest X-ray image submitted for a Prediction, before any Model Runtime scores it.
 _Avoid_: image blob, uploaded image, file
@@ -38,6 +42,7 @@ _Avoid_: prediction orchestration, inference flow
 - A **Prediction** may contain results from one or more **Model Runtimes**.
 - A **Prediction** can be partially successful: one **Model Runtime** may fail while another contributes a successful result.
 - A **Model Runtime Prediction** belongs to exactly one **Model Runtime** and one **Chest X-ray Upload**.
+- A **Model Runtime** must load exactly one **Model Artifact** before it can produce a **Model Runtime Prediction**.
 - **Prediction Orchestration** turns one or more **Model Runtime Predictions** into one public **Prediction**.
 - A **Prediction** can succeed even when **Chest X-ray Upload** persistence fails; upload persistence is best-effort status.
 - A **Chest X-ray Upload** is validated before any **Model Runtime** scores it.

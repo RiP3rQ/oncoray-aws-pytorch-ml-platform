@@ -8,6 +8,7 @@ import boto3
 
 from src.core.logger import get_logger
 from src.intake.chest_xray_upload import ChestXrayUpload
+from src.schemas.model_schemas import PredictionUploadStatus
 
 logger = get_logger(__name__)
 
@@ -72,3 +73,13 @@ class S3Service:
         )
 
         return object_key
+
+    async def persist_chest_xray_upload(self, upload: ChestXrayUpload) -> PredictionUploadStatus:
+        """Persist a Chest X-ray Upload and return best-effort public status."""
+        try:
+            s3_key = await self.upload_chest_xray(upload)
+        except Exception:
+            logger.warning("Image upload failed for filename=%s", upload.filename, exc_info=True)
+            return PredictionUploadStatus(status="error")
+
+        return PredictionUploadStatus(status="ok", image_s3_key=s3_key)

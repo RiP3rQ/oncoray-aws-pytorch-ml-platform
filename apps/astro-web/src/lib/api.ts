@@ -1,4 +1,4 @@
-import { getStoredToken, removeToken } from "./auth.js";
+import { expireBrowserSession, getStoredToken } from "./auth-session.js";
 import type { components } from "./generated/api-types";
 
 const configuredApiBaseUrl = (import.meta.env.PUBLIC_API_BASE_URL ?? "")
@@ -44,8 +44,7 @@ async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
     const isAuthPath = AUTH_PATHS.some((p) => path.startsWith(p));
 
     if (!isAuthPath) {
-      removeToken();
-      window.location.href = "/login";
+      expireBrowserSession();
     }
 
     throw new ApiError(

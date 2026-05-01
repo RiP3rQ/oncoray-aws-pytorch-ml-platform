@@ -9,7 +9,7 @@ import torch.nn as nn
 import torchvision
 
 from src.config import Settings
-from src.model_artifacts import load_state_dict
+from src.model_artifacts import HuggingFaceArtifactSource, load_state_dict, resolve_model_artifact
 from src.model_runtime_factory import ModelRuntimeFactory
 from src.model_specs import ModelSpec
 from src.runtime import ImageTransform, InferenceRuntime
@@ -42,6 +42,47 @@ def test_load_state_dict_accepts_nested_checkpoint() -> None:
     torch.save({"model_state_dict": expected}, artifact_path)
     resolved = load_state_dict(artifact_path, map_location=torch.device("cpu"))
     assert torch.equal(resolved["layer.weight"], expected["layer.weight"])
+
+
+def test_resolve_model_artifact_reuses_existing_local_file() -> None:
+    workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
+    workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = workspace_tmp_dir / f"existing-{uuid4()}.pth"
+    artifact_path.write_bytes(b"local")
+
+    resolved = resolve_model_artifact(
+        artifact_path,
+        HuggingFaceArtifactSource(repo_id="owner/repo", revision="main", filename="remote.pth"),
+        downloader=lambda source: (_ for _ in ()).throw(AssertionError("Downloader should not run.")),
+    )
+
+    assert resolved == artifact_path
+    assert artifact_path.read_bytes() == b"local"
+
+
+def test_resolve_model_artifact_fetches_from_hugging_face_when_missing() -> None:
+    workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
+    workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = workspace_tmp_dir / f"downloaded-{uuid4()}.pth"
+    cached_path = workspace_tmp_dir / f"cached-{uuid4()}.pth"
+    cached_path.write_bytes(b"remote")
+    calls: list[HuggingFaceArtifactSource] = []
+
+    def fake_downloader(source: HuggingFaceArtifactSource) -> Path:
+        calls.append(source)
+        return cached_path
+
+    source = HuggingFaceArtifactSource(
+        repo_id="RiP3rQ/effnetb0",
+        revision="abc123",
+        filename="effnetb0/best.pth",
+        token="hf_token",
+    )
+    resolved = resolve_model_artifact(artifact_path, source, downloader=fake_downloader)
+
+    assert resolved == artifact_path
+    assert artifact_path.read_bytes() == b"remote"
+    assert calls == [source]
 
 
 def test_model_runtime_factory_builds_inference_runtime_from_settings() -> None:

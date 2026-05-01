@@ -158,19 +158,19 @@ class TestServiceDependencies:
         service = get_s3_service()
         assert isinstance(service, S3Service)
 
-    def test_get_model_runtime_clients_returns_empty_map_without_urls(self):
-        """get_model_runtime_clients should return empty map when URLs are unset."""
-        from src.core.dependencies import get_model_runtime_clients
+    def test_get_model_runtime_adapters_returns_empty_map_without_urls(self):
+        """get_model_runtime_adapters should return empty map when URLs are unset."""
+        from src.core.dependencies import get_model_runtime_adapters
 
         with patch("src.core.dependencies.model_service_settings") as mock_settings:
             mock_settings.model_service_urls = {}
-            result = get_model_runtime_clients()
+            result = get_model_runtime_adapters()
 
         assert result == {}
 
-    def test_get_model_runtime_clients_builds_clients_when_urls_set(self):
-        """get_model_runtime_clients should build clients when URLs exist."""
-        from src.core.dependencies import get_model_runtime_clients
+    def test_get_model_runtime_adapters_builds_clients_when_urls_set(self):
+        """get_model_runtime_adapters should build clients when URLs exist."""
+        from src.core.dependencies import get_model_runtime_adapters
         from src.services.model_runtime_client import ModelRuntimeClient
 
         with patch("src.core.dependencies.model_service_settings") as mock_settings:
@@ -179,7 +179,7 @@ class TestServiceDependencies:
                 "vitb16": "http://vit-service:8000",
             }
             mock_settings.MODEL_SERVICE_TIMEOUT_SECONDS = 12.5
-            result = get_model_runtime_clients()
+            result = get_model_runtime_adapters()
 
         assert isinstance(result["effnetb0"], ModelRuntimeClient)
         assert isinstance(result["vitb16"], ModelRuntimeClient)
@@ -192,5 +192,5 @@ class TestServiceDependencies:
         from src.core.dependencies import get_model_runtime_pool
         from src.services.model_runtime_pool import ModelRuntimePool
 
-        service = get_model_runtime_pool(model_runtime_clients={})
+        service = get_model_runtime_pool(model_runtime_adapters={})
         assert isinstance(service, ModelRuntimePool)

@@ -2,14 +2,19 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AuthContext } from "../lib/auth.js";
 import type { User } from "../lib/auth.js";
 import * as api from "../lib/api.js";
-import { getStoredToken, setToken, removeToken } from "../lib/auth.js";
+import {
+  getStoredToken,
+  hasStoredToken,
+  removeToken,
+  setToken,
+} from "../lib/auth-session.js";
 import { toast } from "sonner";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const authenticated = !!user && !!getStoredToken();
+  const authenticated = !!user && hasStoredToken();
 
   const fetchUser = useCallback(async () => {
     try {
@@ -44,7 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (email: string, password: string) => {
     await api.signup(email, password);
-    toast.success("Verification email sent. Check your inbox.");
   }, []);
 
   const logout = useCallback(async () => {
