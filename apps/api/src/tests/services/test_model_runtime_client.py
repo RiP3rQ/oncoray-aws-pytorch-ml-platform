@@ -13,9 +13,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.api_types.enums import ModelSlug
 from src.core.errors import ServiceUnavailable, UpstreamServiceError
 from src.services.model_runtime_client import ModelRuntimeClient
-from src.types.enums import ModelSlug
 
 
 class TestModelRuntimeClient:
@@ -76,11 +76,13 @@ class TestModelRuntimeClient:
             transport=httpx.MockTransport(handler),
         )
 
-        with pytest.raises(UpstreamServiceError):
+        with pytest.raises(UpstreamServiceError) as exc_info:
             await client.predict(
                 image_data=b"data",
                 filename="test.jpg",
             )
+
+        assert exc_info.value.upstream_status_code == 500
 
     @pytest.mark.asyncio
     async def test_predict_raises_upstream_error_on_invalid_payload(self):

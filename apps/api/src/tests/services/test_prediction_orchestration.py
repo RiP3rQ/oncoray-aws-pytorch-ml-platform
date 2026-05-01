@@ -2,11 +2,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.api_types.enums import ModelSlug, PredictionMode
 from src.intake.chest_xray_upload import ChestXrayUpload
 from src.schemas.model_schemas import PredictionUploadStatus, UnifiedPredictionResponse
 from src.services.model_runtime_pool import ModelRuntimeFailure, ModelRuntimePool, ModelRuntimeScore
 from src.services.prediction_orchestration import PredictionOrchestration
-from src.types.enums import ModelSlug, PredictionMode
 
 
 @pytest.fixture

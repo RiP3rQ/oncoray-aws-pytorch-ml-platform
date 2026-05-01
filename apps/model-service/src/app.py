@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any, cast
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
+from starlette.concurrency import run_in_threadpool
 
 from src.config import Settings, settings
 from src.model_runtime_factory import ModelRuntimeFactory
@@ -66,7 +67,7 @@ def create_app(
         image: Annotated[UploadFile, File(..., description="Image file (max 2 MB)")],
     ) -> ModelRuntimePrediction:
         try:
-            return get_runtime(app).predict(await image.read())
+            return await run_in_threadpool(get_runtime(app).predict, await image.read())
         except HTTPException:
             raise
         except ValueError as exc:

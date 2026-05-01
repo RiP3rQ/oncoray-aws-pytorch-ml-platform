@@ -4,6 +4,7 @@ import asyncio
 from typing import Protocol
 from uuid import uuid4
 
+from src.api_types.enums import ModelSlug, PredictionMode
 from src.intake.chest_xray_upload import ChestXrayUpload
 from src.schemas.model_schemas import PredictionResultStatus, PredictionUploadStatus, UnifiedPredictionResponse
 from src.services.model_runtime_pool import (
@@ -12,7 +13,6 @@ from src.services.model_runtime_pool import (
     ModelRuntimePool,
     ModelRuntimeScore,
 )
-from src.types.enums import ModelSlug, PredictionMode
 
 
 class ChestXrayUploadPersistence(Protocol):

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from src.types.enums import ModelSlug, PredictionMode
+from src.api_types.enums import ModelSlug, PredictionMode
 
 
 class BaseModelSchema(BaseModel):

@@ -1,6 +1,6 @@
+from src.api_types.enums import ModelSlug
 from src.services.model_runtime_client import ModelRuntimeClient
 from src.services.model_runtime_registry import ModelRuntimeRegistry
-from src.types.enums import ModelSlug
 
 
 def test_model_runtime_registry_builds_adapters_from_runtime_urls() -> None:

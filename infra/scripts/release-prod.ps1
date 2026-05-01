@@ -36,6 +36,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "production-deployment-contract.ps1")
+. (Join-Path $PSScriptRoot "backend-helm-values.ps1")
+. (Join-Path $PSScriptRoot "parameter-store-manifest.ps1")
+. (Join-Path $PSScriptRoot "release-plan.ps1")
 
 function Assert-Command {
     param([Parameter(Mandatory = $true)][string]$Name)
@@ -67,6 +70,36 @@ function Invoke-External {
     }
 }
 
+function ConvertTo-Hashtable {
+    param([AllowNull()][object]$Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $converted = [ordered]@{}
+        foreach ($key in $Value.Keys) {
+            $converted[$key] = ConvertTo-Hashtable -Value $Value[$key]
+        }
+        return $converted
+    }
+
+    if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
+        return @($Value | ForEach-Object { ConvertTo-Hashtable -Value $_ })
+    }
+
+    if ($Value -is [pscustomobject]) {
+        $converted = [ordered]@{}
+        foreach ($property in $Value.PSObject.Properties) {
+            $converted[$property.Name] = ConvertTo-Hashtable -Value $property.Value
+        }
+        return $converted
+    }
+
+    return $Value
+}
+
 function Get-TerraformOutputs {
     param([Parameter(Mandatory = $true)][string]$TerraformDirectory)
 
@@ -75,38 +108,7 @@ function Get-TerraformOutputs {
         throw "Failed to read Terraform outputs."
     }
 
-    return $json | ConvertFrom-Json -AsHashtable
-}
-
-function Get-ParameterManifest {
-    param([string]$PathValue)
-
-    if (-not $PathValue) {
-        return @()
-    }
-
-    $manifestPath = Resolve-Path -LiteralPath $PathValue
-    $raw = Get-Content -Raw $manifestPath
-    $items = $raw | ConvertFrom-Json
-    if ($items -isnot [System.Collections.IEnumerable]) {
-        throw "Parameter manifest must be a JSON array."
-    }
-
-    return @($items)
-}
-
-function Merge-Parameters {
-    param(
-        [Parameter(Mandatory = $true)][object[]]$Derived,
-        [Parameter(Mandatory = $true)][object[]]$Manifest
-    )
-
-    $byName = [ordered]@{}
-    foreach ($item in $Derived + $Manifest) {
-        $byName[$item.name] = $item
-    }
-
-    return @($byName.Values)
+    return ConvertTo-Hashtable -Value ($json | ConvertFrom-Json)
 }
 
 function New-DerivedSsmParameters {
@@ -125,24 +127,6 @@ function New-DerivedSsmParameters {
         [pscustomobject]@{ name = "$ParameterPrefix/worker/AWS_REGION"; type = "String"; value = $ProductionDeploymentContract.awsRegion },
         [pscustomobject]@{ name = "$ParameterPrefix/worker/SQS_QUEUE_URL"; type = "String"; value = $ProductionDeploymentContract.workerQueueUrl }
     )
-}
-
-function Assert-RequiredSsmParameters {
-    param(
-        [Parameter(Mandatory = $true)][object[]]$Parameters,
-        [Parameter(Mandatory = $true)][object]$ExpectedParameterStorePaths
-    )
-
-    $requiredParameterNames = @()
-    $requiredParameterNames += @($ExpectedParameterStorePaths.api)
-    $requiredParameterNames += @($ExpectedParameterStorePaths.worker)
-
-    $missingParameters = $requiredParameterNames | Where-Object {
-        $_ -notin $Parameters.name
-    }
-    if ($missingParameters.Count -gt 0) {
-        throw "Missing Parameter Store values: $($missingParameters -join ', '). Supply them in -ParameterManifestFile."
-    }
 }
 
 function Sync-SsmParameters {
@@ -273,6 +257,7 @@ function New-BackendDeployArguments {
         [Parameter(Mandatory = $true)][string]$ReleaseName,
         [Parameter(Mandatory = $true)][string]$Namespace,
         [Parameter(Mandatory = $true)][string]$BackendValuesFile,
+        [string]$GeneratedValuesFile = "",
         [Parameter(Mandatory = $true)][string]$ApiImageRepository,
         [Parameter(Mandatory = $true)][string]$ApiImageTag,
         [Parameter(Mandatory = $true)][string]$WorkerImageRepository,
@@ -282,6 +267,7 @@ function New-BackendDeployArguments {
         [switch]$EnableModelService,
         [string]$ModelServiceImageRepository = "",
         [string]$ModelServiceImageTag = "",
+        [string]$ModelServiceServiceAccountRoleArn = "",
         [switch]$DryRun
     )
 
@@ -295,7 +281,14 @@ function New-BackendDeployArguments {
         "-Namespace",
         $Namespace,
         "-ValuesFile",
-        $BackendValuesFile,
+        $BackendValuesFile
+    )
+
+    if ($GeneratedValuesFile) {
+        $arguments += @("-GeneratedValuesFile", $GeneratedValuesFile)
+    }
+
+    $arguments += @(
         "-ApiImageRepository",
         $ApiImageRepository,
         "-ApiImageTag",
@@ -320,7 +313,9 @@ function New-BackendDeployArguments {
             "-ModelServiceImageRepository",
             $ModelServiceImageRepository,
             "-ModelServiceImageTag",
-            $ModelServiceImageTag
+            $ModelServiceImageTag,
+            "-ModelServiceServiceAccountRoleArn",
+            $ModelServiceServiceAccountRoleArn
         )
     }
 
@@ -344,11 +339,11 @@ else {
 
 Assert-Command -Name "terraform"
 
-if (-not $SkipTerraform -or -not $SkipParameterSync -or -not $SkipAddons -or -not $SkipFrontendDeploy -or $SyncApiEdge) {
+if (-not $DryRun -and (-not $SkipTerraform -or -not $SkipParameterSync -or -not $SkipAddons -or -not $SkipFrontendDeploy -or $SyncApiEdge)) {
     Assert-Command -Name "aws"
 }
 
-if (-not $SkipAddons -or -not $SkipBackendDeploy -or $SyncApiEdge) {
+if (-not $DryRun -and (-not $SkipAddons -or -not $SkipBackendDeploy -or $SyncApiEdge)) {
     Assert-Command -Name "kubectl"
     Assert-Command -Name "helm"
 }
@@ -368,14 +363,14 @@ if (-not $SkipTerraform) {
             "plan",
             "-var-file=$resolvedTerraformVarsFile"
         )
-        return
     }
-
-    Invoke-External -FilePath "terraform" -Arguments @(
-        "-chdir=$resolvedTerraformDir",
-        "apply",
-        "-var-file=$resolvedTerraformVarsFile"
-    )
+    else {
+        Invoke-External -FilePath "terraform" -Arguments @(
+            "-chdir=$resolvedTerraformDir",
+            "apply",
+            "-var-file=$resolvedTerraformVarsFile"
+        )
+    }
 }
 
 $terraformOutputs = Get-TerraformOutputs -TerraformDirectory $resolvedTerraformDir
@@ -383,11 +378,28 @@ $productionDeploymentContract = New-ProductionDeploymentContract `
     -TerraformOutputs $terraformOutputs `
     -ProjectName $ProjectName `
     -Environment $Environment `
-    -Namespace $Namespace
+    -Namespace $Namespace `
+    -ReleaseName $ReleaseName `
+    -ApiImageRepository $ApiImageRepository `
+    -ApiImageTag $ApiImageTag `
+    -WorkerImageRepository $WorkerImageRepository `
+    -WorkerImageTag $WorkerImageTag `
+    -ModelServiceImageRepository $ModelServiceImageRepository `
+    -ModelServiceImageTag $ModelServiceImageTag `
+    -EnableModelService ([bool]$EnableModelService)
 $productionDeploymentContractPath = Save-ProductionDeploymentContract `
     -Contract $productionDeploymentContract `
-    -RepoRoot $repoRoot
+    -RepoRoot $repoRoot `
+    -ReleaseArtifactId $ApiImageTag
 Write-Host "Production Deployment Contract: $productionDeploymentContractPath"
+
+$backendHelmValuesOverride = New-BackendHelmValuesOverride -ProductionDeploymentContract $productionDeploymentContract
+$backendHelmValuesOverridePath = Save-BackendHelmValuesOverride `
+    -Values $backendHelmValuesOverride `
+    -RepoRoot $repoRoot `
+    -Environment $Environment `
+    -ReleaseArtifactId $ApiImageTag
+Write-Host "Backend Helm values override: $backendHelmValuesOverridePath"
 
 $clusterName = $productionDeploymentContract.clusterName
 $awsRegion = $productionDeploymentContract.awsRegion
@@ -400,26 +412,13 @@ $ecrRepositoryUrls = $productionDeploymentContract.ecrRepositories
 $addonRoleArns = $productionDeploymentContract.clusterAddonRoleArns
 $appRoleArns = $productionDeploymentContract.appWorkloadRoleArns
 $expectedParameterStorePaths = $productionDeploymentContract.expectedParameterStorePaths
-
-if (-not $ApiImageRepository) {
-    $ApiImageRepository = $ecrRepositoryUrls.api
-}
-
-if (-not $WorkerImageRepository) {
-    $WorkerImageRepository = $ApiImageRepository
-}
-
-if (-not $WorkerImageTag) {
-    $WorkerImageTag = $ApiImageTag
-}
-
-if ($EnableModelService -and -not $ModelServiceImageRepository) {
-    $ModelServiceImageRepository = $ecrRepositoryUrls.modelService
-}
-
-if ($EnableModelService -and -not $ModelServiceImageTag) {
-    $ModelServiceImageTag = $ApiImageTag
-}
+$ApiImageRepository = $productionDeploymentContract.workloadImages.api.repository
+$ApiImageTag = $productionDeploymentContract.workloadImages.api.tag
+$WorkerImageRepository = $productionDeploymentContract.workloadImages.worker.repository
+$WorkerImageTag = $productionDeploymentContract.workloadImages.worker.tag
+$ModelServiceImageRepository = $productionDeploymentContract.workloadImages.modelService.repository
+$ModelServiceImageTag = $productionDeploymentContract.workloadImages.modelService.tag
+$mergedParameters = @()
 
 if (-not $SkipParameterSync) {
     $resolvedParameterManifestFile = if ($ParameterManifestFile) {
@@ -428,7 +427,7 @@ if (-not $SkipParameterSync) {
     else {
         ""
     }
-    $manifestParameters = Get-ParameterManifest -PathValue $resolvedParameterManifestFile
+    $manifestParameters = Read-ParameterManifest -PathValue $resolvedParameterManifestFile
     $prefix = "/$ProjectName/$Environment"
     $derivedParameters = New-DerivedSsmParameters `
         -ProductionDeploymentContract $productionDeploymentContract `
@@ -436,9 +435,41 @@ if (-not $SkipParameterSync) {
     $mergedParameters = Merge-Parameters -Derived $derivedParameters -Manifest $manifestParameters
     Assert-RequiredSsmParameters `
         -Parameters $mergedParameters `
-        -ExpectedParameterStorePaths $expectedParameterStorePaths
+        -ExpectedParameterStorePaths $expectedParameterStorePaths `
+        -ModelRuntimes $productionDeploymentContract.modelRuntimes
 
-    Sync-SsmParameters -Parameters $mergedParameters
+    if (-not $DryRun) {
+        Sync-SsmParameters -Parameters $mergedParameters
+    }
+}
+
+$releasePlan = New-ReleasePlan `
+    -ProductionDeploymentContract $productionDeploymentContract `
+    -ProductionDeploymentContractPath $productionDeploymentContractPath `
+    -BackendHelmValuesOverridePath $backendHelmValuesOverridePath `
+    -SsmParameters $mergedParameters `
+    -TerraformDirectory $resolvedTerraformDir `
+    -TerraformVarsFile $resolvedTerraformVarsFile `
+    -BackendValuesFile $resolvedBackendValuesFile `
+    -PlatformValuesFile $resolvedPlatformValuesFile `
+    -Skip @{
+        Terraform      = [bool]$SkipTerraform
+        ParameterSync  = [bool]$SkipParameterSync
+        Addons         = [bool]$SkipAddons
+        BackendDeploy  = [bool]$SkipBackendDeploy
+        FrontendDeploy = [bool]$SkipFrontendDeploy
+        ApiEdgeSync    = -not [bool]$SyncApiEdge
+    }
+$releasePlanPath = Save-ReleasePlan `
+    -Plan $releasePlan `
+    -RepoRoot $repoRoot `
+    -Environment $Environment `
+    -ReleaseArtifactId $ApiImageTag
+Write-Host "Release plan: $releasePlanPath"
+
+if ($DryRun) {
+    Write-Host "Dry run complete. Release plan written without mutating AWS, Kubernetes, S3, or CloudFront."
+    return
 }
 
 Invoke-External -FilePath "aws" -Arguments @("eks", "update-kubeconfig", "--region", $awsRegion, "--name", $clusterName)
@@ -505,6 +536,7 @@ if (-not $SkipBackendDeploy) {
         -ReleaseName $ReleaseName `
         -Namespace $Namespace `
         -BackendValuesFile $resolvedBackendValuesFile `
+        -GeneratedValuesFile $backendHelmValuesOverridePath `
         -ApiImageRepository $ApiImageRepository `
         -ApiImageTag $ApiImageTag `
         -WorkerImageRepository $WorkerImageRepository `
@@ -514,6 +546,7 @@ if (-not $SkipBackendDeploy) {
         -EnableModelService:$EnableModelService `
         -ModelServiceImageRepository $ModelServiceImageRepository `
         -ModelServiceImageTag $ModelServiceImageTag `
+        -ModelServiceServiceAccountRoleArn $appRoleArns.modelService `
         -DryRun:$DryRun
     Invoke-External -FilePath "powershell" -Arguments $deployArgs
 }

@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 
@@ -70,8 +72,12 @@ class UpstreamServiceError(FastApiCoreError):
     status = status.HTTP_502_BAD_GATEWAY
     detail = "Dependent service returned an invalid response."
 
+    def __init__(self, detail: str | None = None, upstream_status_code: int | None = None):
+        self.upstream_status_code = upstream_status_code
+        super().__init__(detail)
 
-def _get_handler(status: int, detail: str):
+
+def _get_handler(status: int, detail: str) -> Callable[[Request, Exception], Response]:
     """Create FastAPI exception handler for a custom core error type."""
 
     def handler(request: Request, exception: Exception) -> Response:
@@ -87,7 +93,7 @@ def _get_handler(status: int, detail: str):
     return handler
 
 
-def add_exception_handlers(app: FastAPI):
+def add_exception_handlers(app: FastAPI) -> None:
     # Get all subclass of our custom exceptions
     exception_classes = FastApiCoreError.__subclasses__()
 

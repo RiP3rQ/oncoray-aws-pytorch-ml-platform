@@ -3,11 +3,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, Path, Query, UploadFile
 
+from src.api_types.enums import APITag, PredictionMode
 from src.core.dependencies import ModelCatalogDep, PredictionOrchestrationDep
 from src.core.logger import get_logger
 from src.intake.fastapi_chest_xray_upload import read_chest_xray_upload
 from src.schemas.model_schemas import ModelRead, UnifiedPredictionResponse
-from src.types.enums import APITag, PredictionMode
 
 router = APIRouter(prefix="/model", tags=[APITag.MODEL])
 public_router = APIRouter(tags=[APITag.MODEL])

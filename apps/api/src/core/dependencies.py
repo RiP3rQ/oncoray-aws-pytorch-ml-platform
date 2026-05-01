@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api_types.enums import ModelSlug
 from src.core.config import model_service_settings, s3_settings
 from src.core.errors import ClientNotAuthorized, InvalidToken
 from src.core.security import oauth2_scheme_user
@@ -16,7 +17,6 @@ from src.services.model_runtime_registry import ModelRuntimeRegistry
 from src.services.prediction_orchestration import ChestXrayUploadPersistence, PredictionOrchestration
 from src.services.s3_service import S3Service
 from src.services.user_service import UserService
-from src.types.enums import ModelSlug
 from src.utils.token_utils import decode_access_token
 
 # =============================== SESSION ===============================

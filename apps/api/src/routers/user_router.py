@@ -3,12 +3,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 
+from src.api_types.enums import APITag
 from src.core.dependencies import UserDep, UserServiceDep, get_user_access_token
 from src.core.logger import get_logger
 from src.core.security import TokenData
 from src.database.redis import add_jti_to_blacklist
 from src.schemas.user_schemas import UserCreate, UserRead
-from src.types.enums import APITag
 
 router = APIRouter(prefix="/user", tags=[APITag.USER])
 logger = get_logger(__name__)

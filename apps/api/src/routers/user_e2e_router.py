@@ -4,11 +4,11 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from pydantic import EmailStr
 from sqlalchemy import select
 
+from src.api_types.enums import APITag
 from src.core.dependencies import SessionDep
 from src.database.postgres import User
 from src.schemas.user_schemas import UserCreate, UserRead
 from src.services.user_service import UserService
-from src.types.enums import APITag
 
 router = APIRouter(
     prefix="/user/e2e",

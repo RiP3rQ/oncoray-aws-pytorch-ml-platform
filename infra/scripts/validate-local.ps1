@@ -171,6 +171,23 @@ function Test-ProductionDeploymentContractFile {
     Add-Pass "Generated Production Deployment Contract"
 }
 
+function Invoke-PesterTests {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Get-Module -ListAvailable -Name Pester)) {
+        Add-Warning "Pester not found. Skipping $Path."
+        return
+    }
+
+    $result = Invoke-Pester -Script $Path -PassThru
+    if ($result.FailedCount -gt 0) {
+        Add-Failure "Pester tests failed: $Path"
+        return
+    }
+
+    Add-Pass "Pester tests $Path"
+}
+
 Write-Host "Running local infra validation from $repoRoot"
 
 if (-not (Test-Command -Name "terraform")) {
@@ -196,6 +213,10 @@ Get-ChildItem -Path (Join-Path $repoRoot "infra/scripts") -Filter "*.ps1" | ForE
     Test-PowerShellParse -Path $_.FullName
 }
 
+Get-ChildItem -Path (Join-Path $repoRoot "infra/scripts") -Filter "*.Tests.ps1" | ForEach-Object {
+    Invoke-PesterTests -Path $_.FullName
+}
+
 Get-ChildItem -Path (Join-Path $repoRoot ".github/workflows") -Filter "*.yml" | ForEach-Object {
     Test-WorkflowCommented -Path $_.FullName
 }
@@ -217,6 +238,42 @@ Test-ContentRule `
     -FailureMessage "defaultImageTag must not be 'latest'."
 
 Test-ContentRule `
+    -Label "Backend chart values schema" `
+    -Path (Join-Path $repoRoot "infra/helm/charts/backend-stack/values.schema.json") `
+    -Predicate {
+        param($content)
+        try {
+            $schema = $content | ConvertFrom-Json
+            return (
+                $schema.required -contains "modelRuntimeDefaults" -and
+                $schema.required -contains "modelRuntimes" -and
+                $null -ne $schema.definitions.modelRuntime
+            )
+        }
+        catch {
+            return $false
+        }
+    } `
+    -FailureMessage "backend-stack values.schema.json must be valid JSON and define modelRuntimes."
+
+Test-ContentRule `
+    -Label "Backend chart Model Runtime Interface" `
+    -Path (Join-Path $repoRoot "infra/helm/charts/backend-stack/values.yaml") `
+    -Predicate {
+        param($content)
+        return (
+            $content -match '(?m)^modelRuntimeDefaults:\s*$' -and
+            $content -match '(?m)^modelRuntimes:\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+workloadName:\s*model-service-effnetb0\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+artifactPath:\s*/models/effnetb0\.pth\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+workloadName:\s*model-service-vitb16\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+artifactPath:\s*/models/vitb16\.pth\s*$' -and
+            $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$'
+        )
+    } `
+    -FailureMessage "Model Runtime values must live under slug-keyed modelRuntimes, not workloads."
+
+Test-ContentRule `
     -Label "Prod example model-service URLs" `
     -Path (Join-Path $repoRoot "infra/helm/values/prod.example.yaml") `
     -Predicate {
@@ -225,14 +282,41 @@ Test-ContentRule `
             $content -match '(?ms)^\s*model-service-effnetb0:\s*.*?^\s+enabled:\s*false\s*$' -and
             $content -match '(?ms)^\s*model-service-vitb16:\s*.*?^\s+enabled:\s*false\s*$'
         ) {
-            return (
-                $content -match '(?m)^\s*MODEL_SERVICE_EFFNETB0_URL:\s*""\s*$' -and
-                $content -match '(?m)^\s*MODEL_SERVICE_VITB16_URL:\s*""\s*$'
-            )
+            return $content -match '(?m)^\s*MODEL_RUNTIME_URLS:\s*""\s*$'
         }
         return $true
     } `
-    -FailureMessage "Model-service URLs must be empty while example model-service workloads stay disabled."
+    -FailureMessage "Model Runtime URLs must be empty while example model-service workloads stay disabled."
+
+Test-ContentRule `
+    -Label "Prod example Model Runtime Interface" `
+    -Path (Join-Path $repoRoot "infra/helm/values/prod.example.yaml") `
+    -Predicate {
+        param($content)
+        return (
+            $content -match '(?m)^modelRuntimes:\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+artifactPath:\s*/models/effnetb0\.pth\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+HF_MODEL_REPOSITORY:\s*replace-me/effnetb0\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+HF_MODEL_FILENAME:\s*effnetb0/best\.pth\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+artifactPath:\s*/models/vitb16\.pth\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+HF_MODEL_REPOSITORY:\s*replace-me/vitb16\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+HF_MODEL_FILENAME:\s*vitb16/best\.pth\s*$' -and
+            $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$'
+        )
+    } `
+    -FailureMessage "Prod Model Runtime overrides must use slug-keyed modelRuntimes with artifact facts."
+
+Test-ContentRule `
+    -Label "Backend chart model-service production env" `
+    -Path (Join-Path $repoRoot "infra/helm/charts/backend-stack/values.yaml") `
+    -Predicate {
+        param($content)
+        return (
+            $content -notmatch '(?ms)^\s*model-service-effnetb0:\s*.*?^\s+APP_ENVIRONMENT:\s+development\s*$' -and
+            $content -notmatch '(?ms)^\s*model-service-vitb16:\s*.*?^\s+APP_ENVIRONMENT:\s+development\s*$'
+        )
+    } `
+    -FailureMessage "Model Runtime chart defaults must not override APP_ENVIRONMENT to development."
 
 Test-ContentRule `
     -Label "Terraform EKS endpoint CIDR default" `

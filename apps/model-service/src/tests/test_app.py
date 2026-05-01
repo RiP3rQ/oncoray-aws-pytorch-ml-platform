@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from io import BytesIO
 
 from fastapi.testclient import TestClient
@@ -25,6 +26,17 @@ class InvalidImageRuntime:
 
     def predict(self, image_data: bytes) -> ModelRuntimePrediction:
         raise ValueError("Invalid image data.")
+
+
+class ThreadpoolProbeRuntime:
+    slug = ModelSlug.EFFNETB0
+
+    def predict(self, image_data: bytes) -> ModelRuntimePrediction:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return ModelRuntimePrediction(prediction="NORMAL", confidence=0.99)
+        raise AssertionError("Model Runtime prediction must not run on the event loop.")
 
 
 def make_png_bytes() -> bytes:
@@ -105,3 +117,15 @@ def test_predict_endpoint_treats_multipart_as_transport_only() -> None:
         )
 
         assert response.status_code == 200
+
+
+def test_predict_endpoint_runs_model_runtime_off_event_loop() -> None:
+    app = create_app(runtime=ThreadpoolProbeRuntime())
+    with TestClient(app) as client:
+        response = client.post(
+            "/predict",
+            files={"image": ("scan.png", make_png_bytes(), "image/png")},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"prediction": "NORMAL", "confidence": 0.99}

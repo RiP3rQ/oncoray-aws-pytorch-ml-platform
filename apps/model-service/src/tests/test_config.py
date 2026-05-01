@@ -12,6 +12,7 @@ def test_development_allows_local_model_artifact_only() -> None:
     assert settings.APP_ENVIRONMENT == "development"
     assert settings.HF_MODEL_REPOSITORY is None
     assert settings.HF_MODEL_FILENAME is None
+    assert settings.MODEL_STARTUP_SMOKE_TEST is True
 
 
 def test_production_requires_hugging_face_model_artifact_source() -> None:

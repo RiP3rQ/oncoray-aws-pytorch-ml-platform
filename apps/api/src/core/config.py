@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.types.enums import ModelSlug
+from src.api_types.enums import ModelSlug
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 APP_DIR = Path(__file__).resolve().parent
@@ -142,6 +142,7 @@ class S3Settings(BaseSettings):
 class ModelServiceSettings(BaseSettings):
     """Internal model-service connection settings."""
 
+    MODEL_RUNTIME_URLS: str | None = None
     MODEL_SERVICE_EFFNETB0_URL: str | None = None
     MODEL_SERVICE_VITB16_URL: str | None = None
     MODEL_SERVICE_TIMEOUT_SECONDS: float = 30.0
@@ -149,6 +150,7 @@ class ModelServiceSettings(BaseSettings):
     model_config = _base_config
 
     @field_validator(
+        "MODEL_RUNTIME_URLS",
         "MODEL_SERVICE_EFFNETB0_URL",
         "MODEL_SERVICE_VITB16_URL",
         mode="before",
@@ -163,7 +165,7 @@ class ModelServiceSettings(BaseSettings):
 
     @property
     def model_service_urls(self) -> dict[ModelSlug, str]:
-        urls: dict[ModelSlug, str] = {}
+        urls = parse_model_runtime_urls(self.MODEL_RUNTIME_URLS)
         if self.MODEL_SERVICE_EFFNETB0_URL:
             urls[ModelSlug.EFFNETB0] = self.MODEL_SERVICE_EFFNETB0_URL
         if self.MODEL_SERVICE_VITB16_URL:
@@ -251,6 +253,32 @@ def extract_queue_name_from_url(queue_url: str) -> str:
     if not queue_name:
         raise ValueError(f"Could not extract queue name from URL: {queue_url!r}")
     return queue_name
+
+
+def parse_model_runtime_urls(value: str | None) -> dict[ModelSlug, str]:
+    if value is None:
+        return {}
+
+    urls: dict[ModelSlug, str] = {}
+    for entry in value.split(","):
+        parsed_entry = entry.strip()
+        if not parsed_entry:
+            continue
+        if "=" not in parsed_entry:
+            raise ValueError(f"Invalid MODEL_RUNTIME_URLS entry: {parsed_entry!r}")
+
+        slug_value, url_value = (part.strip() for part in parsed_entry.split("=", 1))
+        if not slug_value or not url_value:
+            raise ValueError(f"Invalid MODEL_RUNTIME_URLS entry: {parsed_entry!r}")
+
+        try:
+            slug = ModelSlug(slug_value)
+        except ValueError as exc:
+            raise ValueError(f"Unsupported Model Runtime slug in MODEL_RUNTIME_URLS: {slug_value!r}") from exc
+
+        urls[slug] = url_value.rstrip("/")
+
+    return urls
 
 
 app_settings = AppSettings()

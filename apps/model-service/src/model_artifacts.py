@@ -9,6 +9,8 @@ from typing import Any, Protocol
 
 import torch
 
+from src.types import ModelSlug
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,6 +24,15 @@ class HuggingFaceArtifactSource:
 
 class ArtifactDownloader(Protocol):
     def __call__(self, source: HuggingFaceArtifactSource) -> Path: ...
+
+
+@dataclass(frozen=True)
+class ModelArtifactManifest:
+    slug: ModelSlug
+    class_names: tuple[str, ...]
+    schema_version: int | None = None
+    architecture: str | None = None
+    training_revision: str | None = None
 
 
 def download_hugging_face_artifact(source: HuggingFaceArtifactSource) -> Path:
@@ -97,8 +108,13 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def load_state_dict(artifact_path: Path, map_location: torch.device) -> dict[str, Any]:
-    payload = torch.load(artifact_path, map_location=map_location)
+def load_model_artifact_payload(artifact_path: Path, map_location: torch.device) -> Any:
+    return torch.load(artifact_path, map_location=map_location)
+
+
+def load_state_dict(artifact_path: Path, map_location: torch.device, payload: Any | None = None) -> dict[str, Any]:
+    if payload is None:
+        payload = load_model_artifact_payload(artifact_path, map_location)
     if isinstance(payload, dict):
         if any(isinstance(value, torch.Tensor) for value in payload.values()):
             return payload
@@ -109,3 +125,68 @@ def load_state_dict(artifact_path: Path, map_location: torch.device) -> dict[str
                 return nested
 
     raise TypeError(f"Unsupported model artifact payload at {artifact_path}")
+
+
+def read_model_artifact_manifest(payload: Any) -> ModelArtifactManifest | None:
+    if not isinstance(payload, dict):
+        return None
+
+    for key in ("model_runtime_manifest", "artifact_manifest", "metadata"):
+        raw_manifest = payload.get(key)
+        if isinstance(raw_manifest, dict):
+            return parse_model_artifact_manifest(raw_manifest)
+
+    return None
+
+
+def parse_model_artifact_manifest(raw_manifest: dict[str, Any]) -> ModelArtifactManifest:
+    try:
+        raw_slug = raw_manifest["slug"]
+        raw_class_names = raw_manifest["class_names"]
+    except KeyError as exc:
+        raise ValueError(f"Model Artifact manifest missing required field: {exc.args[0]}") from exc
+
+    try:
+        slug = ModelSlug(str(raw_slug))
+    except ValueError as exc:
+        raise ValueError(f"Model Artifact manifest has unsupported slug: {raw_slug!r}") from exc
+
+    if not isinstance(raw_class_names, (list, tuple)) or not raw_class_names:
+        raise ValueError("Model Artifact manifest class_names must be a non-empty list.")
+
+    class_names = tuple(str(class_name) for class_name in raw_class_names)
+    schema_version = raw_manifest.get("schema_version")
+    if schema_version is not None:
+        schema_version = int(schema_version)
+
+    return ModelArtifactManifest(
+        slug=slug,
+        class_names=class_names,
+        schema_version=schema_version,
+        architecture=optional_manifest_text(raw_manifest.get("architecture")),
+        training_revision=optional_manifest_text(raw_manifest.get("training_revision")),
+    )
+
+
+def validate_model_artifact_manifest(
+    manifest: ModelArtifactManifest | None,
+    *,
+    expected_slug: ModelSlug,
+    expected_class_names: tuple[str, ...],
+) -> None:
+    if manifest is None:
+        return
+    if manifest.slug != expected_slug:
+        raise ValueError(f"Model Artifact manifest slug mismatch expected={expected_slug} actual={manifest.slug}.")
+    if manifest.class_names != expected_class_names:
+        raise ValueError(
+            "Model Artifact manifest class names mismatch "
+            f"expected={expected_class_names} actual={manifest.class_names}."
+        )
+
+
+def optional_manifest_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    parsed = str(value).strip()
+    return parsed or None

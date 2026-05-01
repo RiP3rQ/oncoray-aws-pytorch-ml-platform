@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from src.api_types.enums import ModelSlug
 from src.services.model_runtime_client import ModelRuntimeClient
 from src.services.model_runtime_pool import ModelRuntimeAdapter
-from src.types.enums import ModelSlug
 
 
 class ModelRuntimeRegistry:

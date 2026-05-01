@@ -10,7 +10,14 @@ import torch.nn as nn
 import torchvision
 
 from src.config import Settings
-from src.model_artifacts import HuggingFaceArtifactSource, load_state_dict, resolve_model_artifact
+from src.model_artifacts import (
+    HuggingFaceArtifactSource,
+    load_state_dict,
+    parse_model_artifact_manifest,
+    read_model_artifact_manifest,
+    resolve_model_artifact,
+    validate_model_artifact_manifest,
+)
 from src.model_runtime_factory import ModelRuntimeFactory
 from src.model_specs import ModelSpec
 from src.runtime import ImageTransform, InferenceRuntime
@@ -35,6 +42,21 @@ def build_tiny_transform() -> ImageTransform:
     return cast(ImageTransform, torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
 
 
+def build_bad_tiny_model(num_classes: int) -> nn.Module:
+    assert num_classes == 2
+
+    class BadTinyModel(nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.linear = nn.Linear(2, 2)
+
+        def forward(self, batch: torch.Tensor) -> torch.Tensor:
+            assert batch.shape[0] == 1
+            return torch.zeros((1, 3), dtype=torch.float32)
+
+    return BadTinyModel()
+
+
 def test_load_state_dict_accepts_nested_checkpoint() -> None:
     workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
     workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -43,6 +65,72 @@ def test_load_state_dict_accepts_nested_checkpoint() -> None:
     torch.save({"model_state_dict": expected}, artifact_path)
     resolved = load_state_dict(artifact_path, map_location=torch.device("cpu"))
     assert torch.equal(resolved["layer.weight"], expected["layer.weight"])
+
+
+def test_read_model_artifact_manifest_accepts_embedded_manifest() -> None:
+    manifest = read_model_artifact_manifest(
+        {
+            "model_state_dict": {"layer.weight": torch.ones(2, 2)},
+            "model_runtime_manifest": {
+                "schema_version": 1,
+                "slug": "effnetb0",
+                "architecture": "efficientnet_b0",
+                "class_names": ["NORMAL", "PNEUMONIA"],
+                "training_revision": "abc123",
+            },
+        }
+    )
+
+    assert manifest is not None
+    assert manifest.schema_version == 1
+    assert manifest.slug == ModelSlug.EFFNETB0
+    assert manifest.architecture == "efficientnet_b0"
+    assert manifest.class_names == ("NORMAL", "PNEUMONIA")
+    assert manifest.training_revision == "abc123"
+
+
+def test_validate_model_artifact_manifest_rejects_slug_mismatch() -> None:
+    manifest = parse_model_artifact_manifest(
+        {
+            "slug": "vitb16",
+            "class_names": ["NORMAL", "PNEUMONIA"],
+        }
+    )
+
+    try:
+        validate_model_artifact_manifest(
+            manifest,
+            expected_slug=ModelSlug.EFFNETB0,
+            expected_class_names=("NORMAL", "PNEUMONIA"),
+        )
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Expected Model Artifact manifest slug mismatch.")
+
+    assert "Model Artifact manifest slug mismatch" in message
+
+
+def test_validate_model_artifact_manifest_rejects_class_name_mismatch() -> None:
+    manifest = parse_model_artifact_manifest(
+        {
+            "slug": "effnetb0",
+            "class_names": ["PNEUMONIA", "NORMAL"],
+        }
+    )
+
+    try:
+        validate_model_artifact_manifest(
+            manifest,
+            expected_slug=ModelSlug.EFFNETB0,
+            expected_class_names=("NORMAL", "PNEUMONIA"),
+        )
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Expected Model Artifact manifest class name mismatch.")
+
+    assert "Model Artifact manifest class names mismatch" in message
 
 
 def test_resolve_model_artifact_reuses_existing_local_file() -> None:
@@ -159,13 +247,14 @@ def test_model_runtime_factory_builds_inference_runtime_from_settings() -> None:
         MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",
         MODEL_STRICT_LOAD=True,
     )
-    factory = ModelRuntimeFactory(
+    factory = ModelRuntimeFactory.from_settings_and_specs(
         settings=settings,
         model_specs={
             ModelSlug.EFFNETB0: ModelSpec(
                 slug=ModelSlug.EFFNETB0,
                 build_model=build_tiny_model,
                 build_transform=build_tiny_transform,
+                input_shape=(2,),
             )
         },
     )
@@ -176,3 +265,85 @@ def test_model_runtime_factory_builds_inference_runtime_from_settings() -> None:
     assert runtime.slug == ModelSlug.EFFNETB0
     assert runtime.class_names == ("NORMAL", "PNEUMONIA")
     assert runtime.device == torch.device("cpu")
+
+
+def test_model_runtime_factory_validates_embedded_artifact_manifest() -> None:
+    workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
+    workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = workspace_tmp_dir / f"manifest-mismatch-{uuid4()}.pth"
+    model = TinyModel()
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "model_runtime_manifest": {
+                "slug": "vitb16",
+                "class_names": ["NORMAL", "PNEUMONIA"],
+            },
+        },
+        artifact_path,
+    )
+
+    settings = Settings(
+        MODEL_SLUG=ModelSlug.EFFNETB0,
+        MODEL_ARTIFACT_PATH=artifact_path,
+        MODEL_DEVICE="cpu",
+        MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",
+        MODEL_STRICT_LOAD=True,
+    )
+    factory = ModelRuntimeFactory.from_settings_and_specs(
+        settings=settings,
+        model_specs={
+            ModelSlug.EFFNETB0: ModelSpec(
+                slug=ModelSlug.EFFNETB0,
+                build_model=build_tiny_model,
+                build_transform=build_tiny_transform,
+                input_shape=(2,),
+            )
+        },
+    )
+
+    try:
+        factory.build()
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Expected embedded Model Artifact manifest validation failure.")
+
+    assert "Model Artifact manifest slug mismatch" in message
+
+
+def test_model_runtime_factory_rejects_failed_startup_smoke_test() -> None:
+    workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
+    workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = workspace_tmp_dir / f"bad-tiny-{uuid4()}.pth"
+    model = build_bad_tiny_model(2)
+    torch.save(model.state_dict(), artifact_path)
+
+    settings = Settings(
+        MODEL_SLUG=ModelSlug.EFFNETB0,
+        MODEL_ARTIFACT_PATH=artifact_path,
+        MODEL_DEVICE="cpu",
+        MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",
+        MODEL_STRICT_LOAD=True,
+        MODEL_STARTUP_SMOKE_TEST=True,
+    )
+    factory = ModelRuntimeFactory.from_settings_and_specs(
+        settings=settings,
+        model_specs={
+            ModelSlug.EFFNETB0: ModelSpec(
+                slug=ModelSlug.EFFNETB0,
+                build_model=build_bad_tiny_model,
+                build_transform=build_tiny_transform,
+                input_shape=(2,),
+            )
+        },
+    )
+
+    try:
+        factory.build()
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Expected startup smoke test failure.")
+
+    assert "Model logits/class label mismatch" in message

@@ -19,6 +19,7 @@ class ModelSpec:
     slug: ModelSlug
     build_model: Callable[[int], nn.Module]
     build_transform: Callable[[], ImageTransform]
+    input_shape: tuple[int, ...] = (3, 224, 224)
 
 
 def build_effnetb0_model(num_classes: int) -> nn.Module:

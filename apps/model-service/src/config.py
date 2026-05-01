@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     MODEL_NUM_THREADS: int = 1
     MODEL_CLASS_NAMES: str = "NORMAL,PNEUMONIA"
     MODEL_STRICT_LOAD: bool = True
+    MODEL_STARTUP_SMOKE_TEST: bool = True
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_DIR / ".env",

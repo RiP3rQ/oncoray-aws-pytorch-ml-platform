@@ -3,10 +3,10 @@ from __future__ import annotations
 import httpx
 from pydantic import ValidationError
 
+from src.api_types.enums import ModelSlug
 from src.core.errors import ServiceUnavailable, UpstreamServiceError
 from src.core.logger import get_logger
 from src.schemas.model_schemas import ModelRuntimePrediction
-from src.types.enums import ModelSlug
 
 logger = get_logger(__name__)
 
@@ -65,6 +65,7 @@ class ModelRuntimeClient:
             )
             raise UpstreamServiceError(
                 "Model-service failed to generate a prediction.",
+                upstream_status_code=exc.response.status_code,
             ) from exc
 
         try:
