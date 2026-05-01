@@ -1,4 +1,5 @@
 data "aws_eks_cluster" "current" {
+  count      = var.use_localstack ? 0 : 1
   name       = module.eks.cluster_name
   depends_on = [module.eks]
 }
@@ -9,7 +10,7 @@ resource "aws_cloudwatch_log_group" "eks_workloads" {
 }
 
 data "aws_iam_policy_document" "irsa_assume_role" {
-  for_each = local.addon_service_accounts
+  for_each = var.use_localstack ? {} : local.addon_service_accounts
 
   statement {
     effect  = "Allow"
@@ -22,13 +23,13 @@ data "aws_iam_policy_document" "irsa_assume_role" {
 
     condition {
       test     = "StringEquals"
-      variable = "${replace(data.aws_eks_cluster.current.identity[0].oidc[0].issuer, "https://", "")}:aud"
+      variable = "${replace(data.aws_eks_cluster.current[0].identity[0].oidc[0].issuer, "https://", "")}:aud"
       values   = ["sts.amazonaws.com"]
     }
 
     condition {
       test     = "StringEquals"
-      variable = "${replace(data.aws_eks_cluster.current.identity[0].oidc[0].issuer, "https://", "")}:sub"
+      variable = "${replace(data.aws_eks_cluster.current[0].identity[0].oidc[0].issuer, "https://", "")}:sub"
       values = [
         "system:serviceaccount:${each.value.namespace}:${each.value.service_account}",
       ]
@@ -37,23 +38,26 @@ data "aws_iam_policy_document" "irsa_assume_role" {
 }
 
 resource "aws_iam_role" "irsa" {
-  for_each = local.addon_service_accounts
+  for_each = var.use_localstack ? {} : local.addon_service_accounts
 
   name               = "${local.name_prefix}-${replace(each.key, "_", "-")}"
   assume_role_policy = data.aws_iam_policy_document.irsa_assume_role[each.key].json
 }
 
 resource "aws_iam_policy" "aws_load_balancer_controller" {
+  count  = var.use_localstack ? 0 : 1
   name   = "${local.name_prefix}-aws-load-balancer-controller"
   policy = file("${path.module}/policies/aws-load-balancer-controller-iam-policy.json")
 }
 
 resource "aws_iam_policy" "external_secrets" {
+  count  = var.use_localstack ? 0 : 1
   name   = "${local.name_prefix}-external-secrets"
   policy = data.aws_iam_policy_document.external_secrets.json
 }
 
 resource "aws_iam_policy" "fluent_bit" {
+  count  = var.use_localstack ? 0 : 1
   name   = "${local.name_prefix}-fluent-bit"
   policy = data.aws_iam_policy_document.fluent_bit.json
 }
@@ -104,16 +108,19 @@ data "aws_iam_policy_document" "fluent_bit" {
 }
 
 resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller" {
+  count      = var.use_localstack ? 0 : 1
   role       = aws_iam_role.irsa["aws_load_balancer_controller"].name
-  policy_arn = aws_iam_policy.aws_load_balancer_controller.arn
+  policy_arn = aws_iam_policy.aws_load_balancer_controller[0].arn
 }
 
 resource "aws_iam_role_policy_attachment" "external_secrets" {
+  count      = var.use_localstack ? 0 : 1
   role       = aws_iam_role.irsa["external_secrets"].name
-  policy_arn = aws_iam_policy.external_secrets.arn
+  policy_arn = aws_iam_policy.external_secrets[0].arn
 }
 
 resource "aws_iam_role_policy_attachment" "fluent_bit" {
+  count      = var.use_localstack ? 0 : 1
   role       = aws_iam_role.irsa["fluent_bit"].name
-  policy_arn = aws_iam_policy.fluent_bit.arn
+  policy_arn = aws_iam_policy.fluent_bit[0].arn
 }

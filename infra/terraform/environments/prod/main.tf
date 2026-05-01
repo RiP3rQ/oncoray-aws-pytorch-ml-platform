@@ -39,7 +39,7 @@ module "eks" {
   enable_cluster_creator_admin_permissions = true
   cluster_endpoint_public_access           = true
   cluster_endpoint_public_access_cidrs     = var.cluster_endpoint_public_access_cidrs
-  enable_irsa                              = true
+  enable_irsa                              = !var.use_localstack
 
   cluster_addons = {
     coredns                = {}
@@ -48,7 +48,7 @@ module "eks" {
     vpc-cni                = {}
   }
 
-  eks_managed_node_groups = {
+  eks_managed_node_groups = var.use_localstack ? tomap({}) : tomap({
     general = {
       ami_type       = "AL2_x86_64"
       instance_types = var.general_node_instance_types
@@ -82,7 +82,7 @@ module "eks" {
         }
       }
     }
-  }
+  })
 }
 
 resource "aws_ecr_repository" "api" {

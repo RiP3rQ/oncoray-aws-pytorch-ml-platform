@@ -107,7 +107,7 @@ output "redis" {
 
 output "cluster_addon_role_arns" {
   description = "IRSA roles for cluster add-ons."
-  value = {
+  value = var.use_localstack ? {} : {
     aws_load_balancer_controller = aws_iam_role.irsa["aws_load_balancer_controller"].arn
     external_secrets             = aws_iam_role.irsa["external_secrets"].arn
     fluent_bit                   = aws_iam_role.irsa["fluent_bit"].arn
@@ -116,7 +116,7 @@ output "cluster_addon_role_arns" {
 
 output "app_workload_role_arns" {
   description = "IRSA roles for application workloads."
-  value       = module.workload_identities.role_arns
+  value       = var.use_localstack ? {} : module.workload_identities[0].role_arns
 }
 
 output "kubernetes_service_accounts" {

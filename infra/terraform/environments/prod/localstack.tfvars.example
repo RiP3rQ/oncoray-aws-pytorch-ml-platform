@@ -1,0 +1,32 @@
+use_localstack      = true
+localstack_endpoint = "http://localhost:4566"
+
+project_name = "pytorch-model"
+environment  = "local"
+aws_region   = "eu-central-1"
+vpc_cidr     = "10.30.0.0/16"
+
+cluster_endpoint_public_access_cidrs = [
+  "127.0.0.1/32",
+]
+
+frontend_bucket_name             = "pytorch-model-local-frontend"
+prediction_artifacts_bucket_name = "pytorch-model-local-artifacts"
+
+frontend_aliases             = []
+frontend_acm_certificate_arn = ""
+route53_zone_id              = ""
+api_domain_name              = ""
+api_dns_name                 = ""
+
+db_password = "localstack-db-password"
+
+db_max_allocated_storage = 0
+db_deletion_protection   = false
+db_skip_final_snapshot   = true
+
+redis_port = 4514
+
+tags = {
+  Owner = "localstack"
+}

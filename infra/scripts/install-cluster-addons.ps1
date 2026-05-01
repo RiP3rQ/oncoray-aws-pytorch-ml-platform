@@ -20,8 +20,29 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-if (-not (Get-Command helm -ErrorAction SilentlyContinue)) {
-    throw "helm not found in PATH. Install helm before using install-cluster-addons.ps1."
+function Resolve-ToolPath {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    $command = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    $wingetPackageRoot = Join-Path $env:LOCALAPPDATA "Microsoft/WinGet/Packages"
+    if (Test-Path -LiteralPath $wingetPackageRoot) {
+        $candidate = Get-ChildItem -Path $wingetPackageRoot -Recurse -Filter "$Name.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($candidate) {
+            return $candidate.FullName
+        }
+    }
+
+    return ""
+}
+
+$helmCommand = Resolve-ToolPath -Name "helm"
+if (-not $helmCommand) {
+    throw "helm not found. Install helm before using install-cluster-addons.ps1."
 }
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -56,14 +77,14 @@ function Invoke-External {
     }
 }
 
-Invoke-External -FilePath "helm" -Arguments @("repo", "add", "eks", "https://aws.github.io/eks-charts", "--force-update") -QuietOutput
-Invoke-External -FilePath "helm" -Arguments @("repo", "add", "external-secrets", "https://charts.external-secrets.io", "--force-update") -QuietOutput
-Invoke-External -FilePath "helm" -Arguments @("repo", "add", "kedacore", "https://kedacore.github.io/charts", "--force-update") -QuietOutput
-Invoke-External -FilePath "helm" -Arguments @("repo", "update") -QuietOutput
+Invoke-External -FilePath $helmCommand -Arguments @("repo", "add", "eks", "https://aws.github.io/eks-charts", "--force-update") -QuietOutput
+Invoke-External -FilePath $helmCommand -Arguments @("repo", "add", "external-secrets", "https://charts.external-secrets.io", "--force-update") -QuietOutput
+Invoke-External -FilePath $helmCommand -Arguments @("repo", "add", "kedacore", "https://kedacore.github.io/charts", "--force-update") -QuietOutput
+Invoke-External -FilePath $helmCommand -Arguments @("repo", "update") -QuietOutput
 
 $commonDryRunArgs = @()
 if ($DryRun) {
-    $commonDryRunArgs = @("--dry-run", "--debug")
+    $commonDryRunArgs = @("--dry-run=client", "--debug")
 }
 
 $loadBalancerArgs = @(
@@ -144,13 +165,13 @@ $kedaArgs = @(
 ) + $commonDryRunArgs
 
 Write-Host "Installing AWS Load Balancer Controller"
-Invoke-External -FilePath "helm" -Arguments $loadBalancerArgs
+Invoke-External -FilePath $helmCommand -Arguments $loadBalancerArgs
 
 Write-Host "Installing External Secrets Operator"
-Invoke-External -FilePath "helm" -Arguments $externalSecretsArgs
+Invoke-External -FilePath $helmCommand -Arguments $externalSecretsArgs
 
 Write-Host "Installing KEDA"
-Invoke-External -FilePath "helm" -Arguments $kedaArgs
+Invoke-External -FilePath $helmCommand -Arguments $kedaArgs
 
 Write-Host "Installing platform add-on config and Fluent Bit"
-Invoke-External -FilePath "helm" -Arguments $platformArgs
+Invoke-External -FilePath $helmCommand -Arguments $platformArgs

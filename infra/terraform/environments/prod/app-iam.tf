@@ -76,6 +76,7 @@ data "aws_iam_policy_document" "worker_runtime" {
 }
 
 module "workload_identities" {
+  count  = var.use_localstack ? 0 : 1
   source = "../../modules/workload-identities"
 
   app_runtime_policy_json = {
@@ -85,6 +86,6 @@ module "workload_identities" {
   app_service_accounts           = local.app_service_accounts
   model_runtime_service_accounts = local.model_runtime_service_accounts
   name_prefix                    = local.name_prefix
-  oidc_issuer_url                = data.aws_eks_cluster.current.identity[0].oidc[0].issuer
+  oidc_issuer_url                = data.aws_eks_cluster.current[0].identity[0].oidc[0].issuer
   oidc_provider_arn              = module.eks.oidc_provider_arn
 }

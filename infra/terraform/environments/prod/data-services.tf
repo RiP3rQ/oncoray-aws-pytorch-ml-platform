@@ -22,7 +22,7 @@ resource "aws_vpc_security_group_ingress_rule" "postgres_from_eks_nodes" {
   from_port                    = 5432
   to_port                      = 5432
   ip_protocol                  = "tcp"
-  referenced_security_group_id = module.eks.node_security_group_id
+  referenced_security_group_id = var.use_localstack ? "000000000000/${module.eks.node_security_group_id}" : module.eks.node_security_group_id
 }
 
 resource "aws_db_instance" "postgres" {
@@ -73,10 +73,10 @@ resource "aws_elasticache_subnet_group" "redis" {
 resource "aws_vpc_security_group_ingress_rule" "redis_from_eks_nodes" {
   security_group_id            = aws_security_group.redis.id
   description                  = "Allow Redis from EKS nodes"
-  from_port                    = 6379
-  to_port                      = 6379
+  from_port                    = var.redis_port
+  to_port                      = var.redis_port
   ip_protocol                  = "tcp"
-  referenced_security_group_id = module.eks.node_security_group_id
+  referenced_security_group_id = var.use_localstack ? "000000000000/${module.eks.node_security_group_id}" : module.eks.node_security_group_id
 }
 
 resource "aws_elasticache_replication_group" "redis" {
@@ -85,7 +85,7 @@ resource "aws_elasticache_replication_group" "redis" {
   engine                     = "redis"
   engine_version             = var.redis_engine_version
   node_type                  = var.redis_node_type
-  port                       = 6379
+  port                       = var.redis_port
   parameter_group_name       = "default.redis7"
   subnet_group_name          = aws_elasticache_subnet_group.redis.name
   security_group_ids         = [aws_security_group.redis.id]

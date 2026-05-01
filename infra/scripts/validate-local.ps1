@@ -31,10 +31,30 @@ function Add-Pass {
     Write-Host "PASS: $Message" -ForegroundColor Green
 }
 
+function Resolve-ToolPath {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    $command = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    $wingetPackageRoot = Join-Path $env:LOCALAPPDATA "Microsoft/WinGet/Packages"
+    if (Test-Path -LiteralPath $wingetPackageRoot) {
+        $candidate = Get-ChildItem -Path $wingetPackageRoot -Recurse -Filter "$Name.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($candidate) {
+            return $candidate.FullName
+        }
+    }
+
+    return ""
+}
+
 function Test-Command {
     param([Parameter(Mandatory = $true)][string]$Name)
 
-    return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
+    return (Resolve-ToolPath -Name $Name) -ne ""
 }
 
 function Invoke-CheckedCommand {
@@ -313,7 +333,7 @@ if ($CheckHelm -or $RequireHelm) {
     else {
         $null = Invoke-CheckedCommand `
             -Label "helm lint backend chart" `
-            -FilePath "helm" `
+            -FilePath (Resolve-ToolPath -Name "helm") `
             -Arguments @(
                 "lint",
                 (Join-Path $repoRoot "infra/helm/charts/backend-stack"),
@@ -324,7 +344,7 @@ if ($CheckHelm -or $RequireHelm) {
 
         $null = Invoke-CheckedCommand `
             -Label "helm template backend chart" `
-            -FilePath "helm" `
+            -FilePath (Resolve-ToolPath -Name "helm") `
             -Arguments @(
                 "template",
                 "pytorch-model",
@@ -336,7 +356,7 @@ if ($CheckHelm -or $RequireHelm) {
 
         $null = Invoke-CheckedCommand `
             -Label "helm lint platform chart" `
-            -FilePath "helm" `
+            -FilePath (Resolve-ToolPath -Name "helm") `
             -Arguments @(
                 "lint",
                 (Join-Path $repoRoot "infra/helm/charts/platform-addons"),
@@ -347,7 +367,7 @@ if ($CheckHelm -or $RequireHelm) {
 
         $null = Invoke-CheckedCommand `
             -Label "helm template platform chart" `
-            -FilePath "helm" `
+            -FilePath (Resolve-ToolPath -Name "helm") `
             -Arguments @(
                 "template",
                 "platform-addons",

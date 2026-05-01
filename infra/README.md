@@ -11,6 +11,7 @@ Goal: keep deploy understandable. Terraform creates AWS resources. Helm deploys 
 - `helm/charts/platform-addons/` ClusterSecretStore config and Fluent Bit
 - `helm/values/prod.example.yaml` production workload values template
 - `helm/values/addons.example.yaml` add-on values template
+- `helm/values/localstack.example.yaml` LocalStack/Kubernetes chart verification values
 - `scripts/deploy-prod.ps1` thin `helm upgrade --install` wrapper for backend workloads
 - `scripts/install-cluster-addons.ps1` add-on install helper
 - `scripts/destroy-prod.ps1` teardown helper
@@ -32,6 +33,8 @@ Goal: keep deploy understandable. Terraform creates AWS resources. Helm deploys 
 11. Build frontend, sync to S3, invalidate CloudFront.
 
 No one-command full production release script is supported until first live AWS deployment proves the flow.
+
+LocalStack verification is supported with `infra/terraform/environments/prod/localstack.tfvars.example` and `infra/helm/values/localstack.example.yaml`. ElastiCache may show read-back drift in LocalStack after apply; keep real AWS drift detection intact.
 
 ## Tool Bootstrap
 

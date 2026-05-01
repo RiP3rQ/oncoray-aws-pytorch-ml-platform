@@ -16,10 +16,39 @@ $tools = @(
     @{ Name = "kubectl"; WingetId = "Kubernetes.kubectl"; Required = $false }
 )
 
+function Resolve-ToolPath {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    $command = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    $knownPaths = @(
+        (Join-Path $env:ProgramFiles "Amazon/AWSCLIV2/$Name.exe")
+    )
+    foreach ($path in $knownPaths) {
+        if (Test-Path -LiteralPath $path) {
+            return $path
+        }
+    }
+
+    $wingetPackageRoot = Join-Path $env:LOCALAPPDATA "Microsoft/WinGet/Packages"
+    if (Test-Path -LiteralPath $wingetPackageRoot) {
+        $candidate = Get-ChildItem -Path $wingetPackageRoot -Recurse -Filter "$Name.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($candidate) {
+            return $candidate.FullName
+        }
+    }
+
+    return ""
+}
+
 function Test-Tool {
     param([Parameter(Mandatory = $true)][string]$Name)
 
-    return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
+    return (Resolve-ToolPath -Name $Name) -ne ""
 }
 
 function Install-ToolWithWinget {
@@ -44,8 +73,7 @@ $missingOptional = [System.Collections.Generic.List[string]]::new()
 
 foreach ($tool in $tools) {
     if (Test-Tool -Name $tool.Name) {
-        $command = Get-Command $tool.Name
-        Write-Host "PASS: $($tool.Name) found at $($command.Source)" -ForegroundColor Green
+        Write-Host "PASS: $($tool.Name) found at $(Resolve-ToolPath -Name $tool.Name)" -ForegroundColor Green
         continue
     }
 

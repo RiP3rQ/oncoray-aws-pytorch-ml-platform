@@ -1,0 +1,55 @@
+global:
+  awsRegion: eu-central-1
+  defaultImageTag: sha-localstack
+
+workloads:
+  api:
+    replicaCount: 0
+    autoscaling:
+      enabled: false
+    image:
+      repository: 000000000000.dkr.ecr.eu-central-1.localhost.localstack.cloud:4566/pytorch-model/api
+      tag: sha-localstack
+    env:
+      APP_ENVIRONMENT: production
+      APP_HTTP_PROTOCOL: http
+      APP_LOG_LEVEL: INFO
+      APP_DOMAIN: localhost.localstack.cloud
+      CORS_ALLOWED_ORIGINS: http://localhost:4321,http://localhost:5173
+      MODEL_RUNTIME_URLS: ""
+      S3_UPLOAD_MODE: aws
+      AWS_REGION: eu-central-1
+      S3_BUCKET_NAME: pytorch-model-local-artifacts
+      SQS_QUEUE_URL: http://sqs.eu-central-1.localhost.localstack.cloud:4566/000000000000/pytorch-model-local-worker
+      REDIS_HOST: localhost.localstack.cloud
+      REDIS_PORT: "4514"
+      REDIS_SSL: "false"
+    envFromSecrets: []
+    ingress:
+      enabled: false
+    externalSecret:
+      enabled: false
+
+  worker:
+    replicaCount: 0
+    autoscaling:
+      enabled: false
+    queueAutoscaling:
+      enabled: false
+    image:
+      repository: 000000000000.dkr.ecr.eu-central-1.localhost.localstack.cloud:4566/pytorch-model/api
+      tag: sha-localstack
+    env:
+      APP_ENVIRONMENT: production
+      APP_LOG_LEVEL: INFO
+      AWS_REGION: eu-central-1
+      SQS_QUEUE_URL: http://sqs.eu-central-1.localhost.localstack.cloud:4566/000000000000/pytorch-model-local-worker
+    envFromSecrets: []
+    externalSecret:
+      enabled: false
+
+modelRuntimes:
+  effnetb0:
+    enabled: false
+  vitb16:
+    enabled: false
