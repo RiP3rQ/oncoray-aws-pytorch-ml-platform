@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
 
 from src.config import Settings, settings
 from src.model_runtime_factory import ModelRuntimeFactory
-from src.runtime import InferenceRuntime
+from src.runtime import ModelRuntime
 from src.schemas import ModelRuntimePrediction
 
 
@@ -20,14 +21,14 @@ def configure_logging(log_level: str) -> None:
 
 
 def create_app(
-    runtime: InferenceRuntime | None = None,
+    runtime: ModelRuntime | None = None,
     runtime_settings: Settings | None = None,
 ) -> FastAPI:
     resolved_settings = runtime_settings or settings
     configure_logging(resolved_settings.APP_LOG_LEVEL)
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if runtime is None:
             app.state.runtime = ModelRuntimeFactory.from_settings(resolved_settings).build()
         yield
@@ -43,11 +44,9 @@ def create_app(
 
     @app.get("/")
     async def get_root() -> dict[str, str]:
-        model_runtime = get_runtime(app)
         return {
             "service": resolved_settings.APP_NAME,
-            "status": "ok",
-            "model": model_runtime.slug.value,
+            **runtime_status(get_runtime(app)),
         }
 
     @app.get("/livez")
@@ -56,13 +55,11 @@ def create_app(
 
     @app.get("/readyz")
     async def readyz() -> dict[str, str]:
-        model_runtime = get_runtime(app)
-        return {"status": "ok", "model": model_runtime.slug.value}
+        return runtime_status(get_runtime(app))
 
     @app.get("/startupz")
     async def startupz() -> dict[str, str]:
-        model_runtime = get_runtime(app)
-        return {"status": "ok", "model": model_runtime.slug.value}
+        return runtime_status(get_runtime(app))
 
     @app.post("/predict", response_model=ModelRuntimePrediction)
     async def predict(
@@ -83,12 +80,16 @@ def create_app(
     return app
 
 
-def get_runtime(app: FastAPI | Request) -> InferenceRuntime:
+def get_runtime(app: FastAPI | Request) -> ModelRuntime:
     state: Any = app.state if isinstance(app, FastAPI) else app.app.state
     runtime = getattr(state, "runtime", None)
     if runtime is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Model runtime not ready.")
-    return runtime
+    return cast(ModelRuntime, runtime)
+
+
+def runtime_status(runtime: ModelRuntime) -> dict[str, str]:
+    return {"status": "ok", "model": runtime.slug.value}
 
 
 app = create_app()

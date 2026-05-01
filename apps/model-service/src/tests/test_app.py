@@ -6,21 +6,22 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from src.app import create_app
+from src.schemas import ModelRuntimePrediction
 from src.types import ModelSlug
 
 
 class FixedPredictionRuntime:
-    def __init__(self, slug: ModelSlug):
+    def __init__(self, slug: ModelSlug) -> None:
         self.slug = slug
 
-    def predict(self, image_data: bytes):
-        return {"prediction": "NORMAL", "confidence": 0.99}
+    def predict(self, image_data: bytes) -> ModelRuntimePrediction:
+        return ModelRuntimePrediction(prediction="NORMAL", confidence=0.99)
 
 
 class InvalidImageRuntime:
     slug = ModelSlug.EFFNETB0
 
-    def predict(self, image_data: bytes):
+    def predict(self, image_data: bytes) -> ModelRuntimePrediction:
         raise ValueError("Invalid image data.")
 
 
@@ -30,7 +31,7 @@ def make_png_bytes() -> bytes:
     return buffer.getvalue()
 
 
-def test_health_endpoints_and_root():
+def test_health_endpoints_and_root() -> None:
     app = create_app(runtime=FixedPredictionRuntime(ModelSlug.EFFNETB0))
     with TestClient(app) as client:
         assert client.get("/").json() == {
@@ -43,7 +44,7 @@ def test_health_endpoints_and_root():
         assert client.get("/startupz").json() == {"status": "ok", "model": "effnetb0"}
 
 
-def test_predict_endpoint_returns_normalized_payload():
+def test_predict_endpoint_returns_normalized_payload() -> None:
     app = create_app(runtime=FixedPredictionRuntime(ModelSlug.VITB16))
     with TestClient(app) as client:
         response = client.post(
@@ -55,7 +56,7 @@ def test_predict_endpoint_returns_normalized_payload():
         assert response.json() == {"prediction": "NORMAL", "confidence": 0.99}
 
 
-def test_predict_endpoint_maps_invalid_image_data_to_bad_request():
+def test_predict_endpoint_maps_invalid_image_data_to_bad_request() -> None:
     app = create_app(runtime=InvalidImageRuntime())
     with TestClient(app) as client:
         response = client.post(
@@ -67,7 +68,7 @@ def test_predict_endpoint_maps_invalid_image_data_to_bad_request():
         assert response.json() == {"detail": "Invalid image data."}
 
 
-def test_predict_endpoint_treats_multipart_as_transport_only():
+def test_predict_endpoint_treats_multipart_as_transport_only() -> None:
     app = create_app(runtime=FixedPredictionRuntime(ModelSlug.EFFNETB0))
     with TestClient(app) as client:
         response = client.post(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 from uuid import uuid4
 
 import torch
@@ -8,8 +9,10 @@ import torch.nn as nn
 import torchvision
 
 from src.config import Settings
-from src.model_runtime_factory import ModelRuntimeFactory, ModelSpec, load_state_dict
-from src.runtime import InferenceRuntime
+from src.model_artifacts import load_state_dict
+from src.model_runtime_factory import ModelRuntimeFactory
+from src.model_specs import ModelSpec
+from src.runtime import ImageTransform, InferenceRuntime
 from src.types import ModelSlug
 
 
@@ -19,7 +22,7 @@ class TinyModel(nn.Module):
         self.linear = nn.Linear(2, 2)
 
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
-        return self.linear(batch)
+        return cast(torch.Tensor, self.linear(batch))
 
 
 def build_tiny_model(num_classes: int) -> nn.Module:
@@ -27,11 +30,11 @@ def build_tiny_model(num_classes: int) -> nn.Module:
     return TinyModel()
 
 
-def build_tiny_transform() -> torchvision.transforms.Compose:
-    return torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
+def build_tiny_transform() -> ImageTransform:
+    return cast(ImageTransform, torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
 
 
-def test_load_state_dict_accepts_nested_checkpoint():
+def test_load_state_dict_accepts_nested_checkpoint() -> None:
     workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
     workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
     artifact_path = workspace_tmp_dir / f"checkpoint-{uuid4()}.pth"
@@ -41,7 +44,7 @@ def test_load_state_dict_accepts_nested_checkpoint():
     assert torch.equal(resolved["layer.weight"], expected["layer.weight"])
 
 
-def test_model_runtime_factory_builds_inference_runtime_from_settings():
+def test_model_runtime_factory_builds_inference_runtime_from_settings() -> None:
     workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
     workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
     artifact_path = workspace_tmp_dir / f"tiny-{uuid4()}.pth"

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from io import BytesIO
+from typing import cast
 
 import torch
 import torch.nn as nn
 import torchvision
 from PIL import Image
 
-from src.runtime import InferenceRuntime
+from src.runtime import ImageTransform, InferenceRuntime
 from src.types import ModelSlug
 
 
@@ -18,11 +19,14 @@ class ConstantLogitsModel(nn.Module):
 
 
 def make_runtime() -> InferenceRuntime:
-    transform = torchvision.transforms.Compose(
-        [
-            torchvision.transforms.Resize((32, 32)),
-            torchvision.transforms.ToTensor(),
-        ]
+    transform = cast(
+        ImageTransform,
+        torchvision.transforms.Compose(
+            [
+                torchvision.transforms.Resize((32, 32)),
+                torchvision.transforms.ToTensor(),
+            ]
+        ),
     )
     return InferenceRuntime(
         slug=ModelSlug.EFFNETB0,
@@ -39,7 +43,7 @@ def make_png_bytes() -> bytes:
     return buffer.getvalue()
 
 
-def test_runtime_predict_returns_top_class_and_confidence():
+def test_runtime_predict_returns_top_class_and_confidence() -> None:
     result = make_runtime().predict(make_png_bytes())
 
     assert result.prediction == "PNEUMONIA"

@@ -23,3 +23,7 @@ strict = true
 warn_return_any = true
 disallow_untyped_defs = true
 python_version = "3.11"
+
+[[tool.mypy.overrides]]
+module = ["torchvision", "torchvision.*"]
+ignore_missing_imports = true

@@ -2,14 +2,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from io import BytesIO
+from typing import Protocol
 
 import torch
 import torch.nn as nn
-import torchvision
 from PIL import Image, UnidentifiedImageError
 
 from src.schemas import ModelRuntimePrediction
 from src.types import ModelSlug
+
+
+class ModelRuntime(Protocol):
+    slug: ModelSlug
+
+    def predict(self, image_data: bytes) -> ModelRuntimePrediction: ...
+
+
+class ImageTransform(Protocol):
+    def __call__(self, image: Image.Image) -> torch.Tensor: ...
 
 
 @dataclass
@@ -18,7 +28,7 @@ class InferenceRuntime:
 
     slug: ModelSlug
     model: nn.Module
-    transform: torchvision.transforms.Compose
+    transform: ImageTransform
     class_names: tuple[str, ...]
     device: torch.device
 
