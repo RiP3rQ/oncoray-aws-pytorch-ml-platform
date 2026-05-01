@@ -190,6 +190,19 @@ Test-ContentRule `
     -FailureMessage "infra/generated/ must stay gitignored."
 
 Test-ContentRule `
+    -Label "Local production values ignored" `
+    -Path (Join-Path $repoRoot ".gitignore") `
+    -Predicate {
+        param($content)
+        return (
+            $content -match '(?m)^infra/terraform/environments/prod/terraform\.tfvars\s*$' -and
+            $content -match '(?m)^infra/helm/values/addons\.yaml\s*$' -and
+            $content -match '(?m)^infra/helm/values/prod\.yaml\s*$'
+        )
+    } `
+    -FailureMessage "terraform.tfvars, addons.yaml, and prod.yaml must stay gitignored."
+
+Test-ContentRule `
     -Label "Backend chart default image tag" `
     -Path (Join-Path $repoRoot "infra/helm/charts/backend-stack/values.yaml") `
     -Predicate { param($content) $content -notmatch '(?m)^\s*defaultImageTag:\s*latest\s*$' } `

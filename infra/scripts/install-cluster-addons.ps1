@@ -10,7 +10,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$FluentBitRoleArn,
     [string]$AwsRegion = "eu-central-1",
-    [string]$PlatformValuesFile = "infra/helm/values/addons.example.yaml",
+    [string]$PlatformValuesFile = "infra/helm/values/addons.yaml",
     [string]$AwsLoadBalancerControllerChartVersion = "1.14.1",
     [string]$ExternalSecretsChartVersion = "1.3.1",
     [string]$KedaChartVersion = "2.18.1",
@@ -37,10 +37,29 @@ if (-not (Test-Path -LiteralPath $resolvedPlatformValuesFile)) {
     throw "Platform values file not found: $resolvedPlatformValuesFile"
 }
 
-& helm repo add eks https://aws.github.io/eks-charts --force-update | Out-Null
-& helm repo add external-secrets https://charts.external-secrets.io --force-update | Out-Null
-& helm repo add kedacore https://kedacore.github.io/charts --force-update | Out-Null
-& helm repo update | Out-Null
+function Invoke-External {
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [Parameter(Mandatory = $true)][string[]]$Arguments,
+        [switch]$QuietOutput
+    )
+
+    if ($QuietOutput) {
+        & $FilePath @Arguments | Out-Null
+    }
+    else {
+        & $FilePath @Arguments
+    }
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed: $FilePath $($Arguments -join ' ')"
+    }
+}
+
+Invoke-External -FilePath "helm" -Arguments @("repo", "add", "eks", "https://aws.github.io/eks-charts", "--force-update") -QuietOutput
+Invoke-External -FilePath "helm" -Arguments @("repo", "add", "external-secrets", "https://charts.external-secrets.io", "--force-update") -QuietOutput
+Invoke-External -FilePath "helm" -Arguments @("repo", "add", "kedacore", "https://kedacore.github.io/charts", "--force-update") -QuietOutput
+Invoke-External -FilePath "helm" -Arguments @("repo", "update") -QuietOutput
 
 $commonDryRunArgs = @()
 if ($DryRun) {
@@ -125,13 +144,13 @@ $kedaArgs = @(
 ) + $commonDryRunArgs
 
 Write-Host "Installing AWS Load Balancer Controller"
-& helm @loadBalancerArgs
+Invoke-External -FilePath "helm" -Arguments $loadBalancerArgs
 
 Write-Host "Installing External Secrets Operator"
-& helm @externalSecretsArgs
+Invoke-External -FilePath "helm" -Arguments $externalSecretsArgs
 
 Write-Host "Installing KEDA"
-& helm @kedaArgs
+Invoke-External -FilePath "helm" -Arguments $kedaArgs
 
 Write-Host "Installing platform add-on config and Fluent Bit"
-& helm @platformArgs
+Invoke-External -FilePath "helm" -Arguments $platformArgs

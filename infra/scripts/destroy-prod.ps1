@@ -76,4 +76,7 @@ if (-not $SkipTerraform) {
 
     Write-Host "Destroying Terraform-managed prod resources from: $resolvedTerraformDir"
     & terraform @terraformArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "terraform destroy failed."
+    }
 }

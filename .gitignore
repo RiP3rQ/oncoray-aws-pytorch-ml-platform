@@ -37,7 +37,10 @@ build
 *.tfstate.*
 crash.log
 infra/terraform/environments/prod/outputs.json
+infra/terraform/environments/prod/terraform.tfvars
 infra/generated/
+infra/helm/values/addons.yaml
+infra/helm/values/prod.yaml
 infra/helm/values/ssm-parameters.prod.json
 tmp/
 **/tmp/
