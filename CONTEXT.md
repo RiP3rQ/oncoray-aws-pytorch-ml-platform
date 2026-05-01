@@ -12,6 +12,10 @@ _Avoid_: inference response, model-service response
 A deployed classifier that can score an uploaded chest X-ray for one model slug.
 _Avoid_: model-service, backend model
 
+**Model Runtime Prediction**:
+The internal classification payload returned by one Model Runtime for one Chest X-ray Upload.
+_Avoid_: prediction response, model-service response, inference response
+
 **Chest X-ray Upload**:
 The uploaded PNG, JPG, or WEBP chest X-ray image submitted for a Prediction, before any Model Runtime scores it.
 _Avoid_: image blob, uploaded image, file
@@ -33,6 +37,8 @@ _Avoid_: prediction orchestration, inference flow
 - A **Prediction** is produced from exactly one uploaded chest X-ray.
 - A **Prediction** may contain results from one or more **Model Runtimes**.
 - A **Prediction** can be partially successful: one **Model Runtime** may fail while another contributes a successful result.
+- A **Model Runtime Prediction** belongs to exactly one **Model Runtime** and one **Chest X-ray Upload**.
+- **Prediction Orchestration** turns one or more **Model Runtime Predictions** into one public **Prediction**.
 - A **Prediction** can succeed even when **Chest X-ray Upload** persistence fails; upload persistence is best-effort status.
 - A **Chest X-ray Upload** is validated before any **Model Runtime** scores it.
 - **Chest X-ray Upload** validation is owned by **Prediction Orchestration** intake, not by **Model Runtimes**.
@@ -43,12 +49,12 @@ _Avoid_: prediction orchestration, inference flow
 ## Example dialogue
 
 > **Dev:** "Should the frontend type its **Prediction** from the internal runtime payload?"
-> **Domain expert:** "No. The API owns the public **Prediction** contract; each **Model Runtime** only contributes one internal result."
+> **Domain expert:** "No. The API owns the public **Prediction** contract; each **Model Runtime** only contributes one **Model Runtime Prediction**."
 >
 > **Dev:** "Should model catalog reads live inside **Prediction Orchestration**?"
 > **Domain expert:** "No. **Prediction Orchestration** only coordinates scoring and upload persistence for a requested **Prediction**."
 
 ## Flagged ambiguities
 
-- "prediction response" was used for both public API payloads and internal runtime payloads; resolved: **Prediction** means the API-owned public contract.
+- "prediction response" was used for both public API payloads and internal runtime payloads; resolved: **Prediction** means the API-owned public contract, while **Model Runtime Prediction** means the internal runtime payload.
 - `/model/{model_id}/predict` mixed **Model Catalog** identity with **Prediction Orchestration**; resolved: public **Prediction** requests use prediction mode, not model metadata identity.

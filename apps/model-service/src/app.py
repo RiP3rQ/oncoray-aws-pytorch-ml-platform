@@ -9,7 +9,7 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
 from src.config import Settings, settings
 from src.model_runtime_factory import ModelRuntimeFactory
 from src.runtime import InferenceRuntime
-from src.schemas import PredictionResponse
+from src.schemas import ModelRuntimePrediction
 
 
 def configure_logging(log_level: str) -> None:
@@ -64,10 +64,10 @@ def create_app(
         model_runtime = get_runtime(app)
         return {"status": "ok", "model": model_runtime.slug.value}
 
-    @app.post("/predict", response_model=PredictionResponse)
+    @app.post("/predict", response_model=ModelRuntimePrediction)
     async def predict(
         image: Annotated[UploadFile, File(..., description="Image file (max 2 MB)")],
-    ) -> PredictionResponse:
+    ) -> ModelRuntimePrediction:
         try:
             return get_runtime(app).predict(await image.read())
         except HTTPException:

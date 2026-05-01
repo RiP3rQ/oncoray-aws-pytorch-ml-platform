@@ -8,7 +8,7 @@ import torch.nn as nn
 import torchvision
 from PIL import Image, UnidentifiedImageError
 
-from src.schemas import PredictionResponse
+from src.schemas import ModelRuntimePrediction
 from src.types import ModelSlug
 
 
@@ -22,7 +22,7 @@ class InferenceRuntime:
     class_names: tuple[str, ...]
     device: torch.device
 
-    def predict(self, image_data: bytes) -> PredictionResponse:
+    def predict(self, image_data: bytes) -> ModelRuntimePrediction:
         try:
             with Image.open(BytesIO(image_data)) as image:
                 rgb_image = image.convert("RGB")
@@ -40,7 +40,7 @@ class InferenceRuntime:
 
         predicted_index = int(probabilities.argmax(dim=1).item())
         confidence = float(probabilities[0, predicted_index].item())
-        return PredictionResponse(
+        return ModelRuntimePrediction(
             prediction=self.class_names[predicted_index],
             confidence=confidence,
         )

@@ -14,6 +14,8 @@ export type ChestXrayUploadDraft =
 
 export type PredictionRunFailure =
   | { kind: "missing-mode"; message: string }
+  | { kind: "missing-upload"; message: string }
+  | { kind: "already-running"; message: string }
   | { kind: "upload-too-large"; message: string }
   | { kind: "api-error"; message: string }
   | { kind: "network-error"; message: string };
@@ -33,6 +35,22 @@ export interface PredictionRunner {
 export type PredictionRunOutcome =
   | { ok: true; prediction: Prediction }
   | { ok: false; failure: PredictionRunFailure };
+
+export type PredictionWorkflowRunRequest =
+  | { ok: true; mode: PredictionMode; upload: File }
+  | {
+      ok: false;
+      state: PredictionWorkflowState;
+      failure: PredictionRunFailure;
+    };
+
+export type PredictionWorkflowEvent =
+  | { type: "mode-selected"; mode: PredictionMode }
+  | { type: "upload-selected"; file: File; previewUrl: string }
+  | { type: "upload-cleared" }
+  | { type: "run-requested" }
+  | { type: "run-succeeded"; prediction: Prediction }
+  | { type: "run-failed"; error: unknown };
 
 export function createInitialPredictionWorkflowState(): PredictionWorkflowState {
   return {
@@ -61,6 +79,81 @@ export function selectPredictionMode(
     selectedMode: mode,
     prediction: null,
     runError: null,
+  };
+}
+
+export function transitionPredictionWorkflow(
+  state: PredictionWorkflowState,
+  event: PredictionWorkflowEvent,
+): PredictionWorkflowState {
+  switch (event.type) {
+    case "mode-selected":
+      return selectPredictionMode(state, event.mode);
+    case "upload-selected":
+      return selectChestXrayUploadDraft(state, event.file, event.previewUrl);
+    case "upload-cleared":
+      return clearChestXrayUploadDraft(state);
+    case "run-requested": {
+      const request = preparePredictionRun(state);
+      if (!request.ok) {
+        return request.state;
+      }
+
+      return beginPredictionRun(state);
+    }
+    case "run-succeeded":
+      return completePredictionRun(state, event.prediction);
+    case "run-failed":
+      return failPredictionRun(state, event.error);
+  }
+}
+
+export function preparePredictionRun(
+  state: PredictionWorkflowState,
+): PredictionWorkflowRunRequest {
+  if (state.isRunning) {
+    const failure: PredictionRunFailure = {
+      kind: "already-running",
+      message: "Prediction already running.",
+    };
+
+    return {
+      ok: false,
+      state: { ...state, runError: failure },
+      failure,
+    };
+  }
+
+  if (!state.selectedMode) {
+    const failure: PredictionRunFailure = {
+      kind: "missing-mode",
+      message: "Select a model first.",
+    };
+
+    return {
+      ok: false,
+      state: { ...state, runError: failure },
+      failure,
+    };
+  }
+
+  if (state.uploadDraft.status !== "ready") {
+    const failure: PredictionRunFailure = {
+      kind: "missing-upload",
+      message: "Select a chest X-ray upload first.",
+    };
+
+    return {
+      ok: false,
+      state: { ...state, runError: failure },
+      failure,
+    };
+  }
+
+  return {
+    ok: true,
+    mode: state.selectedMode,
+    upload: state.uploadDraft.file,
   };
 }
 
