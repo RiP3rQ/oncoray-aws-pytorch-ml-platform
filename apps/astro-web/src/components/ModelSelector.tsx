@@ -2,21 +2,12 @@ import { useEffect } from "react";
 import useSWR from "swr";
 import * as api from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import type { ModelRead, ModelSlug, PredictionMode } from "@/lib/api";
+import { createModelCatalogSelection } from "@/lib/model-catalog-selection";
+import type { ModelRead, PredictionMode } from "@/lib/api";
 
 interface ModelSelectorProps {
   value: PredictionMode | "";
   onValueChange: (mode: PredictionMode) => void;
-}
-
-const MODEL_ORDER: ModelSlug[] = ["effnetb0", "vitb16"];
-const COMPARE_MODE: PredictionMode = "both";
-
-function sortModels(models: ModelRead[]): ModelRead[] {
-  const order = new Map(MODEL_ORDER.map((slug, index) => [slug, index]));
-  return [...models].sort((left, right) => {
-    return (order.get(left.slug) ?? 99) - (order.get(right.slug) ?? 99);
-  });
 }
 
 export default function ModelSelector({
@@ -33,16 +24,19 @@ export default function ModelSelector({
     error,
     isLoading,
   } = useSWR<ModelRead[]>("/model/", () => api.getModels());
-  const sortedModels = models ? sortModels(models) : [];
-  const hasCompareMode =
-    sortedModels.some((model) => model.slug === "effnetb0") &&
-    sortedModels.some((model) => model.slug === "vitb16");
+  const catalogSelection = createModelCatalogSelection(models ?? [], value);
+  const {
+    models: sortedModels,
+    hasCompareMode,
+    resolvedMode,
+    modeToApply,
+  } = catalogSelection;
 
   useEffect(() => {
-    if (!value && sortedModels[0]) {
-      onValueChange(sortedModels[0].slug);
+    if (modeToApply) {
+      onValueChange(modeToApply);
     }
-  }, [onValueChange, sortedModels, value]);
+  }, [modeToApply, onValueChange]);
 
   if (isLoading) {
     return (
@@ -103,14 +97,6 @@ export default function ModelSelector({
     );
   }
 
-  const firstModel = sortedModels[0];
-
-  if (!firstModel) {
-    return null;
-  }
-
-  const resolvedValue = value || firstModel.slug;
-
   return (
     <div className={panelClass}>
       <div className="mb-6">
@@ -124,7 +110,7 @@ export default function ModelSelector({
       </div>
 
       <Tabs
-        value={resolvedValue}
+        value={resolvedMode}
         onValueChange={(nextValue) =>
           onValueChange(nextValue as PredictionMode)
         }
@@ -137,7 +123,7 @@ export default function ModelSelector({
             </TabsTrigger>
           ))}
           {hasCompareMode ? (
-            <TabsTrigger value={COMPARE_MODE} className="shrink-0">
+            <TabsTrigger value="both" className="shrink-0">
               Compare both
             </TabsTrigger>
           ) : null}
@@ -158,7 +144,7 @@ export default function ModelSelector({
           </TabsContent>
         ))}
         {hasCompareMode ? (
-          <TabsContent value={COMPARE_MODE} className="pt-4">
+          <TabsContent value="both" className="pt-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-muted-foreground text-sm leading-none font-bold tracking-[0.05em] uppercase">
                 Compare both

@@ -6,8 +6,10 @@ import {
   completePredictionRun,
   createInitialPredictionWorkflowState,
   failPredictionRun,
+  preparePredictionRun,
   selectChestXrayUploadDraft,
   selectPredictionMode,
+  transitionPredictionWorkflow,
 } from "./prediction-workflow";
 
 function file(name: string, type: string, size = 1536) {
@@ -146,5 +148,113 @@ describe("Prediction Workflow state", () => {
 
     expect(state.uploadDraft.status).toBe("empty");
     expect(state.prediction).toBeNull();
+  });
+
+  test("run request fails when mode is missing", () => {
+    const state = selectChestXrayUploadDraft(
+      createInitialPredictionWorkflowState(),
+      file("scan-a.png", "image/png"),
+      "blob:scan-a",
+    );
+
+    const request = preparePredictionRun(state);
+
+    expect(request).toMatchObject({
+      ok: false,
+      failure: {
+        kind: "missing-mode",
+        message: "Select a model first.",
+      },
+    });
+  });
+
+  test("run request fails when Chest X-ray Upload is missing", () => {
+    const state = selectPredictionMode(
+      createInitialPredictionWorkflowState(),
+      "effnetb0",
+    );
+
+    const request = preparePredictionRun(state);
+
+    expect(request).toMatchObject({
+      ok: false,
+      failure: {
+        kind: "missing-upload",
+        message: "Select a chest X-ray upload first.",
+      },
+    });
+  });
+
+  test("run request fails while Prediction is already running", () => {
+    const state = beginPredictionRun(
+      selectPredictionMode(
+        selectChestXrayUploadDraft(
+          createInitialPredictionWorkflowState(),
+          file("scan-a.png", "image/png"),
+          "blob:scan-a",
+        ),
+        "effnetb0",
+      ),
+    );
+
+    const request = preparePredictionRun(state);
+
+    expect(request).toMatchObject({
+      ok: false,
+      failure: {
+        kind: "already-running",
+        message: "Prediction already running.",
+      },
+    });
+  });
+
+  test("run request returns selected mode and ready Chest X-ray Upload", () => {
+    const upload = file("scan-a.png", "image/png");
+    const state = selectPredictionMode(
+      selectChestXrayUploadDraft(
+        createInitialPredictionWorkflowState(),
+        upload,
+        "blob:scan-a",
+      ),
+      "effnetb0",
+    );
+
+    const request = preparePredictionRun(state);
+
+    expect(request).toMatchObject({
+      ok: true,
+      mode: "effnetb0",
+      upload,
+    });
+  });
+
+  test("transition handles run lifecycle events", () => {
+    const ready = transitionPredictionWorkflow(
+      transitionPredictionWorkflow(
+        transitionPredictionWorkflow(createInitialPredictionWorkflowState(), {
+          type: "mode-selected",
+          mode: "effnetb0",
+        }),
+        {
+          type: "upload-selected",
+          file: file("scan-a.png", "image/png"),
+          previewUrl: "blob:scan-a",
+        },
+      ),
+      { type: "run-requested" },
+    );
+
+    expect(ready.isRunning).toBe(true);
+
+    const completed = transitionPredictionWorkflow(ready, {
+      type: "run-succeeded",
+      prediction,
+    });
+
+    expect(completed).toMatchObject({
+      isRunning: false,
+      prediction,
+      runError: null,
+    });
   });
 });

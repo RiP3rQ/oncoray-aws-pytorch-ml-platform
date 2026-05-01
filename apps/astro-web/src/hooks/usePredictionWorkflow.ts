@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "@/lib/api";
 import {
-  beginPredictionRun,
   canRunPrediction,
-  clearChestXrayUploadDraft,
-  completePredictionRun,
   createInitialPredictionWorkflowState,
-  failPredictionRun,
-  selectChestXrayUploadDraft,
-  selectPredictionMode,
+  preparePredictionRun,
   toPredictionRunFailure,
+  transitionPredictionWorkflow,
   type PredictionRunner,
   type PredictionRunOutcome,
 } from "@/lib/prediction-workflow";
@@ -35,7 +31,9 @@ export function usePredictionWorkflow(
   useEffect(() => releasePreviewUrl, [releasePreviewUrl]);
 
   const selectMode = useCallback((mode: PredictionMode) => {
-    setState((current) => selectPredictionMode(current, mode));
+    setState((current) =>
+      transitionPredictionWorkflow(current, { type: "mode-selected", mode }),
+    );
   }, []);
 
   const selectUpload = useCallback(
@@ -49,7 +47,11 @@ export function usePredictionWorkflow(
       previewUrlRef.current = previewUrl;
 
       setState((current) =>
-        selectChestXrayUploadDraft(current, file, previewUrl),
+        transitionPredictionWorkflow(current, {
+          type: "upload-selected",
+          file,
+          previewUrl,
+        }),
       );
     },
     [releasePreviewUrl],
@@ -57,38 +59,36 @@ export function usePredictionWorkflow(
 
   const clearUpload = useCallback(() => {
     releasePreviewUrl();
-    setState((current) => clearChestXrayUploadDraft(current));
+    setState((current) =>
+      transitionPredictionWorkflow(current, { type: "upload-cleared" }),
+    );
   }, [releasePreviewUrl]);
 
   const runPrediction = useCallback(async (): Promise<PredictionRunOutcome> => {
-    if (!state.selectedMode) {
-      const failure = {
-        kind: "missing-mode" as const,
-        message: "Select a model first.",
-      };
-      setState((current) => ({ ...current, runError: failure }));
-      return { ok: false, failure };
+    const request = preparePredictionRun(state);
+    if (!request.ok) {
+      setState(request.state);
+      return { ok: false, failure: request.failure };
     }
 
-    if (state.uploadDraft.status !== "ready") {
-      const failure = {
-        kind: "network-error" as const,
-        message: "Select a chest X-ray upload first.",
-      };
-      setState((current) => ({ ...current, runError: failure }));
-      return { ok: false, failure };
-    }
-
-    const { selectedMode, uploadDraft } = state;
-    setState((current) => beginPredictionRun(current));
+    setState((current) =>
+      transitionPredictionWorkflow(current, { type: "run-requested" }),
+    );
 
     try {
-      const prediction = await runner.run(selectedMode, uploadDraft.file);
-      setState((current) => completePredictionRun(current, prediction));
+      const prediction = await runner.run(request.mode, request.upload);
+      setState((current) =>
+        transitionPredictionWorkflow(current, {
+          type: "run-succeeded",
+          prediction,
+        }),
+      );
       return { ok: true, prediction };
     } catch (error) {
       const failure = toPredictionRunFailure(error);
-      setState((current) => failPredictionRun(current, error));
+      setState((current) =>
+        transitionPredictionWorkflow(current, { type: "run-failed", error }),
+      );
       return { ok: false, failure };
     }
   }, [runner, state]);
