@@ -1,50 +1,50 @@
 # Infra Setup
 
-Local-only deployment setup. No AWS calls are made by these files until you run the commands yourself.
+AWS production scaffold for `pytorch-model`.
 
-Contents:
+Goal: keep deploy understandable. Terraform creates AWS resources. Helm deploys Kubernetes workloads. Small scripts are convenience wrappers only.
 
-- `terraform/` for AWS infrastructure scaffolding
-- `helm/charts/backend-stack/` for Kubernetes workloads
-- `helm/charts/platform-addons/` for ClusterSecretStore config and Fluent Bit
-- `helm/values/prod.example.yaml` for production overrides
-- `helm/values/addons.example.yaml` for cluster add-on overrides
-- `helm/values/ssm-parameters.prod.example.json` for Parameter Store manifest structure
-- `scripts/deploy-prod.ps1` to wrap `helm upgrade --install`
-- `scripts/install-cluster-addons.ps1` to install controller/operator add-ons
-- `scripts/release-prod.ps1` to orchestrate production release end-to-end
-- `scripts/destroy-prod.ps1` to wrap teardown
-- `scripts/validate-local.ps1` for offline-safe local validation with no AWS calls
-- `../docs/DEPLOYMENT_RUNBOOK.md` for end-to-end operator steps
+## Contents
 
-Recommended flow later:
+- `terraform/` AWS infrastructure
+- `helm/charts/backend-stack/` API, worker, and Model Runtime workloads
+- `helm/charts/platform-addons/` ClusterSecretStore config and Fluent Bit
+- `helm/values/prod.example.yaml` production workload values template
+- `helm/values/addons.example.yaml` add-on values template
+- `scripts/deploy-prod.ps1` thin `helm upgrade --install` wrapper for backend workloads
+- `scripts/install-cluster-addons.ps1` add-on install helper
+- `scripts/destroy-prod.ps1` teardown helper
+- `scripts/validate-local.ps1` offline-safe local validation
+- `../docs/DEPLOYMENT_RUNBOOK.md` operator runbook
 
-1. Run `bun run infra:bootstrap` to check local Terraform/Helm/AWS/Kubernetes tooling
-2. Run `bun run infra:validate` for offline-safe checks first
-3. Run `bun run infra:validate:helm` once Helm is installed and you want chart lint/render checks
-4. Run `bun run infra:terraform:init` if Terraform reports missing modules
-5. Run `bun run infra:test:terraform:workload-identities` after Terraform providers are initialized
-6. Fill in `infra/terraform/environments/prod/terraform.tfvars`
-7. Copy `infra/helm/values/addons.example.yaml` to a real add-ons values file
-8. Copy `infra/helm/values/prod.example.yaml` to a real prod values file
-9. Copy `infra/helm/values/ssm-parameters.prod.example.json` to a real Parameter Store manifest and fill secrets
-10. Run `infra/scripts/release-prod.ps1` for the one-command production path
-11. Use `infra/scripts/destroy-prod.ps1` when environment teardown is required
+## Supported Flow
 
-Tool bootstrap:
+1. Run `bun run infra:bootstrap` to check local tools.
+2. Run `bun run infra:validate`.
+3. Fill `infra/terraform/environments/prod/terraform.tfvars`.
+4. Run Terraform `init`, `plan`, and `apply`.
+5. Run `aws eks update-kubeconfig`.
+6. Fill `infra/helm/values/addons.yaml` and `infra/helm/values/prod.yaml`.
+7. Install cluster add-ons.
+8. Populate SSM Parameter Store values.
+9. Build and push ECR images.
+10. Deploy backend with `bun run prod:deploy:backend -- ...`.
+11. Build frontend, sync to S3, invalidate CloudFront.
+
+No one-command full production release script is supported until first live AWS deployment proves the flow.
+
+## Tool Bootstrap
 
 ```powershell
 bun run infra:bootstrap
 bun run infra:bootstrap:install
 ```
 
-`infra:bootstrap` only checks tools and prints install commands. `infra:bootstrap:install` uses `winget` to install Terraform, Helm, AWS CLI, and kubectl. If Terraform init fails because `.terraform` module cache files are locked, close tools using that directory and remove `infra/terraform/environments/prod/.terraform` manually before re-running `bun run infra:terraform:init`.
+`infra:bootstrap` checks tools and prints install commands. `infra:bootstrap:install` uses `winget` to install Terraform, Helm, AWS CLI, and kubectl.
 
-Current status:
+## Current Status
 
-- scaffold exists
-- Terraform now covers managed data services, app IRSA roles, CloudWatch alarms, WAF, frontend DNS, and prediction artifact storage
-- add-on automation now exists for AWS Load Balancer Controller, External Secrets, KEDA, ClusterSecretStore, and Fluent Bit
-- one-command production orchestration now exists in `scripts/release-prod.ps1`
-- no live AWS resources created
-- no live cluster deploys executed
+- Terraform scaffold exists for VPC, EKS, ECR, S3/CloudFront, SQS, RDS, Redis, WAF, Route53, CloudWatch, and IAM/IRSA.
+- Helm charts exist for backend workloads and platform add-on config.
+- Thin local helpers exist for validation, add-ons, backend deploy, and destroy.
+- No live AWS resources have been created from this repo in this workspace.

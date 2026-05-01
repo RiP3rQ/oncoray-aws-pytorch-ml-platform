@@ -40,10 +40,6 @@ _Avoid_: model service, prediction endpoint
 The frontend-owned user flow for selecting a prediction mode, preparing one Chest X-ray Upload, running a Prediction request, and presenting the latest Prediction.
 _Avoid_: prediction orchestration, inference flow
 
-**Production Deployment Contract**:
-The authoritative resolved production deployment facts for one environment, excluding operator-provided secret values.
-_Avoid_: runtime contract, infra contract, deployment config
-
 ## Relationships
 
 - A **Prediction** is produced from exactly one uploaded chest X-ray.
@@ -60,12 +56,6 @@ _Avoid_: runtime contract, infra contract, deployment config
 - **Prediction Orchestration** selects one or more **Model Runtimes** for exactly one **Chest X-ray Upload**.
 - The **Model Catalog** is read-only metadata; it does not produce a **Prediction**.
 - A **Prediction Workflow** calls **Prediction Orchestration**; it does not score **Chest X-ray Uploads** itself.
-- A **Production Deployment Contract** is produced for one environment and consumed by production deployment tooling.
-- A **Production Deployment Contract** includes generated or derived deployment facts; it names expected secret locations but does not contain secret values.
-- A **Production Deployment Contract** includes the resolved image repositories and image tags used for one release.
-- A **Production Deployment Contract** identifies **Model Runtime** deployment facts by model slug, not by deployment tool resource name.
-- A **Production Deployment Contract** may be retained as a release artifact for audit and deployment debugging.
-
 ## Example dialogue
 
 > **Dev:** "Should the frontend type its **Prediction** from the internal runtime payload?"
@@ -78,4 +68,3 @@ _Avoid_: runtime contract, infra contract, deployment config
 
 - "prediction response" was used for both public API payloads and internal runtime payloads; resolved: **Prediction** means the API-owned public contract, while **Model Runtime Prediction** means the internal runtime payload.
 - `/model/{model_id}/predict` mixed **Model Catalog** identity with **Prediction Orchestration**; resolved: public **Prediction** requests use prediction mode, not model metadata identity.
-- "runtime contract" conflicts with **Model Runtime**; resolved: deployment facts shared across Terraform, Helm, and release scripts are the **Production Deployment Contract**.

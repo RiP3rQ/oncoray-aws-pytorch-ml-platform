@@ -60,7 +60,7 @@ run "plans_expected_workload_identity_resources" {
 
   assert {
     condition     = contains(keys(output.role_arns), "api") && contains(keys(output.role_arns), "worker") && contains(keys(output.role_arns), "model_service")
-    error_message = "role_arns output must match Production Deployment Contract workload keys."
+    error_message = "role_arns output must match workload keys."
   }
 }
 
