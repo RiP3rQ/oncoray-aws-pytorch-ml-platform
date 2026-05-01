@@ -35,6 +35,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "production-deployment-contract.ps1")
+
 function Assert-Command {
     param([Parameter(Mandatory = $true)][string]$Name)
 
@@ -76,15 +78,6 @@ function Get-TerraformOutputs {
     return $json | ConvertFrom-Json -AsHashtable
 }
 
-function Get-OutputValue {
-    param(
-        [Parameter(Mandatory = $true)][hashtable]$Outputs,
-        [Parameter(Mandatory = $true)][string]$Name
-    )
-
-    return $Outputs[$Name].value
-}
-
 function Get-ParameterManifest {
     param([string]$PathValue)
 
@@ -114,6 +107,42 @@ function Merge-Parameters {
     }
 
     return @($byName.Values)
+}
+
+function New-DerivedSsmParameters {
+    param(
+        [Parameter(Mandatory = $true)][System.Collections.IDictionary]$ProductionDeploymentContract,
+        [Parameter(Mandatory = $true)][string]$ParameterPrefix
+    )
+
+    return @(
+        [pscustomobject]@{ name = "$ParameterPrefix/api/REDIS_HOST"; type = "String"; value = $ProductionDeploymentContract.redis.primaryEndpoint },
+        [pscustomobject]@{ name = "$ParameterPrefix/api/REDIS_PORT"; type = "String"; value = [string]$ProductionDeploymentContract.redis.port },
+        [pscustomobject]@{ name = "$ParameterPrefix/api/REDIS_SSL"; type = "String"; value = "true" },
+        [pscustomobject]@{ name = "$ParameterPrefix/api/AWS_REGION"; type = "String"; value = $ProductionDeploymentContract.awsRegion },
+        [pscustomobject]@{ name = "$ParameterPrefix/api/SQS_QUEUE_URL"; type = "String"; value = $ProductionDeploymentContract.workerQueueUrl },
+        [pscustomobject]@{ name = "$ParameterPrefix/api/S3_BUCKET_NAME"; type = "String"; value = $ProductionDeploymentContract.predictionArtifactsBucketName },
+        [pscustomobject]@{ name = "$ParameterPrefix/worker/AWS_REGION"; type = "String"; value = $ProductionDeploymentContract.awsRegion },
+        [pscustomobject]@{ name = "$ParameterPrefix/worker/SQS_QUEUE_URL"; type = "String"; value = $ProductionDeploymentContract.workerQueueUrl }
+    )
+}
+
+function Assert-RequiredSsmParameters {
+    param(
+        [Parameter(Mandatory = $true)][object[]]$Parameters,
+        [Parameter(Mandatory = $true)][object]$ExpectedParameterStorePaths
+    )
+
+    $requiredParameterNames = @()
+    $requiredParameterNames += @($ExpectedParameterStorePaths.api)
+    $requiredParameterNames += @($ExpectedParameterStorePaths.worker)
+
+    $missingParameters = $requiredParameterNames | Where-Object {
+        $_ -notin $Parameters.name
+    }
+    if ($missingParameters.Count -gt 0) {
+        throw "Missing Parameter Store values: $($missingParameters -join ', '). Supply them in -ParameterManifestFile."
+    }
 }
 
 function Sync-SsmParameters {
@@ -180,6 +209,128 @@ function Get-ApiAlbState {
     }
 }
 
+function Sync-ApiEdgeState {
+    param(
+        [Parameter(Mandatory = $true)][string]$ReleaseName,
+        [Parameter(Mandatory = $true)][string]$Namespace,
+        [Parameter(Mandatory = $true)][string]$TerraformDirectory,
+        [Parameter(Mandatory = $true)][string]$TerraformVarsFile
+    )
+
+    $apiIngressName = "$ReleaseName-backend-stack-api"
+    $apiHostname = Wait-ForIngressHostname -IngressName $apiIngressName -Namespace $Namespace
+    $apiAlbState = Get-ApiAlbState -DnsName $apiHostname
+
+    Invoke-External -FilePath "terraform" -Arguments @(
+        "-chdir=$TerraformDirectory",
+        "apply",
+        "-var-file=$TerraformVarsFile",
+        "-var=api_dns_name=$apiHostname",
+        "-var=api_alb_arn_suffix=$($apiAlbState.LoadBalancerArnSuffix)",
+        "-var=api_target_group_arn_suffix=$($apiAlbState.TargetGroupArnSuffix)"
+    )
+}
+
+function New-AddonInstallArguments {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string]$ClusterName,
+        [Parameter(Mandatory = $true)][string]$VpcId,
+        [Parameter(Mandatory = $true)][System.Collections.IDictionary]$ClusterAddonRoleArns,
+        [Parameter(Mandatory = $true)][string]$PlatformValuesFile,
+        [Parameter(Mandatory = $true)][bool]$DryRun
+    )
+
+    $arguments = @(
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        (Join-Path $RepoRoot "infra/scripts/install-cluster-addons.ps1"),
+        "-ClusterName",
+        $ClusterName,
+        "-VpcId",
+        $VpcId,
+        "-LoadBalancerControllerRoleArn",
+        $ClusterAddonRoleArns.awsLoadBalancerController,
+        "-ExternalSecretsRoleArn",
+        $ClusterAddonRoleArns.externalSecrets,
+        "-FluentBitRoleArn",
+        $ClusterAddonRoleArns.fluentBit,
+        "-PlatformValuesFile",
+        $PlatformValuesFile
+    )
+
+    if ($DryRun) {
+        $arguments += "-DryRun"
+    }
+
+    return $arguments
+}
+
+function New-BackendDeployArguments {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string]$ReleaseName,
+        [Parameter(Mandatory = $true)][string]$Namespace,
+        [Parameter(Mandatory = $true)][string]$BackendValuesFile,
+        [Parameter(Mandatory = $true)][string]$ApiImageRepository,
+        [Parameter(Mandatory = $true)][string]$ApiImageTag,
+        [Parameter(Mandatory = $true)][string]$WorkerImageRepository,
+        [Parameter(Mandatory = $true)][string]$WorkerImageTag,
+        [Parameter(Mandatory = $true)][System.Collections.IDictionary]$AppWorkloadRoleArns,
+        [string]$ApiWafAclArn = "",
+        [switch]$EnableModelService,
+        [string]$ModelServiceImageRepository = "",
+        [string]$ModelServiceImageTag = "",
+        [switch]$DryRun
+    )
+
+    $arguments = @(
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        (Join-Path $RepoRoot "infra/scripts/deploy-prod.ps1"),
+        "-ReleaseName",
+        $ReleaseName,
+        "-Namespace",
+        $Namespace,
+        "-ValuesFile",
+        $BackendValuesFile,
+        "-ApiImageRepository",
+        $ApiImageRepository,
+        "-ApiImageTag",
+        $ApiImageTag,
+        "-WorkerImageRepository",
+        $WorkerImageRepository,
+        "-WorkerImageTag",
+        $WorkerImageTag,
+        "-ApiServiceAccountRoleArn",
+        $AppWorkloadRoleArns.api,
+        "-WorkerServiceAccountRoleArn",
+        $AppWorkloadRoleArns.worker
+    )
+
+    if ($ApiWafAclArn) {
+        $arguments += @("-ApiWafAclArn", $ApiWafAclArn)
+    }
+
+    if ($EnableModelService) {
+        $arguments += @(
+            "-EnableModelService",
+            "-ModelServiceImageRepository",
+            $ModelServiceImageRepository,
+            "-ModelServiceImageTag",
+            $ModelServiceImageTag
+        )
+    }
+
+    if ($DryRun) {
+        $arguments += "-DryRun"
+    }
+
+    return $arguments
+}
+
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $resolvedTerraformDir = Resolve-RepoPath -RepoRoot $repoRoot -PathValue $TerraformDir
 $resolvedPlatformValuesFile = Resolve-RepoPath -RepoRoot $repoRoot -PathValue $PlatformValuesFile
@@ -228,17 +379,27 @@ if (-not $SkipTerraform) {
 }
 
 $terraformOutputs = Get-TerraformOutputs -TerraformDirectory $resolvedTerraformDir
-$clusterName = Get-OutputValue -Outputs $terraformOutputs -Name "cluster_name"
-$awsRegion = Get-OutputValue -Outputs $terraformOutputs -Name "aws_region"
-$vpcId = Get-OutputValue -Outputs $terraformOutputs -Name "vpc_id"
-$frontendBucketName = Get-OutputValue -Outputs $terraformOutputs -Name "frontend_bucket_name"
-$frontendDistributionId = Get-OutputValue -Outputs $terraformOutputs -Name "frontend_distribution_id"
-$predictionArtifactsBucketName = Get-OutputValue -Outputs $terraformOutputs -Name "prediction_artifacts_bucket_name"
-$apiWafAclArn = Get-OutputValue -Outputs $terraformOutputs -Name "api_waf_acl_arn"
-$ecrRepositoryUrls = Get-OutputValue -Outputs $terraformOutputs -Name "ecr_repository_urls"
-$addonRoleArns = Get-OutputValue -Outputs $terraformOutputs -Name "cluster_addon_role_arns"
-$appRoleArns = Get-OutputValue -Outputs $terraformOutputs -Name "app_workload_role_arns"
-$expectedParameterStorePaths = Get-OutputValue -Outputs $terraformOutputs -Name "expected_parameter_store_paths"
+$productionDeploymentContract = New-ProductionDeploymentContract `
+    -TerraformOutputs $terraformOutputs `
+    -ProjectName $ProjectName `
+    -Environment $Environment `
+    -Namespace $Namespace
+$productionDeploymentContractPath = Save-ProductionDeploymentContract `
+    -Contract $productionDeploymentContract `
+    -RepoRoot $repoRoot
+Write-Host "Production Deployment Contract: $productionDeploymentContractPath"
+
+$clusterName = $productionDeploymentContract.clusterName
+$awsRegion = $productionDeploymentContract.awsRegion
+$vpcId = $productionDeploymentContract.vpcId
+$frontendBucketName = $productionDeploymentContract.frontendBucketName
+$frontendDistributionId = $productionDeploymentContract.frontendDistributionId
+$predictionArtifactsBucketName = $productionDeploymentContract.predictionArtifactsBucketName
+$apiWafAclArn = $productionDeploymentContract.apiWafAclArn
+$ecrRepositoryUrls = $productionDeploymentContract.ecrRepositories
+$addonRoleArns = $productionDeploymentContract.clusterAddonRoleArns
+$appRoleArns = $productionDeploymentContract.appWorkloadRoleArns
+$expectedParameterStorePaths = $productionDeploymentContract.expectedParameterStorePaths
 
 if (-not $ApiImageRepository) {
     $ApiImageRepository = $ecrRepositoryUrls.api
@@ -253,7 +414,7 @@ if (-not $WorkerImageTag) {
 }
 
 if ($EnableModelService -and -not $ModelServiceImageRepository) {
-    $ModelServiceImageRepository = $ecrRepositoryUrls.model_service
+    $ModelServiceImageRepository = $ecrRepositoryUrls.modelService
 }
 
 if ($EnableModelService -and -not $ModelServiceImageTag) {
@@ -269,28 +430,13 @@ if (-not $SkipParameterSync) {
     }
     $manifestParameters = Get-ParameterManifest -PathValue $resolvedParameterManifestFile
     $prefix = "/$ProjectName/$Environment"
-    $derivedParameters = @(
-        [pscustomobject]@{ name = "$prefix/api/REDIS_HOST"; type = "String"; value = (Get-OutputValue -Outputs $terraformOutputs -Name "redis").primary_endpoint },
-        [pscustomobject]@{ name = "$prefix/api/REDIS_PORT"; type = "String"; value = [string](Get-OutputValue -Outputs $terraformOutputs -Name "redis").port },
-        [pscustomobject]@{ name = "$prefix/api/REDIS_SSL"; type = "String"; value = "true" },
-        [pscustomobject]@{ name = "$prefix/api/AWS_REGION"; type = "String"; value = $awsRegion },
-        [pscustomobject]@{ name = "$prefix/api/SQS_QUEUE_URL"; type = "String"; value = (Get-OutputValue -Outputs $terraformOutputs -Name "worker_queue_url") },
-        [pscustomobject]@{ name = "$prefix/api/S3_BUCKET_NAME"; type = "String"; value = $predictionArtifactsBucketName },
-        [pscustomobject]@{ name = "$prefix/worker/AWS_REGION"; type = "String"; value = $awsRegion },
-        [pscustomobject]@{ name = "$prefix/worker/SQS_QUEUE_URL"; type = "String"; value = (Get-OutputValue -Outputs $terraformOutputs -Name "worker_queue_url") }
-    )
+    $derivedParameters = New-DerivedSsmParameters `
+        -ProductionDeploymentContract $productionDeploymentContract `
+        -ParameterPrefix $prefix
     $mergedParameters = Merge-Parameters -Derived $derivedParameters -Manifest $manifestParameters
-
-    $requiredParameterNames = @()
-    $requiredParameterNames += @($expectedParameterStorePaths.api)
-    $requiredParameterNames += @($expectedParameterStorePaths.worker)
-
-    $missingParameters = $requiredParameterNames | Where-Object {
-        $_ -notin $mergedParameters.name
-    }
-    if ($missingParameters.Count -gt 0) {
-        throw "Missing Parameter Store values: $($missingParameters -join ', '). Supply them in -ParameterManifestFile."
-    }
+    Assert-RequiredSsmParameters `
+        -Parameters $mergedParameters `
+        -ExpectedParameterStorePaths $expectedParameterStorePaths
 
     Sync-SsmParameters -Parameters $mergedParameters
 }
@@ -298,28 +444,13 @@ if (-not $SkipParameterSync) {
 Invoke-External -FilePath "aws" -Arguments @("eks", "update-kubeconfig", "--region", $awsRegion, "--name", $clusterName)
 
 if (-not $SkipAddons) {
-    $addonArgs = @(
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        (Join-Path $repoRoot "infra/scripts/install-cluster-addons.ps1"),
-        "-ClusterName",
-        $clusterName,
-        "-VpcId",
-        $vpcId,
-        "-LoadBalancerControllerRoleArn",
-        $addonRoleArns.aws_load_balancer_controller,
-        "-ExternalSecretsRoleArn",
-        $addonRoleArns.external_secrets,
-        "-FluentBitRoleArn",
-        $addonRoleArns.fluent_bit,
-        "-PlatformValuesFile",
-        $resolvedPlatformValuesFile
-    )
-    if ($DryRun) {
-        $addonArgs += "-DryRun"
-    }
-
+    $addonArgs = New-AddonInstallArguments `
+        -RepoRoot $repoRoot `
+        -ClusterName $clusterName `
+        -VpcId $vpcId `
+        -ClusterAddonRoleArns $addonRoleArns `
+        -PlatformValuesFile $resolvedPlatformValuesFile `
+        -DryRun:$DryRun
     Invoke-External -FilePath "powershell" -Arguments $addonArgs
 }
 
@@ -369,68 +500,30 @@ if ($EnableModelService -and ($BuildModelServiceImage -or $PushModelServiceImage
 }
 
 if (-not $SkipBackendDeploy) {
-    $deployArgs = @(
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        (Join-Path $repoRoot "infra/scripts/deploy-prod.ps1"),
-        "-ReleaseName",
-        $ReleaseName,
-        "-Namespace",
-        $Namespace,
-        "-ValuesFile",
-        $resolvedBackendValuesFile,
-        "-ApiImageRepository",
-        $ApiImageRepository,
-        "-ApiImageTag",
-        $ApiImageTag,
-        "-WorkerImageRepository",
-        $WorkerImageRepository,
-        "-WorkerImageTag",
-        $WorkerImageTag,
-        "-ApiServiceAccountRoleArn",
-        $appRoleArns.api,
-        "-WorkerServiceAccountRoleArn",
-        $appRoleArns.worker
-    )
-
-    if ($apiWafAclArn) {
-        $deployArgs += @(
-            "-ApiWafAclArn",
-            $apiWafAclArn
-        )
-    }
-
-    if ($EnableModelService) {
-        $deployArgs += @(
-            "-EnableModelService",
-            "-ModelServiceImageRepository",
-            $ModelServiceImageRepository,
-            "-ModelServiceImageTag",
-            $ModelServiceImageTag
-        )
-    }
-
-    if ($DryRun) {
-        $deployArgs += "-DryRun"
-    }
-
+    $deployArgs = New-BackendDeployArguments `
+        -RepoRoot $repoRoot `
+        -ReleaseName $ReleaseName `
+        -Namespace $Namespace `
+        -BackendValuesFile $resolvedBackendValuesFile `
+        -ApiImageRepository $ApiImageRepository `
+        -ApiImageTag $ApiImageTag `
+        -WorkerImageRepository $WorkerImageRepository `
+        -WorkerImageTag $WorkerImageTag `
+        -AppWorkloadRoleArns $appRoleArns `
+        -ApiWafAclArn $apiWafAclArn `
+        -EnableModelService:$EnableModelService `
+        -ModelServiceImageRepository $ModelServiceImageRepository `
+        -ModelServiceImageTag $ModelServiceImageTag `
+        -DryRun:$DryRun
     Invoke-External -FilePath "powershell" -Arguments $deployArgs
 }
 
 if ($SyncApiEdge -and -not $DryRun) {
-    $apiIngressName = "$ReleaseName-backend-stack-api"
-    $apiHostname = Wait-ForIngressHostname -IngressName $apiIngressName -Namespace $Namespace
-    $apiAlbState = Get-ApiAlbState -DnsName $apiHostname
-
-    Invoke-External -FilePath "terraform" -Arguments @(
-        "-chdir=$resolvedTerraformDir",
-        "apply",
-        "-var-file=$resolvedTerraformVarsFile",
-        "-var=api_dns_name=$apiHostname",
-        "-var=api_alb_arn_suffix=$($apiAlbState.LoadBalancerArnSuffix)",
-        "-var=api_target_group_arn_suffix=$($apiAlbState.TargetGroupArnSuffix)"
-    )
+    Sync-ApiEdgeState `
+        -ReleaseName $ReleaseName `
+        -Namespace $Namespace `
+        -TerraformDirectory $resolvedTerraformDir `
+        -TerraformVarsFile $resolvedTerraformVarsFile
 }
 
 if (-not $SkipFrontendDeploy) {

@@ -28,6 +28,7 @@ class ModelRuntimeFactory:
         artifact_path = resolve_model_artifact(
             self.settings.MODEL_ARTIFACT_PATH,
             self._hugging_face_source(),
+            expected_sha256=self.settings.MODEL_ARTIFACT_SHA256,
         )
         spec = self.model_specs[self.settings.MODEL_SLUG]
         device = resolve_device(self.settings.MODEL_DEVICE)

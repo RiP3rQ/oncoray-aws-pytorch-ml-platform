@@ -77,8 +77,18 @@ class UserService(BaseService):
 
         return f"{app_settings.APP_HTTP_PROTOCOL}://{app_settings.APP_DOMAIN}/{router_prefix}/verify?token={token}"
 
+    @staticmethod
+    def _should_send_verification_email(email: str) -> bool:
+        """Return whether a verification email should leave the API."""
+
+        return not email.lower().endswith("@example.com")
+
     async def _send_verification_email(self, user: User, router_prefix: str) -> None:
         """Queue the account verification email for a newly created user."""
+
+        if not self._should_send_verification_email(user.email):
+            logger.info("Skipping verification email for reserved example.com address")
+            return
 
         token = generate_url_safe_token({"id": str(user.id)})
         await dispatch_email_with_template(

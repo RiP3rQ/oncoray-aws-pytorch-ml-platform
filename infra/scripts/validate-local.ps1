@@ -131,6 +131,46 @@ function Test-ContentRule {
     Add-Pass $Label
 }
 
+function Test-ProductionDeploymentContractFile {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        Add-Pass "Generated Production Deployment Contract absent"
+        return
+    }
+
+    try {
+        $contract = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    }
+    catch {
+        Add-Failure "Generated Production Deployment Contract is not valid JSON: $Path"
+        return
+    }
+
+    $requiredValues = @(
+        @{ Name = "schemaVersion"; Value = $contract.schemaVersion },
+        @{ Name = "environment"; Value = $contract.environment },
+        @{ Name = "namespace"; Value = $contract.namespace },
+        @{ Name = "awsRegion"; Value = $contract.awsRegion },
+        @{ Name = "clusterName"; Value = $contract.clusterName },
+        @{ Name = "ecrRepositories.api"; Value = $contract.ecrRepositories.api },
+        @{ Name = "ecrRepositories.modelService"; Value = $contract.ecrRepositories.modelService },
+        @{ Name = "appWorkloadRoleArns.api"; Value = $contract.appWorkloadRoleArns.api },
+        @{ Name = "appWorkloadRoleArns.worker"; Value = $contract.appWorkloadRoleArns.worker },
+        @{ Name = "workerQueueUrl"; Value = $contract.workerQueueUrl },
+        @{ Name = "predictionArtifactsBucketName"; Value = $contract.predictionArtifactsBucketName }
+    )
+
+    foreach ($item in $requiredValues) {
+        if ($null -eq $item.Value -or ([string]$item.Value).Trim() -eq "") {
+            Add-Failure "Generated Production Deployment Contract missing $($item.Name)."
+            return
+        }
+    }
+
+    Add-Pass "Generated Production Deployment Contract"
+}
+
 Write-Host "Running local infra validation from $repoRoot"
 
 if (-not (Test-Command -Name "terraform")) {
@@ -161,6 +201,14 @@ Get-ChildItem -Path (Join-Path $repoRoot ".github/workflows") -Filter "*.yml" | 
 }
 
 Test-NoPatchMarkers -Roots @("infra", "docs", ".github")
+
+Test-ProductionDeploymentContractFile -Path (Join-Path $repoRoot "infra/generated/production-deployment-contract.prod.json")
+
+Test-ContentRule `
+    -Label "Generated Production Deployment Contract ignored" `
+    -Path (Join-Path $repoRoot ".gitignore") `
+    -Predicate { param($content) $content -match '(?m)^infra/generated/\s*$' } `
+    -FailureMessage "infra/generated/ must stay gitignored."
 
 Test-ContentRule `
     -Label "Backend chart default image tag" `

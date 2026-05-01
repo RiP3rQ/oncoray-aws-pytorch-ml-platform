@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import shutil
 from dataclasses import dataclass
@@ -29,23 +30,31 @@ def download_hugging_face_artifact(source: HuggingFaceArtifactSource) -> Path:
     except ImportError as exc:
         raise RuntimeError("huggingface-hub is required to fetch Model Artifacts from Hugging Face.") from exc
 
-    return Path(
-        hf_hub_download(
-            repo_id=source.repo_id,
-            filename=source.filename,
-            revision=source.revision,
-            token=source.token,
+    try:
+        return Path(
+            hf_hub_download(
+                repo_id=source.repo_id,
+                filename=source.filename,
+                revision=source.revision,
+                token=source.token,
+            )
         )
-    )
+    except Exception as exc:
+        raise RuntimeError(
+            "Failed to fetch Model Artifact from Hugging Face "
+            f"repo={source.repo_id} revision={source.revision} filename={source.filename}"
+        ) from exc
 
 
 def resolve_model_artifact(
     artifact_path: Path,
     source: HuggingFaceArtifactSource | None,
     *,
+    expected_sha256: str | None = None,
     downloader: ArtifactDownloader = download_hugging_face_artifact,
 ) -> Path:
     if artifact_path.is_file():
+        verify_model_artifact_checksum(artifact_path, expected_sha256)
         return artifact_path
 
     if source is None:
@@ -64,7 +73,28 @@ def resolve_model_artifact(
         raise FileNotFoundError(f"Downloaded Model Artifact not found: {downloaded_path}")
     if downloaded_path.resolve() != artifact_path.resolve():
         shutil.copy2(downloaded_path, artifact_path)
+    verify_model_artifact_checksum(artifact_path, expected_sha256)
     return artifact_path
+
+
+def verify_model_artifact_checksum(artifact_path: Path, expected_sha256: str | None) -> None:
+    if expected_sha256 is None:
+        return
+
+    actual_sha256 = file_sha256(artifact_path)
+    if actual_sha256.lower() != expected_sha256.lower():
+        raise ValueError(
+            "Model Artifact checksum mismatch "
+            f"path={artifact_path} expected_sha256={expected_sha256} actual_sha256={actual_sha256}"
+        )
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as artifact_file:
+        for chunk in iter(lambda: artifact_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def load_state_dict(artifact_path: Path, map_location: torch.device) -> dict[str, Any]:

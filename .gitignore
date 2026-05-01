@@ -37,6 +37,7 @@ build
 *.tfstate.*
 crash.log
 infra/terraform/environments/prod/outputs.json
+infra/generated/
 tmp/
 **/tmp/
 .uv-cache/

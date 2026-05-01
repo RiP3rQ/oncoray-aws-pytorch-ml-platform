@@ -169,9 +169,17 @@ output "expected_parameter_store_paths" {
       "${local.ssm_parameter_prefix}/worker/USE_CREDENTIALS",
       "${local.ssm_parameter_prefix}/worker/VALIDATE_CERTS",
     ]
-    model_service = [
-      "${local.ssm_parameter_prefix}/model-service/HF_MODEL_REPOSITORY",
-      "${local.ssm_parameter_prefix}/model-service/HF_MODEL_REVISION",
+    model_service_effnetb0 = [
+      "${local.ssm_parameter_prefix}/model-service-effnetb0/HF_MODEL_REPOSITORY",
+      "${local.ssm_parameter_prefix}/model-service-effnetb0/HF_MODEL_REVISION",
+      "${local.ssm_parameter_prefix}/model-service-effnetb0/HF_MODEL_FILENAME",
+      "${local.ssm_parameter_prefix}/model-service-effnetb0/HF_TOKEN",
+    ]
+    model_service_vitb16 = [
+      "${local.ssm_parameter_prefix}/model-service-vitb16/HF_MODEL_REPOSITORY",
+      "${local.ssm_parameter_prefix}/model-service-vitb16/HF_MODEL_REVISION",
+      "${local.ssm_parameter_prefix}/model-service-vitb16/HF_MODEL_FILENAME",
+      "${local.ssm_parameter_prefix}/model-service-vitb16/HF_TOKEN",
     ]
   }
 }

@@ -4,8 +4,10 @@ from io import BytesIO
 
 from fastapi.testclient import TestClient
 from PIL import Image
+from pytest import MonkeyPatch
 
 from src.app import create_app
+from src.config import Settings
 from src.schemas import ModelRuntimePrediction
 from src.types import ModelSlug
 
@@ -42,6 +44,32 @@ def test_health_endpoints_and_root() -> None:
         assert client.get("/livez").json() == {"status": "ok"}
         assert client.get("/readyz").json() == {"status": "ok", "model": "effnetb0"}
         assert client.get("/startupz").json() == {"status": "ok", "model": "effnetb0"}
+
+
+def test_lifespan_loads_runtime_before_readiness(monkeypatch: MonkeyPatch) -> None:
+    loaded_settings: list[Settings] = []
+    runtime = FixedPredictionRuntime(ModelSlug.VITB16)
+
+    class FakeFactory:
+        def __init__(self, runtime_settings: Settings) -> None:
+            self.runtime_settings = runtime_settings
+
+        @classmethod
+        def from_settings(cls, runtime_settings: Settings) -> FakeFactory:
+            loaded_settings.append(runtime_settings)
+            return cls(runtime_settings)
+
+        def build(self) -> FixedPredictionRuntime:
+            return runtime
+
+    monkeypatch.setattr("src.app.ModelRuntimeFactory", FakeFactory)
+    settings = Settings(MODEL_SLUG=ModelSlug.VITB16)
+    app = create_app(runtime_settings=settings)
+
+    with TestClient(app) as client:
+        assert client.get("/readyz").json() == {"status": "ok", "model": "vitb16"}
+
+    assert loaded_settings == [settings]
 
 
 def test_predict_endpoint_returns_normalized_payload() -> None:

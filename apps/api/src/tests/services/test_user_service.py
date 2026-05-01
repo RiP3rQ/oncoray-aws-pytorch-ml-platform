@@ -178,6 +178,8 @@ class TestSendVerificationEmail:
     @pytest.mark.asyncio
     async def test_send_verification_email_calls_task(self, user_service, mock_session, fake_user):
         """_send_verification_email should queue the email verification task."""
+        fake_user.email = "real-user@hospital.test"
+
         with patch(
             "src.services.user_service.dispatch_email_with_template",
             new_callable=AsyncMock,
@@ -188,6 +190,19 @@ class TestSendVerificationEmail:
             call_kwargs = mock_send.call_args[1]
             assert call_kwargs["recipients"] == [fake_user.email]
             assert call_kwargs["template_name"] == "mail_email_verify.html"
+
+    @pytest.mark.asyncio
+    async def test_send_verification_email_skips_example_dot_com_address(self, user_service, mock_session, fake_user):
+        """_send_verification_email should not send to reserved example.com addresses."""
+        fake_user.email = "e2e+signup@example.com"
+
+        with patch(
+            "src.services.user_service.dispatch_email_with_template",
+            new_callable=AsyncMock,
+        ) as mock_send:
+            await user_service._send_verification_email(fake_user, "user")
+
+            mock_send.assert_not_called()
 
 
 # =============================================================================

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import cast
 from uuid import uuid4
@@ -83,6 +84,65 @@ def test_resolve_model_artifact_fetches_from_hugging_face_when_missing() -> None
     assert resolved == artifact_path
     assert artifact_path.read_bytes() == b"remote"
     assert calls == [source]
+
+
+def test_resolve_model_artifact_wraps_hugging_face_fetch_failure() -> None:
+    workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
+    workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = workspace_tmp_dir / f"missing-{uuid4()}.pth"
+    source = HuggingFaceArtifactSource(
+        repo_id="owner/private",
+        revision="missing-revision",
+        filename="weights/model.pth",
+        token="secret-token",
+    )
+
+    def failing_downloader(source: HuggingFaceArtifactSource) -> Path:
+        raise RuntimeError(
+            "Failed to fetch Model Artifact from Hugging Face "
+            f"repo={source.repo_id} revision={source.revision} filename={source.filename}"
+        )
+
+    try:
+        resolve_model_artifact(artifact_path, source, downloader=failing_downloader)
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Expected Model Artifact fetch failure.")
+
+    assert "owner/private" in message
+    assert "missing-revision" in message
+    assert "weights/model.pth" in message
+    assert "secret-token" not in message
+
+
+def test_resolve_model_artifact_validates_expected_sha256() -> None:
+    workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
+    workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = workspace_tmp_dir / f"checksum-{uuid4()}.pth"
+    artifact_path.write_bytes(b"artifact")
+    expected_sha256 = hashlib.sha256(b"artifact").hexdigest()
+
+    resolved = resolve_model_artifact(artifact_path, None, expected_sha256=expected_sha256)
+
+    assert resolved == artifact_path
+
+
+def test_resolve_model_artifact_rejects_checksum_mismatch() -> None:
+    workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
+    workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = workspace_tmp_dir / f"checksum-mismatch-{uuid4()}.pth"
+    artifact_path.write_bytes(b"artifact")
+
+    try:
+        resolve_model_artifact(artifact_path, None, expected_sha256="0" * 64)
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Expected checksum mismatch.")
+
+    assert "Model Artifact checksum mismatch" in message
+    assert str(artifact_path) in message
 
 
 def test_model_runtime_factory_builds_inference_runtime_from_settings() -> None:
