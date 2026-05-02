@@ -214,6 +214,21 @@ class TestAddExceptionHandlers:
         data = response.json()
         assert "detail" in data
 
+    def test_internal_server_error_handler_accepts_multiline_exception(self):
+        """Internal server error handler should not put raw exception text in headers."""
+        app = FastAPI()
+        add_exception_handlers(app)
+
+        @app.get("/test-multiline-internal-error")
+        async def test_multiline_internal_error():
+            raise RuntimeError("Database error\nSELECT broken_column")
+
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/test-multiline-internal-error")
+        assert response.status_code == 500
+        assert "X-Error" not in response.headers
+        assert response.json()["detail"] == "Something went wrong..."
+
     def test_bad_password_handler_returns_400(self):
         """BadPassword handler should raise HTTPException with 400."""
         app = FastAPI()

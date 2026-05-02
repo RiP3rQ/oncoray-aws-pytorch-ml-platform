@@ -114,7 +114,4 @@ def add_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             content={"detail": "Something went wrong..."},
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            headers={
-                "X-Error": f"{exception}",
-            },
         )
