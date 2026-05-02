@@ -105,3 +105,28 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def validate_production_settings(runtime_settings: Settings = settings) -> None:
+    """Fail fast when production Model Runtime Host config is unsafe."""
+    if runtime_settings.APP_ENVIRONMENT != "production":
+        return
+
+    errors: list[str] = []
+    if not runtime_settings.model_slugs:
+        errors.append("MODEL_SLUGS must define at least one Model Runtime.")
+    if runtime_settings.MODEL_DEVICE == "cuda":
+        errors.append("MODEL_DEVICE=cuda is not supported by the current CPU production node group.")
+
+    for slug in runtime_settings.model_slugs:
+        artifact_url = runtime_settings.EFFNETB0_MODEL_ARTIFACT_URL
+        if slug == ModelSlug.VITB16:
+            artifact_url = runtime_settings.VITB16_MODEL_ARTIFACT_URL
+        if "/resolve/main/" in artifact_url:
+            errors.append(f"{slug.value} Model Artifact URL must use an immutable Hugging Face revision, not main.")
+
+    if runtime_settings.HF_USERNAME == "RiP3rQ" and runtime_settings.HF_TOKEN is None:
+        errors.append("HF_USERNAME/HF_TOKEN must be explicitly reviewed for production Model Artifact access.")
+
+    if errors:
+        raise RuntimeError("Invalid production Model Runtime configuration: " + " ".join(errors))

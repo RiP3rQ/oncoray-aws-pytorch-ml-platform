@@ -8,7 +8,7 @@ from typing import Annotated, Any, cast
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile, status
 from starlette.concurrency import run_in_threadpool
 
-from src.config import Settings, settings
+from src.config import Settings, settings, validate_production_settings
 from src.model_runtime_factory import ModelRuntimeFactory
 from src.runtime import ModelRuntime
 from src.schemas import ModelRuntimePrediction
@@ -28,6 +28,7 @@ def create_app(
     runtime_settings: Settings | None = None,
 ) -> FastAPI:
     resolved_settings = runtime_settings or settings
+    validate_production_settings(resolved_settings)
     configure_logging(resolved_settings.APP_LOG_LEVEL)
 
     @asynccontextmanager

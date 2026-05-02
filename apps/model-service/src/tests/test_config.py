@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.config import Settings
+import pytest
+
+from src.config import Settings, validate_production_settings
 from src.types import ModelSlug
 
 
@@ -27,6 +29,29 @@ def test_production_uses_same_minimal_runtime_defaults() -> None:
 
     assert settings.APP_ENVIRONMENT == "production"
     assert settings.model_slugs == (ModelSlug.EFFNETB0, ModelSlug.VITB16)
+
+
+def test_production_validation_rejects_mutable_main_artifacts() -> None:
+    settings = settings_without_env(APP_ENVIRONMENT="production")
+
+    with pytest.raises(RuntimeError, match="immutable Hugging Face revision"):
+        validate_production_settings(settings)
+
+
+def test_production_validation_accepts_pinned_artifacts() -> None:
+    settings = settings_without_env(
+        APP_ENVIRONMENT="production",
+        EFFNETB0_MODEL_ARTIFACT_URL=(
+            "https://huggingface.co/RiP3rQ/effnetb0/resolve/abc123/effnetb0/effnetb0_epoch_008.pth"
+        ),
+        VITB16_MODEL_ARTIFACT_URL=(
+            "https://huggingface.co/RiP3rQ/vit_b_16/resolve/def456/vit_b_16/vit_b_16_epoch_018.pth"
+        ),
+        HF_USERNAME="production-artifacts",
+        HF_TOKEN="token",
+    )
+
+    validate_production_settings(settings)
 
 
 def test_model_slugs_defaults_to_single_model_slug() -> None:

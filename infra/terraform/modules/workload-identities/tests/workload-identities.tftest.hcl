@@ -24,13 +24,9 @@ variables {
   }
 
   model_runtime_service_accounts = {
-    effnetb0 = {
+    host = {
       namespace       = "pytorch-model-prod"
-      service_account = "pytorch-model-model-service-effnetb0"
-    }
-    vitb16 = {
-      namespace       = "pytorch-model-prod"
-      service_account = "pytorch-model-model-service-vitb16"
+      service_account = "pytorch-model-model-runtime-host"
     }
   }
 
@@ -78,12 +74,7 @@ run "plans_expected_irsa_trust_subjects" {
   }
 
   assert {
-    condition     = strcontains(aws_iam_role.model_runtime.assume_role_policy, "system:serviceaccount:pytorch-model-prod:pytorch-model-model-service-effnetb0")
-    error_message = "Model Runtime role trust policy must include effnetb0 service account subject."
-  }
-
-  assert {
-    condition     = strcontains(aws_iam_role.model_runtime.assume_role_policy, "system:serviceaccount:pytorch-model-prod:pytorch-model-model-service-vitb16")
-    error_message = "Model Runtime role trust policy must include vitb16 service account subject."
+    condition     = strcontains(aws_iam_role.model_runtime.assume_role_policy, "system:serviceaccount:pytorch-model-prod:pytorch-model-model-runtime-host")
+    error_message = "Model Runtime role trust policy must include Model Runtime Host service account subject."
   }
 }

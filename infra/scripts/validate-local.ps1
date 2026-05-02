@@ -236,16 +236,15 @@ Test-ContentRule `
         try {
             $schema = $content | ConvertFrom-Json
             return (
-                $schema.required -contains "modelRuntimeDefaults" -and
-                $schema.required -contains "modelRuntimes" -and
-                $null -ne $schema.definitions.modelRuntime
+                $schema.required -contains "migrations" -and
+                $null -ne $schema.definitions.migrations
             )
         }
         catch {
             return $false
         }
     } `
-    -FailureMessage "backend-stack values.schema.json must be valid JSON and define modelRuntimes."
+    -FailureMessage "backend-stack values.schema.json must be valid JSON and define migrations."
 
 Test-ContentRule `
     -Label "Backend chart Model Runtime Interface" `
@@ -253,31 +252,23 @@ Test-ContentRule `
     -Predicate {
         param($content)
         return (
-            $content -match '(?m)^modelRuntimeDefaults:\s*$' -and
-            $content -match '(?m)^modelRuntimes:\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+workloadName:\s*model-service-effnetb0\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+artifactPath:\s*/models/effnetb0\.pth\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+workloadName:\s*model-service-vitb16\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+artifactPath:\s*/models/vitb16\.pth\s*$' -and
+            $content -match '(?ms)^workloads:\s*.*?^\s{2}model-runtime-host:\s*$' -and
+            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}MODEL_SLUGS:\s*effnetb0,vitb16\s*$' -and
+            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}EFFNETB0_MODEL_ARTIFACT_URL:' -and
+            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}VITB16_MODEL_ARTIFACT_URL:' -and
             $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$'
         )
     } `
-    -FailureMessage "Model Runtime values must live under slug-keyed modelRuntimes, not workloads."
+    -FailureMessage "Model Runtime values must use one model-runtime-host workload."
 
 Test-ContentRule `
     -Label "Prod example model-service URL" `
     -Path (Join-Path $repoRoot "infra/helm/values/prod.example.yaml") `
     -Predicate {
         param($content)
-        if (
-            $content -match '(?ms)^\s*model-service-effnetb0:\s*.*?^\s+enabled:\s*false\s*$' -and
-            $content -match '(?ms)^\s*model-service-vitb16:\s*.*?^\s+enabled:\s*false\s*$'
-        ) {
-            return $content -match '(?m)^\s*MODEL_SERVICE_URL:\s*http://model-service:8001\s*$'
-        }
-        return $true
+        return $content -match '(?m)^\s*MODEL_SERVICE_URL:\s*http://pytorch-model-backend-stack-model-runtime-host:8001\s*$'
     } `
-    -FailureMessage "API must use one MODEL_SERVICE_URL for the Model Runtime Host."
+    -FailureMessage "API must use one MODEL_SERVICE_URL for the Model Runtime Host service."
 
 Test-ContentRule `
     -Label "Prod example Model Runtime Interface" `
@@ -285,19 +276,15 @@ Test-ContentRule `
     -Predicate {
         param($content)
         return (
-            $content -match '(?m)^modelRuntimes:\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+artifactPath:\s*/models/effnetb0\.pth\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+MODEL_SLUGS:\s*effnetb0,vitb16\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+EFFNETB0_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/effnetb0/resolve/main/effnetb0/effnetb0_epoch_008\.pth\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+VITB16_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/vit_b_16/resolve/main/vit_b_16/vit_b_16_epoch_018\.pth\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+artifactPath:\s*/models/vitb16\.pth\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+MODEL_SLUGS:\s*effnetb0,vitb16\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+EFFNETB0_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/effnetb0/resolve/main/effnetb0/effnetb0_epoch_008\.pth\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+VITB16_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/vit_b_16/resolve/main/vit_b_16/vit_b_16_epoch_018\.pth\s*$' -and
+            $content -match '(?ms)^workloads:\s*.*?^\s{2}model-runtime-host:\s*.*?^\s{4}enabled:\s*false\s*$' -and
+            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}MODEL_SLUGS:\s*effnetb0,vitb16\s*$' -and
+            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}EFFNETB0_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/effnetb0/resolve/replace-me-revision/effnetb0/effnetb0_epoch_008\.pth\s*$' -and
+            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}VITB16_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/vit_b_16/resolve/replace-me-revision/vit_b_16/vit_b_16_epoch_018\.pth\s*$' -and
+            $content -match '(?ms)^migrations:\s*.*?^\s{2}enabled:\s*true\s*$' -and
             $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$'
         )
     } `
-    -FailureMessage "Prod Model Runtime overrides must use one multi-model runtime host config."
+    -FailureMessage "Prod Model Runtime overrides must use one multi-model runtime host config and migrations."
 
 Test-ContentRule `
     -Label "Backend chart model-service production env" `
@@ -306,7 +293,8 @@ Test-ContentRule `
         param($content)
         return (
             $content -notmatch '(?ms)^\s*model-service-effnetb0:\s*.*?^\s+APP_ENVIRONMENT:\s+development\s*$' -and
-            $content -notmatch '(?ms)^\s*model-service-vitb16:\s*.*?^\s+APP_ENVIRONMENT:\s+development\s*$'
+            $content -notmatch '(?ms)^\s*model-service-vitb16:\s*.*?^\s+APP_ENVIRONMENT:\s+development\s*$' -and
+            $content -notmatch '(?ms)^\s*model-runtime-host:\s*.*?^\s+APP_ENVIRONMENT:\s+development\s*$'
         )
     } `
     -FailureMessage "Model Runtime chart defaults must not override APP_ENVIRONMENT to development."

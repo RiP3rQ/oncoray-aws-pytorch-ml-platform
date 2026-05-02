@@ -252,3 +252,54 @@ notification_settings = NotificationSettings()
 s3_settings = S3Settings()
 model_service_settings = ModelServiceSettings()
 worker_settings = WorkerSettings()
+
+
+def validate_production_settings() -> None:
+    """Fail fast when production starts with unsafe local/demo configuration."""
+    if app_settings.APP_ENVIRONMENT != "production":
+        return
+
+    errors: list[str] = []
+    localhost_values = ("localhost", "127.0.0.1", "0.0.0.0")
+
+    if app_settings.APP_HTTP_PROTOCOL != "https":
+        errors.append("APP_HTTP_PROTOCOL must be 'https' in production.")
+    if any(host in app_settings.APP_DOMAIN for host in localhost_values):
+        errors.append("APP_DOMAIN must not point at localhost in production.")
+    for origin in app_settings.cors_allowed_origins_tuple:
+        if not origin.startswith("https://") or any(host in origin for host in localhost_values):
+            errors.append("CORS_ALLOWED_ORIGINS must contain only HTTPS non-localhost origins in production.")
+            break
+
+    if security_settings.SECRET_KEY == "change-me-before-production" or len(security_settings.SECRET_KEY) < 32:
+        errors.append("SECRET_KEY must be a real production secret with at least 32 characters.")
+    if not db_settings.CORE_API_DATABASE_URL:
+        errors.append("CORE_API_DATABASE_URL must be set in production.")
+    if any(host in db_settings.REDIS_HOST for host in localhost_values):
+        errors.append("REDIS_HOST must not point at localhost in production.")
+    if not db_settings.REDIS_SSL:
+        errors.append("REDIS_SSL must be true in production.")
+
+    if s3_settings.S3_UPLOAD_MODE != "aws":
+        errors.append("S3_UPLOAD_MODE must be 'aws' in production.")
+    if not s3_settings.S3_BUCKET_NAME or s3_settings.S3_BUCKET_NAME == "model-predictions":
+        errors.append("S3_BUCKET_NAME must be set to the production prediction artifacts bucket.")
+
+    if any(host in model_service_settings.MODEL_SERVICE_URL for host in localhost_values):
+        errors.append("MODEL_SERVICE_URL must point at the internal Model Runtime Host service in production.")
+
+    required_mail_values = {
+        "MAIL_USERNAME": notification_settings.MAIL_USERNAME,
+        "MAIL_PASSWORD": notification_settings.MAIL_PASSWORD,
+        "MAIL_FROM": notification_settings.MAIL_FROM,
+        "MAIL_SERVER": notification_settings.MAIL_SERVER,
+    }
+    for name, value in required_mail_values.items():
+        if not value or "localhost" in value:
+            errors.append(f"{name} must be set to a production mail value.")
+
+    if worker_settings.should_dispatch_via_worker and not worker_settings.SQS_QUEUE_URL:
+        errors.append("SQS_QUEUE_URL must be set when production worker dispatch is enabled.")
+
+    if errors:
+        raise RuntimeError("Invalid production configuration: " + " ".join(errors))

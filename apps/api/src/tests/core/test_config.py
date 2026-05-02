@@ -29,6 +29,7 @@ from src.core.config import (
     s3_settings,
     security_settings,
     to_sync_database_url,
+    validate_production_settings,
     worker_settings,
 )
 
@@ -341,3 +342,67 @@ class TestModuleInstances:
     def test_worker_settings_instance(self):
         """worker_settings should be an instance of WorkerSettings."""
         assert isinstance(worker_settings, WorkerSettings)
+
+
+class TestProductionValidation:
+    """Tests for production fail-fast configuration."""
+
+    def test_validate_production_settings_allows_development_defaults(self, monkeypatch):
+        monkeypatch.setattr("src.core.config.app_settings", AppSettings(APP_ENVIRONMENT="development"))
+
+        validate_production_settings()
+
+    def test_validate_production_settings_rejects_unsafe_production_defaults(self, monkeypatch):
+        monkeypatch.setattr("src.core.config.app_settings", AppSettings(APP_ENVIRONMENT="production"))
+        monkeypatch.setattr("src.core.config.security_settings", SecuritySettings())
+        monkeypatch.setattr("src.core.config.db_settings", DatabaseSettings())
+        monkeypatch.setattr("src.core.config.s3_settings", S3Settings())
+        monkeypatch.setattr("src.core.config.model_service_settings", ModelServiceSettings(_env_file=None))
+        monkeypatch.setattr("src.core.config.notification_settings", NotificationSettings())
+        monkeypatch.setattr("src.core.config.worker_settings", WorkerSettings())
+
+        with pytest.raises(RuntimeError, match="Invalid production configuration"):
+            validate_production_settings()
+
+    def test_validate_production_settings_accepts_safe_production_values(self, monkeypatch):
+        monkeypatch.setattr(
+            "src.core.config.app_settings",
+            AppSettings(
+                APP_ENVIRONMENT="production",
+                APP_HTTP_PROTOCOL="https",
+                APP_DOMAIN="api.example.com",
+                CORS_ALLOWED_ORIGINS="https://app.example.com",
+            ),
+        )
+        monkeypatch.setattr(
+            "src.core.config.security_settings",
+            SecuritySettings(SECRET_KEY="x" * 32),
+        )
+        monkeypatch.setattr(
+            "src.core.config.db_settings",
+            DatabaseSettings(
+                CORE_API_DATABASE_URL="postgresql+asyncpg://user:pass@db.example.com:5432/app",
+                REDIS_HOST="redis.example.com",
+                REDIS_SSL=True,
+            ),
+        )
+        monkeypatch.setattr(
+            "src.core.config.s3_settings",
+            S3Settings(S3_UPLOAD_MODE="aws", S3_BUCKET_NAME="prod-prediction-artifacts"),
+        )
+        monkeypatch.setattr(
+            "src.core.config.model_service_settings",
+            ModelServiceSettings(MODEL_SERVICE_URL="http://pytorch-model-backend-stack-model-runtime-host:8001"),
+        )
+        monkeypatch.setattr(
+            "src.core.config.notification_settings",
+            NotificationSettings(
+                MAIL_USERNAME="mailer",
+                MAIL_PASSWORD="secret",
+                MAIL_FROM="noreply@example.com",
+                MAIL_SERVER="smtp.example.com",
+            ),
+        )
+        monkeypatch.setattr("src.core.config.worker_settings", WorkerSettings())
+
+        validate_production_settings()
