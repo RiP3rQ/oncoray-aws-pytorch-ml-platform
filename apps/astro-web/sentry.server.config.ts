@@ -13,6 +13,5 @@ Sentry.init({
   enabled: Boolean(sentryDsn),
   environment: import.meta.env.PUBLIC_APP_ENVIRONMENT ?? import.meta.env.MODE,
   release: import.meta.env.PUBLIC_APP_RELEASE,
-  integrations: [Sentry.browserTracingIntegration()],
   tracesSampleRate: Number.isFinite(tracesSampleRate) ? tracesSampleRate : 0.1,
 });

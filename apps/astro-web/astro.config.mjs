@@ -6,11 +6,15 @@ import path from "node:path";
 import react from "@astrojs/react";
 import sentry from "@sentry/astro";
 import tailwindcss from "@tailwindcss/vite";
+import { loadEnv } from "vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const sentryDsn = process.env.PUBLIC_SENTRY_DSN;
-const sentryRelease =
-  process.env.SENTRY_RELEASE ?? process.env.PUBLIC_APP_RELEASE;
+const mode =
+  process.env.MODE ??
+  (process.env.NODE_ENV === "production" ? "production" : "development");
+const env = { ...loadEnv(mode, __dirname, ""), ...process.env };
+const sentryDsn = env.PUBLIC_SENTRY_DSN;
+const sentryRelease = env.SENTRY_RELEASE ?? env.PUBLIC_APP_RELEASE;
 
 if (sentryRelease) {
   process.env.SENTRY_RELEASE ??= sentryRelease;
@@ -18,13 +22,11 @@ if (sentryRelease) {
 }
 
 const sentrySourceMapsUploadOptions =
-  process.env.SENTRY_AUTH_TOKEN &&
-  process.env.SENTRY_ORG &&
-  process.env.SENTRY_PROJECT
+  env.SENTRY_AUTH_TOKEN && env.SENTRY_ORG && env.SENTRY_PROJECT
     ? {
-        authToken: process.env.SENTRY_AUTH_TOKEN,
-        org: process.env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT,
+        authToken: env.SENTRY_AUTH_TOKEN,
+        org: env.SENTRY_ORG,
+        project: env.SENTRY_PROJECT,
       }
     : undefined;
 
@@ -39,7 +41,7 @@ export default defineConfig({
   ],
 
   vite: {
-    cacheDir: process.env.VITE_CACHE_DIR ?? ".astro-cache/vite",
+    cacheDir: env.VITE_CACHE_DIR ?? ".astro-cache/vite",
     plugins: [tailwindcss()],
     resolve: {
       alias: {
