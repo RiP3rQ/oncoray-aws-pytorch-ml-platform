@@ -3,13 +3,13 @@
 ## Setup Direction
 
 - Keep first E2E layer frontend-owned inside `apps/astro-web`.
-- Playwright starts frontend only. API is expected to already be running locally.
-- Frontend keeps talking to real API on `http://localhost:8000`.
-- Dev-only API helper endpoints create and delete verified E2E users on demand, so tests do not need static seeding.
+- Playwright starts frontend only and all default E2E tests must execute without skips.
+- Frontend tests mock API responses at the browser network boundary unless a full-stack slice explicitly owns its dependencies.
+- Full-stack API checks belong in a separate suite that starts the API, database, model runtimes, and storage explicitly.
   Current smoke coverage implemented now:
 - Unauthenticated visit to `/` redirects to `/login`.
-- Login happy path reaches dashboard through real API and renders model tabs for a helper-created test user.
-- Logout succeeds through real API and returns user to `/login`.
+- Login happy path reaches dashboard through mocked API responses and renders model tabs.
+- Logout succeeds through mocked API response and returns user to `/login`.
 
 ## Priority 1
 
@@ -17,13 +17,11 @@
 - Authenticated dashboard shows current user email and default-selected first model.
 - Logout clears session and redirects back to `/login`.
 - API-down smoke shows frontend fallback state clearly.
-- Register flow still needs one explicit local-test strategy because current backend sends real verification mail.
-- Recommended: add lightweight E2E-only verify helper endpoint or no-op mail transport for local API.
-- Alternative: keep register flow outside frontend E2E until email verification path has local harness.
+- Register flow uses a mocked accepted signup response and verifies redirect behavior.
 
 ## Priority 2
 
-- Register happy path sends signup request and redirects to `/login` once local verification path exists.
+- Register happy path sends signup request and redirects to `/login`.
 - Login validation shows inline errors for empty or malformed form data.
 - Duplicate registration shows conflict toast on `409`.
 - Session-expired `401` from `/model/` clears token and redirects to `/login`.
@@ -34,7 +32,7 @@
 
 ## Priority 3
 
-- Prediction happy path after local model-service + S3 strategy exists.
+- Prediction happy path renders one successful mocked Prediction result.
 - Session-expired `401` from prediction request clears token and redirects to `/login`.
 - Prediction `413` shows image-size toast.
 - Generic prediction failure shows fallback error toast.

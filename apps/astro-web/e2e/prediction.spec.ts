@@ -21,9 +21,36 @@ async function openMockedDashboard(page: import("@playwright/test").Page) {
   await expect(page.getByText(mockUser.email)).toBeVisible();
 }
 
-// TODO: Replace mocked prediction coverage below with real API E2E coverage
-// once prediction endpoint, model runtime, and storage flow are stable locally.
-test.skip("runs real prediction happy path once prediction backend is ready for E2E", async () => {});
+test("runs prediction happy path", async ({ page }) => {
+  await page.route(predictionRoutePattern(), async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        request_id: "request-happy-path",
+        mode: "effnetb0",
+        upload: { status: "ok", image_s3_key: "uploads/scan-happy.png" },
+        results: {
+          effnetb0: {
+            status: "ok",
+            prediction: "Normal",
+            confidence: 0.95,
+          },
+        },
+      }),
+    });
+  });
+  await openMockedDashboard(page);
+
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles(makeFile("scan-happy.png", "image/png"));
+  await page.getByRole("button", { name: "Run prediction" }).click();
+
+  await expect(page.getByText("Normal", { exact: true })).toBeVisible();
+  await expect(page.getByText("95.0%", { exact: true })).toBeVisible();
+  await expect(page.getByText("uploads/scan-happy.png")).toBeVisible();
+});
 
 test("keeps upload disabled until supported image is selected", async ({
   page,
