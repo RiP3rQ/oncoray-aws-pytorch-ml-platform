@@ -9,6 +9,7 @@ const API_BASE_URL = configuredApiBaseUrl || "http://localhost:8000";
 
 // Paths that should bypass the 401 auto-redirect (they handle errors themselves)
 const AUTH_PATHS = ["/user/token", "/user/signup"];
+const BAD_CREDENTIALS_PATH = "/user/token";
 
 interface ApiOptions extends RequestInit {
   params?: Record<string, string>;
@@ -100,11 +101,10 @@ async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
       expireBrowserSession();
     }
 
-    const error = new ApiError(
-      response.status,
-      "Session expired. Please log in again.",
-      requestContext,
-    );
+    const message = path.startsWith(BAD_CREDENTIALS_PATH)
+      ? "Bad credentials login failure."
+      : "Session expired. Please log in again.";
+    const error = new ApiError(response.status, message, requestContext);
     reportApiRequestError(error, {
       ...requestContext,
       status: response.status,

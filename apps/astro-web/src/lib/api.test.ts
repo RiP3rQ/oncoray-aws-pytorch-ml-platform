@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   ApiError,
   getModels,
+  login,
   setApiRequestErrorReporterForTests,
   type ApiRequestErrorContext,
 } from "./api";
@@ -76,6 +77,48 @@ describe("API request errors", () => {
         method: "GET",
         path: "/model/",
         status: 503,
+      });
+    } finally {
+      restoreReporter();
+      resetBrowserMocks();
+    }
+  });
+
+  test("reports bad credentials from login 401 responses", async () => {
+    const reported: Array<{
+      error: unknown;
+      context: ApiRequestErrorContext;
+    }> = [];
+    const restoreReporter = setApiRequestErrorReporterForTests(
+      (error, context) => {
+        reported.push({ error, context });
+      },
+    );
+
+    globalThis.fetch = (async () =>
+      new Response("Unauthorized", {
+        status: 401,
+        statusText: "Unauthorized",
+      })) as typeof fetch;
+
+    try {
+      let thrown: unknown;
+      try {
+        await login("user@example.com", "wrong-password");
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown instanceof ApiError).toBe(true);
+      expect((thrown as ApiError).message).toBe(
+        "Bad credentials login failure.",
+      );
+      expect(reported.length).toBe(1);
+      expect(reported[0]?.error).toBe(thrown);
+      expect(reported[0]?.context).toMatchObject({
+        method: "POST",
+        path: "/user/token",
+        status: 401,
       });
     } finally {
       restoreReporter();

@@ -9,7 +9,8 @@ import tailwindcss from "@tailwindcss/vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sentryDsn = process.env.PUBLIC_SENTRY_DSN;
-const sentryRelease = process.env.SENTRY_RELEASE ?? process.env.PUBLIC_APP_RELEASE;
+const sentryRelease =
+  process.env.SENTRY_RELEASE ?? process.env.PUBLIC_APP_RELEASE;
 
 if (sentryRelease) {
   process.env.SENTRY_RELEASE ??= sentryRelease;
@@ -17,7 +18,9 @@ if (sentryRelease) {
 }
 
 const sentrySourceMapsUploadOptions =
-  process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+  process.env.SENTRY_AUTH_TOKEN &&
+  process.env.SENTRY_ORG &&
+  process.env.SENTRY_PROJECT
     ? {
         authToken: process.env.SENTRY_AUTH_TOKEN,
         org: process.env.SENTRY_ORG,
@@ -31,7 +34,7 @@ export default defineConfig({
     react(),
     sentry({
       enabled: Boolean(sentryDsn),
-      sourceMapsUploadOptions: sentrySourceMapsUploadOptions,
+      ...sentrySourceMapsUploadOptions,
     }),
   ],
 
