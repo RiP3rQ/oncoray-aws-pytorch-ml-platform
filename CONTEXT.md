@@ -12,6 +12,10 @@ _Avoid_: inference response, model-service response
 A deployed classifier that can score an uploaded chest X-ray for one model slug.
 _Avoid_: model-service, backend model
 
+**Model Runtime Host**:
+A running HTTP process that exposes one or more Model Runtimes to the API.
+_Avoid_: model-service when referring to domain behavior
+
 **Model Runtime Prediction**:
 The internal classification payload returned by one Model Runtime for one Chest X-ray Upload.
 _Avoid_: prediction response, model-service response, inference response
@@ -49,6 +53,8 @@ _Avoid_: prediction orchestration, inference flow
 - A **Model Runtime Definition** defines exactly one deployable **Model Runtime**.
 - A **Model Runtime Definition** names exactly one **Model Artifact** source for its **Model Runtime**.
 - A **Model Runtime** must load exactly one **Model Artifact** before it can produce a **Model Runtime Prediction**.
+- A **Model Runtime Host** may expose one or more **Model Runtimes** through one HTTP port.
+- A **Model Runtime Host** routes a **Model Runtime Prediction** request by model slug when it hosts more than one **Model Runtime**.
 - **Prediction Orchestration** turns one or more **Model Runtime Predictions** into one public **Prediction**.
 - A **Prediction** can succeed even when **Chest X-ray Upload** persistence fails; upload persistence is best-effort status.
 - A **Chest X-ray Upload** is validated before any **Model Runtime** scores it.

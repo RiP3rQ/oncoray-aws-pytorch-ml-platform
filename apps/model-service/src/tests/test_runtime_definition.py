@@ -18,6 +18,10 @@ from src.runtime_definition import (
 from src.types import ModelSlug
 
 
+def settings_without_env(**overrides: object) -> Settings:
+    return Settings(**overrides, _env_file=None)  # type: ignore[call-arg,arg-type]
+
+
 def build_identity_model(num_classes: int) -> nn.Module:
     return nn.Linear(2, num_classes)
 
@@ -36,7 +40,7 @@ def make_spec(slug: ModelSlug) -> ModelSpec:
 
 
 def test_runtime_definition_collects_deploy_recipe_from_settings() -> None:
-    settings = Settings(
+    settings = settings_without_env(
         MODEL_SLUG=ModelSlug.VITB16,
         MODEL_ARTIFACT_PATH=Path("/models/vitb16.pth"),
         HF_MODEL_REPOSITORY="owner/vitb16",
@@ -73,7 +77,7 @@ def test_runtime_definition_uses_default_hugging_face_source_for_effnetb0(monkey
     monkeypatch.delenv("HF_TOKEN", raising=False)
     monkeypatch.delenv("HF_MODEL_REPOSITORY", raising=False)
     monkeypatch.delenv("HF_MODEL_FILENAME", raising=False)
-    settings = Settings(MODEL_SLUG=ModelSlug.EFFNETB0, HF_TOKEN="")
+    settings = settings_without_env(MODEL_SLUG=ModelSlug.EFFNETB0, HF_TOKEN="")
 
     source = hugging_face_source_from_settings(settings)
 
@@ -87,7 +91,7 @@ def test_runtime_definition_uses_default_hugging_face_source_for_effnetb0(monkey
 def test_runtime_definition_uses_default_hugging_face_source_for_vitb16(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.delenv("HF_MODEL_REPOSITORY", raising=False)
     monkeypatch.delenv("HF_MODEL_FILENAME", raising=False)
-    settings = Settings(MODEL_SLUG=ModelSlug.VITB16)
+    settings = settings_without_env(MODEL_SLUG=ModelSlug.VITB16)
 
     source = hugging_face_source_from_settings(settings)
 
@@ -98,7 +102,7 @@ def test_runtime_definition_uses_default_hugging_face_source_for_vitb16(monkeypa
 
 
 def test_runtime_definition_allows_hugging_face_source_override() -> None:
-    settings = Settings(
+    settings = settings_without_env(
         MODEL_SLUG=ModelSlug.EFFNETB0,
         HF_MODEL_REPOSITORY="owner/custom",
         HF_MODEL_FILENAME="weights/custom.pth",
@@ -124,7 +128,7 @@ def test_hugging_face_source_from_url_parses_resolve_url() -> None:
 
 
 def test_runtime_definition_rejects_spec_slug_mismatch() -> None:
-    settings = Settings(MODEL_SLUG=ModelSlug.EFFNETB0)
+    settings = settings_without_env(MODEL_SLUG=ModelSlug.EFFNETB0)
 
     try:
         ModelRuntimeDefinition.from_settings(settings, {ModelSlug.EFFNETB0: make_spec(ModelSlug.VITB16)})

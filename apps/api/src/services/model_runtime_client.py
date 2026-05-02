@@ -41,6 +41,7 @@ class ModelRuntimeClient:
             ) as client:
                 response = await client.post(
                     request_url,
+                    params={"model": self.model_slug.value},
                     files={
                         "image": (
                             filename,

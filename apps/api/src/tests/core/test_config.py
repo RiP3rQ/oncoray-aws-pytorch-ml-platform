@@ -208,7 +208,7 @@ class TestModelServiceSettings:
         assert settings.MODEL_SERVICE_EFFNETB0_URL == "http://model-service:8000"
 
     def test_legacy_single_model_service_url_maps_to_effnetb0(self):
-        settings = ModelServiceSettings(MODEL_SERVICE_URL=" http://model-service:8001/ ")
+        settings = ModelServiceSettings(MODEL_SERVICE_URL=" http://model-service:8001/ ", _env_file=None)
 
         assert settings.model_service_urls == {
             "effnetb0": "http://model-service:8001",

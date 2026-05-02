@@ -36,6 +36,15 @@ class ModelRuntimeFactory:
     ) -> ModelRuntimeFactory:
         return cls(definition=ModelRuntimeDefinition.from_settings(settings, model_specs))
 
+    @classmethod
+    def from_settings_for_slug(
+        cls,
+        settings: Settings,
+        slug: ModelSlug,
+        model_specs: dict[ModelSlug, ModelSpec] | None = None,
+    ) -> ModelRuntimeFactory:
+        return cls(definition=ModelRuntimeDefinition.from_settings_for_slug(settings, slug, model_specs or MODEL_SPECS))
+
     def build(self) -> InferenceRuntime:
         definition = self.definition
         configure_torch_threads(definition.num_threads)

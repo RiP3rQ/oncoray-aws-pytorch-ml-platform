@@ -31,15 +31,24 @@ class ModelRuntimeDefinition:
         settings: Settings,
         model_specs: dict[ModelSlug, ModelSpec],
     ) -> ModelRuntimeDefinition:
-        spec = model_specs[settings.MODEL_SLUG]
-        if spec.slug != settings.MODEL_SLUG:
-            raise ValueError(f"ModelSpec slug mismatch settings={settings.MODEL_SLUG} spec={spec.slug}.")
+        return cls.from_settings_for_slug(settings, settings.MODEL_SLUG, model_specs)
+
+    @classmethod
+    def from_settings_for_slug(
+        cls,
+        settings: Settings,
+        slug: ModelSlug,
+        model_specs: dict[ModelSlug, ModelSpec],
+    ) -> ModelRuntimeDefinition:
+        spec = model_specs[slug]
+        if spec.slug != slug:
+            raise ValueError(f"ModelSpec slug mismatch settings={slug} spec={spec.slug}.")
 
         return cls(
-            slug=settings.MODEL_SLUG,
+            slug=slug,
             spec=spec,
-            artifact_path=settings.MODEL_ARTIFACT_PATH,
-            artifact_source=hugging_face_source_from_settings(settings),
+            artifact_path=settings.artifact_path_for_slug(slug),
+            artifact_source=hugging_face_source_from_settings(settings, slug=slug),
             artifact_sha256=settings.MODEL_ARTIFACT_SHA256,
             device_name=settings.MODEL_DEVICE,
             num_threads=settings.MODEL_NUM_THREADS,
@@ -49,9 +58,15 @@ class ModelRuntimeDefinition:
         )
 
 
-def hugging_face_source_from_settings(settings: Settings) -> HuggingFaceArtifactSource | None:
+def hugging_face_source_from_settings(
+    settings: Settings,
+    slug: ModelSlug | None = None,
+) -> HuggingFaceArtifactSource | None:
     if settings.HF_MODEL_REPOSITORY is None:
-        return hugging_face_source_from_url(model_artifact_url_from_settings(settings), token=settings.HF_TOKEN)
+        return hugging_face_source_from_url(
+            model_artifact_url_from_settings(settings, slug=slug),
+            token=settings.HF_TOKEN,
+        )
 
     return HuggingFaceArtifactSource(
         repo_id=settings.HF_MODEL_REPOSITORY,
@@ -61,8 +76,9 @@ def hugging_face_source_from_settings(settings: Settings) -> HuggingFaceArtifact
     )
 
 
-def model_artifact_url_from_settings(settings: Settings) -> str:
-    match settings.MODEL_SLUG:
+def model_artifact_url_from_settings(settings: Settings, slug: ModelSlug | None = None) -> str:
+    resolved_slug = slug or settings.MODEL_SLUG
+    match resolved_slug:
         case ModelSlug.EFFNETB0:
             return settings.EFFNETB0_MODEL_ARTIFACT_URL
         case ModelSlug.VITB16:

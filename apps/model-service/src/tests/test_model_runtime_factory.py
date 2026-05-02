@@ -25,6 +25,10 @@ from src.runtime import ImageTransform, InferenceRuntime
 from src.types import ModelSlug
 
 
+def settings_without_env(**overrides: object) -> Settings:
+    return Settings(**overrides, _env_file=None)  # type: ignore[call-arg,arg-type]
+
+
 class TinyModel(nn.Module):
     def __init__(self) -> None:
         super().__init__()
@@ -277,7 +281,7 @@ def test_model_runtime_factory_builds_inference_runtime_from_settings() -> None:
     model = TinyModel()
     torch.save(model.state_dict(), artifact_path)
 
-    settings = Settings(
+    settings = settings_without_env(
         MODEL_SLUG=ModelSlug.EFFNETB0,
         MODEL_ARTIFACT_PATH=artifact_path,
         MODEL_DEVICE="cpu",
@@ -320,7 +324,7 @@ def test_model_runtime_factory_validates_embedded_artifact_manifest() -> None:
         artifact_path,
     )
 
-    settings = Settings(
+    settings = settings_without_env(
         MODEL_SLUG=ModelSlug.EFFNETB0,
         MODEL_ARTIFACT_PATH=artifact_path,
         MODEL_DEVICE="cpu",
@@ -356,7 +360,7 @@ def test_model_runtime_factory_rejects_failed_startup_smoke_test() -> None:
     model = build_bad_tiny_model(2)
     torch.save(model.state_dict(), artifact_path)
 
-    settings = Settings(
+    settings = settings_without_env(
         MODEL_SLUG=ModelSlug.EFFNETB0,
         MODEL_ARTIFACT_PATH=artifact_path,
         MODEL_DEVICE="cpu",

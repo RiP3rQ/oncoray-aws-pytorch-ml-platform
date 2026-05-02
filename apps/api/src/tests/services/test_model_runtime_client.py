@@ -24,7 +24,7 @@ class TestModelRuntimeClient:
     @pytest.mark.asyncio
     async def test_predict_returns_validated_payload(self):
         async def handler(request: httpx.Request) -> httpx.Response:
-            assert request.url == httpx.URL("http://model-service:8000/predict")
+            assert request.url == httpx.URL("http://model-service:8000/predict?model=effnetb0")
             return httpx.Response(
                 status_code=200,
                 json={"prediction": "cat", "confidence": 0.95},

@@ -5,13 +5,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, cast
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile, status
 from starlette.concurrency import run_in_threadpool
 
 from src.config import Settings, settings
 from src.model_runtime_factory import ModelRuntimeFactory
 from src.runtime import ModelRuntime
 from src.schemas import ModelRuntimePrediction
+from src.types import ModelSlug
 
 
 def configure_logging(log_level: str) -> None:
@@ -23,6 +24,7 @@ def configure_logging(log_level: str) -> None:
 
 def create_app(
     runtime: ModelRuntime | None = None,
+    runtimes: dict[ModelSlug, ModelRuntime] | None = None,
     runtime_settings: Settings | None = None,
 ) -> FastAPI:
     resolved_settings = runtime_settings or settings
@@ -30,8 +32,11 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        if runtime is None:
-            app.state.runtime = ModelRuntimeFactory.from_settings(resolved_settings).build()
+        if runtime is None and runtimes is None:
+            app.state.runtimes = {
+                slug: ModelRuntimeFactory.from_settings_for_slug(resolved_settings, slug).build()
+                for slug in resolved_settings.model_slugs
+            }
         yield
 
     app = FastAPI(
@@ -41,13 +46,15 @@ def create_app(
         lifespan=lifespan,
     )
     if runtime is not None:
-        app.state.runtime = runtime
+        app.state.runtimes = {runtime.slug: runtime}
+    if runtimes is not None:
+        app.state.runtimes = runtimes
 
     @app.get("/")
-    async def get_root() -> dict[str, str]:
+    async def get_root() -> dict[str, str | list[str]]:
         return {
             "service": resolved_settings.APP_NAME,
-            **runtime_status(get_runtime(app)),
+            **runtime_status(get_runtimes(app)),
         }
 
     @app.get("/livez")
@@ -55,19 +62,21 @@ def create_app(
         return {"status": "ok"}
 
     @app.get("/readyz")
-    async def readyz() -> dict[str, str]:
-        return runtime_status(get_runtime(app))
+    async def readyz() -> dict[str, str | list[str]]:
+        return runtime_status(get_runtimes(app))
 
     @app.get("/startupz")
-    async def startupz() -> dict[str, str]:
-        return runtime_status(get_runtime(app))
+    async def startupz() -> dict[str, str | list[str]]:
+        return runtime_status(get_runtimes(app))
 
     @app.post("/predict", response_model=ModelRuntimePrediction)
     async def predict(
         image: Annotated[UploadFile, File(..., description="Image file (max 2 MB)")],
+        model: Annotated[ModelSlug | None, Query(description="Model Runtime slug to use.")] = None,
     ) -> ModelRuntimePrediction:
         try:
-            return await run_in_threadpool(get_runtime(app).predict, await image.read())
+            runtime = get_runtime(app, model)
+            return await run_in_threadpool(runtime.predict, await image.read())
         except HTTPException:
             raise
         except ValueError as exc:
@@ -81,16 +90,35 @@ def create_app(
     return app
 
 
-def get_runtime(app: FastAPI | Request) -> ModelRuntime:
+def get_runtimes(app: FastAPI | Request) -> dict[ModelSlug, ModelRuntime]:
     state: Any = app.state if isinstance(app, FastAPI) else app.app.state
-    runtime = getattr(state, "runtime", None)
-    if runtime is None:
+    runtimes = getattr(state, "runtimes", None)
+    if not isinstance(runtimes, dict) or not runtimes:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Model runtime not ready.")
-    return cast(ModelRuntime, runtime)
+    return cast(dict[ModelSlug, ModelRuntime], runtimes)
 
 
-def runtime_status(runtime: ModelRuntime) -> dict[str, str]:
-    return {"status": "ok", "model": runtime.slug.value}
+def get_runtime(app: FastAPI | Request, slug: ModelSlug | None = None) -> ModelRuntime:
+    runtimes = get_runtimes(app)
+    if slug is None:
+        if len(runtimes) == 1:
+            return next(iter(runtimes.values()))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Model Runtime slug is required when multiple runtimes are loaded.",
+        )
+
+    runtime = runtimes.get(slug)
+    if runtime is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Model Runtime '{slug}' is not loaded.")
+    return runtime
+
+
+def runtime_status(runtimes: dict[ModelSlug, ModelRuntime]) -> dict[str, str | list[str]]:
+    models = [slug.value for slug in sorted(runtimes, key=lambda item: item.value)]
+    if len(models) == 1:
+        return {"status": "ok", "model": models[0], "models": models}
+    return {"status": "ok", "models": models}
 
 
 app = create_app()
