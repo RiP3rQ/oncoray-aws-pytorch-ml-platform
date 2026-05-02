@@ -143,6 +143,7 @@ class ModelServiceSettings(BaseSettings):
     """Internal model-service connection settings."""
 
     MODEL_RUNTIME_URLS: str | None = None
+    MODEL_SERVICE_URL: str | None = None
     MODEL_SERVICE_EFFNETB0_URL: str | None = None
     MODEL_SERVICE_VITB16_URL: str | None = None
     MODEL_SERVICE_TIMEOUT_SECONDS: float = 30.0
@@ -151,6 +152,7 @@ class ModelServiceSettings(BaseSettings):
 
     @field_validator(
         "MODEL_RUNTIME_URLS",
+        "MODEL_SERVICE_URL",
         "MODEL_SERVICE_EFFNETB0_URL",
         "MODEL_SERVICE_VITB16_URL",
         mode="before",
@@ -166,6 +168,8 @@ class ModelServiceSettings(BaseSettings):
     @property
     def model_service_urls(self) -> dict[ModelSlug, str]:
         urls = parse_model_runtime_urls(self.MODEL_RUNTIME_URLS)
+        if self.MODEL_SERVICE_URL:
+            urls[ModelSlug.EFFNETB0] = self.MODEL_SERVICE_URL
         if self.MODEL_SERVICE_EFFNETB0_URL:
             urls[ModelSlug.EFFNETB0] = self.MODEL_SERVICE_EFFNETB0_URL
         if self.MODEL_SERVICE_VITB16_URL:

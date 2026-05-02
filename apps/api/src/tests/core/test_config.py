@@ -196,8 +196,9 @@ class TestModelServiceSettings:
     """Tests for internal model-service settings."""
 
     def test_model_service_defaults(self):
-        settings = ModelServiceSettings()
+        settings = ModelServiceSettings(_env_file=None)
         assert settings.MODEL_RUNTIME_URLS is None
+        assert settings.MODEL_SERVICE_URL is None
         assert settings.MODEL_SERVICE_EFFNETB0_URL is None
         assert settings.MODEL_SERVICE_VITB16_URL is None
         assert settings.MODEL_SERVICE_TIMEOUT_SECONDS == 30.0
@@ -205,6 +206,13 @@ class TestModelServiceSettings:
     def test_model_service_url_is_normalized(self):
         settings = ModelServiceSettings(MODEL_SERVICE_EFFNETB0_URL=" http://model-service:8000/ ")
         assert settings.MODEL_SERVICE_EFFNETB0_URL == "http://model-service:8000"
+
+    def test_legacy_single_model_service_url_maps_to_effnetb0(self):
+        settings = ModelServiceSettings(MODEL_SERVICE_URL=" http://model-service:8001/ ")
+
+        assert settings.model_service_urls == {
+            "effnetb0": "http://model-service:8001",
+        }
 
     def test_model_service_urls_property(self):
         settings = ModelServiceSettings(
