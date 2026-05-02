@@ -7,8 +7,8 @@ import {
   mockApiText,
   mockModels,
   mockUser,
-  seedToken,
   tabUntilFocused,
+  tokenKey,
   toastByText,
 } from "./helpers";
 
@@ -42,9 +42,14 @@ test.describe("mobile smoke", () => {
       page.getByRole("button", { name: "Create workspace account" }),
     ).toBeVisible();
 
-    await seedToken(page);
     await mockApiJson(page, "/user/me", mockUser);
     await mockApiJson(page, "/model/", mockModels);
+    await page.evaluate(
+      ({ storageKey }) => {
+        window.localStorage.setItem(storageKey, "mock-access-token");
+      },
+      { storageKey: tokenKey },
+    );
     await gotoAuthenticatedDashboard(page);
     await expect(page.getByText(mockUser.email)).toBeVisible();
     await expect(page.getByText("Chest X-ray upload")).toBeVisible();

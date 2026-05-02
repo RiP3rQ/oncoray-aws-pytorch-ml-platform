@@ -54,6 +54,21 @@ test("shows clear fallback state when model API is down", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
 });
 
+test("clears token and redirects to login when current user request returns 401", async ({
+  page,
+}) => {
+  await mockApiText(page, "/user/me", 401, "Expired");
+  await mockApiJson(page, "/model/", mockModels);
+
+  await gotoAuthenticatedDashboard(page);
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(await readTokenState(page)).toEqual({
+    local: null,
+    session: null,
+  });
+});
+
 test("clears token and redirects to login when model request returns 401", async ({
   page,
 }) => {
@@ -111,6 +126,41 @@ test("shows empty-state when no models are available", async ({ page }) => {
 
   await expect(page.getByText("No models available")).toBeVisible();
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+});
+
+test("hides compare mode and keeps upload runnable when only one model is available", async ({
+  page,
+}) => {
+  await mockAuthenticatedDashboard(page, { models: [mockModels[0]] });
+  await gotoAuthenticatedDashboard(page);
+
+  await expect(
+    page.getByRole("tab", { name: mockModels[0].name }),
+  ).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Compare both" })).toHaveCount(0);
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "single-model.png",
+    mimeType: "image/png",
+    buffer: Buffer.alloc(1536, 65),
+  });
+  await expect(
+    page.getByRole("button", { name: "Run prediction" }),
+  ).toBeEnabled();
+});
+
+test("switches model tabs and shows selected model description", async ({
+  page,
+}) => {
+  await mockAuthenticatedDashboard(page);
+  await gotoAuthenticatedDashboard(page);
+
+  await page.getByRole("tab", { name: mockModels[1].name }).click();
+
+  await expect(
+    page.getByRole("tab", { name: mockModels[1].name }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByText(mockModels[1].description)).toBeVisible();
 });
 
 test("reloads user and models cleanly on authenticated refresh", async ({

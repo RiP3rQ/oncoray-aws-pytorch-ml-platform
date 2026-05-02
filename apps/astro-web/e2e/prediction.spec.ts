@@ -50,6 +50,7 @@ test("runs prediction happy path", async ({ page }) => {
   await expect(page.getByText("Normal", { exact: true })).toBeVisible();
   await expect(page.getByText("95.0%", { exact: true })).toBeVisible();
   await expect(page.getByText("uploads/scan-happy.png")).toBeVisible();
+  await expect(toastByText(page, "Prediction complete.")).toHaveCount(1);
 });
 
 test("keeps upload disabled until supported image is selected", async ({
@@ -78,6 +79,24 @@ test("keeps upload disabled when no model is available", async ({ page }) => {
   await expect(
     page.getByText("Select a model before running classification."),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Run prediction" }),
+  ).toBeDisabled();
+});
+
+test("shows validation message for oversized image before prediction request", async ({
+  page,
+}) => {
+  await openMockedDashboard(page);
+
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles(
+      makeFile("large-scan.jpg", "image/jpeg", 2 * 1024 * 1024 + 1),
+    );
+
+  await expect(page.getByText("Image exceeds 2 MB limit.")).toBeVisible();
+  await expect(page.getByText("No file selected")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Run prediction" }),
   ).toBeDisabled();
@@ -136,6 +155,51 @@ test("replaces selected image preview and metadata", async ({ page }) => {
   await expect(page.getByAltText("scan-a.png")).toHaveCount(0);
   await expect(page.getByText("scan-b.webp", { exact: true })).toBeVisible();
   await expect(page.getByText("4.0 KB")).toBeVisible();
+});
+
+test("shows processing state and locks image controls while prediction runs", async ({
+  page,
+}) => {
+  let releasePrediction!: () => void;
+  const predictionReleased = new Promise<void>((resolve) => {
+    releasePrediction = resolve;
+  });
+
+  await page.route(predictionRoutePattern(), async (route) => {
+    await predictionReleased;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        request_id: "request-processing",
+        mode: "effnetb0",
+        upload: { status: "ok", image_s3_key: "uploads/processing.png" },
+        results: {
+          effnetb0: {
+            status: "ok",
+            prediction: "Normal",
+            confidence: 0.82,
+          },
+        },
+      }),
+    });
+  });
+  await openMockedDashboard(page);
+
+  const fileInput = page.locator('input[type="file"]');
+  await fileInput.setInputFiles(makeFile("processing.png", "image/png"));
+  await page.getByRole("button", { name: "Run prediction" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Processing..." }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Remove image" }),
+  ).toBeDisabled();
+  await expect(fileInput).toBeDisabled();
+
+  releasePrediction();
+  await expect(page.getByText("uploads/processing.png")).toBeVisible();
 });
 
 test("clears token and redirects to login when prediction returns 401", async ({
@@ -373,6 +437,7 @@ test("shows both model cards in compare mode", async ({ page }) => {
   ).toBeVisible();
   await expect(resultPanel.getByText("ViTB16", { exact: true })).toBeVisible();
   await expect(resultPanel.getByText("timeout")).toBeVisible();
+  await expect(toastByText(page, "Compare run complete.")).toHaveCount(1);
 });
 
 test("keeps Prediction result content inside its panel at responsive widths", async ({
@@ -448,4 +513,36 @@ test("keeps Prediction result content inside its panel at responsive widths", as
     expect(overflow.panelOverflow).toBeLessThanOrEqual(1);
     expect(overflow.progressBarsInsidePanel).toBe(true);
   }
+});
+
+test("shows upload persistence warning when prediction succeeds without stored upload", async ({
+  page,
+}) => {
+  await page.route(predictionRoutePattern(), async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        request_id: "request-upload-warning",
+        mode: "effnetb0",
+        upload: { status: "error" },
+        results: {
+          effnetb0: {
+            status: "ok",
+            prediction: "Pneumonia",
+            confidence: 0.74,
+          },
+        },
+      }),
+    });
+  });
+  await openMockedDashboard(page);
+
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles(makeFile("not-persisted.webp", "image/webp"));
+  await page.getByRole("button", { name: "Run prediction" }).click();
+
+  await expect(page.getByText("Pneumonia", { exact: true })).toBeVisible();
+  await expect(page.getByText("Upload not persisted")).toBeVisible();
 });

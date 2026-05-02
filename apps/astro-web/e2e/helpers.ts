@@ -251,7 +251,7 @@ export async function mockAuthenticatedDashboard(
   page: Page,
   options: {
     user?: typeof mockUser;
-    models?: typeof mockModels | [];
+    models?: readonly MockModel[];
   } = {},
 ) {
   await mockApiJson(page, "/user/me", options.user ?? mockUser);
