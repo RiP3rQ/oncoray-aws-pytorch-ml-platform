@@ -26,7 +26,6 @@ from src.core.config import (
     model_service_settings,
     normalize_database_url,
     notification_settings,
-    parse_model_runtime_urls,
     s3_settings,
     security_settings,
     to_sync_database_url,
@@ -197,59 +196,20 @@ class TestModelServiceSettings:
 
     def test_model_service_defaults(self):
         settings = ModelServiceSettings(_env_file=None)
-        assert settings.MODEL_RUNTIME_URLS is None
-        assert settings.MODEL_SERVICE_URL is None
-        assert settings.MODEL_SERVICE_EFFNETB0_URL is None
-        assert settings.MODEL_SERVICE_VITB16_URL is None
+        assert settings.MODEL_SERVICE_URL == "http://127.0.0.1:8001"
         assert settings.MODEL_SERVICE_TIMEOUT_SECONDS == 30.0
 
     def test_model_service_url_is_normalized(self):
-        settings = ModelServiceSettings(MODEL_SERVICE_EFFNETB0_URL=" http://model-service:8000/ ")
-        assert settings.MODEL_SERVICE_EFFNETB0_URL == "http://model-service:8000"
+        settings = ModelServiceSettings(MODEL_SERVICE_URL=" http://model-service:8000/ ")
+        assert settings.MODEL_SERVICE_URL == "http://model-service:8000"
 
-    def test_legacy_single_model_service_url_maps_to_effnetb0(self):
-        settings = ModelServiceSettings(MODEL_SERVICE_URL=" http://model-service:8001/ ", _env_file=None)
+    def test_model_service_urls_maps_all_model_slugs_to_one_host(self):
+        settings = ModelServiceSettings(MODEL_SERVICE_URL="http://model-service:8001", _env_file=None)
 
         assert settings.model_service_urls == {
             "effnetb0": "http://model-service:8001",
+            "vitb16": "http://model-service:8001",
         }
-
-    def test_model_service_urls_property(self):
-        settings = ModelServiceSettings(
-            MODEL_RUNTIME_URLS="effnetb0=http://effnet:8000,vitb16=http://vit:8000/",
-        )
-
-        assert settings.model_service_urls == {
-            "effnetb0": "http://effnet:8000",
-            "vitb16": "http://vit:8000",
-        }
-
-    def test_legacy_model_service_urls_override_runtime_url_map(self):
-        settings = ModelServiceSettings(
-            MODEL_RUNTIME_URLS="effnetb0=http://map-effnet:8000,vitb16=http://map-vit:8000",
-            MODEL_SERVICE_EFFNETB0_URL="http://legacy-effnet:8000",
-        )
-
-        assert settings.model_service_urls == {
-            "effnetb0": "http://legacy-effnet:8000",
-            "vitb16": "http://map-vit:8000",
-        }
-
-
-class TestParseModelRuntimeUrls:
-    def test_parse_model_runtime_urls(self):
-        assert parse_model_runtime_urls("effnetb0=http://effnet:8000, vitb16=http://vit:8000/") == {
-            "effnetb0": "http://effnet:8000",
-            "vitb16": "http://vit:8000",
-        }
-
-    def test_parse_model_runtime_urls_rejects_unknown_slug(self):
-        with pytest.raises(ValueError, match="Unsupported Model Runtime slug"):
-            parse_model_runtime_urls("unknown=http://runtime:8000")
-
-    def test_parse_model_runtime_urls_rejects_malformed_entry(self):
-        with pytest.raises(ValueError, match="Invalid MODEL_RUNTIME_URLS entry"):
-            parse_model_runtime_urls("effnetb0")
 
 
 class TestWorkerSettings:

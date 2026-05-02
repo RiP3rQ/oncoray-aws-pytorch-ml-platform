@@ -242,7 +242,8 @@ def test_select_model_artifact_from_snapshot_rejects_ambiguous_artifacts() -> No
         raise AssertionError("Expected ambiguous Model Artifact selection failure.")
 
     assert "Multiple Torch Model Artifacts" in message
-    assert "Set HF_MODEL_FILENAME" in message
+    assert "a.pth" in message
+    assert "b.pt" in message
 
 
 def test_resolve_model_artifact_validates_expected_sha256() -> None:
@@ -282,7 +283,7 @@ def test_model_runtime_factory_builds_inference_runtime_from_settings() -> None:
     torch.save(model.state_dict(), artifact_path)
 
     settings = settings_without_env(
-        MODEL_SLUG=ModelSlug.EFFNETB0,
+        MODEL_SLUGS="effnetb0",
         MODEL_ARTIFACT_PATH=artifact_path,
         MODEL_DEVICE="cpu",
         MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",
@@ -325,7 +326,7 @@ def test_model_runtime_factory_validates_embedded_artifact_manifest() -> None:
     )
 
     settings = settings_without_env(
-        MODEL_SLUG=ModelSlug.EFFNETB0,
+        MODEL_SLUGS="effnetb0",
         MODEL_ARTIFACT_PATH=artifact_path,
         MODEL_DEVICE="cpu",
         MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",
@@ -361,7 +362,7 @@ def test_model_runtime_factory_rejects_failed_startup_smoke_test() -> None:
     torch.save(model.state_dict(), artifact_path)
 
     settings = settings_without_env(
-        MODEL_SLUG=ModelSlug.EFFNETB0,
+        MODEL_SLUGS="effnetb0",
         MODEL_ARTIFACT_PATH=artifact_path,
         MODEL_DEVICE="cpu",
         MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",

@@ -7,14 +7,6 @@
 {{- end }}
 {{- range $name, $workload := $workloads }}
 {{- if $workload.enabled }}
-{{- if and (hasPrefix "model-service-" $name) (eq (toString (get $workload.env "APP_ENVIRONMENT")) "production") }}
-{{- if or (empty (get $workload.env "HF_MODEL_REPOSITORY")) (empty (get $workload.env "HF_MODEL_FILENAME")) }}
-{{- fail (printf "%s production Model Runtime requires HF_MODEL_REPOSITORY and HF_MODEL_FILENAME" $name) }}
-{{- end }}
-{{- if or (contains "replace-me" (toString (get $workload.env "HF_MODEL_REPOSITORY"))) (contains "replace-me" (toString (get $workload.env "HF_MODEL_FILENAME"))) }}
-{{- fail (printf "%s production Model Runtime must not use placeholder Hugging Face artifact values" $name) }}
-{{- end }}
-{{- end }}
 {{- $labels := merge (dict) (default (dict) $root.Values.global.commonLabels) (default (dict) $workload.extraLabels) -}}
 {{- $podAnnotations := merge (dict) (default (dict) $root.Values.global.podAnnotations) (default (dict) $workload.podAnnotations) -}}
 {{- $podSecurityContext := merge (dict) (default (dict) $root.Values.global.podSecurityContext) (default (dict) $workload.podSecurityContext) -}}

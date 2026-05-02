@@ -18,8 +18,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "model-service"
     APP_ENVIRONMENT: str = "development"
     APP_LOG_LEVEL: str = "INFO"
-    MODEL_SLUGS: str | None = None
-    MODEL_SLUG: ModelSlug = ModelSlug.EFFNETB0
+    MODEL_SLUGS: str = "effnetb0,vitb16"
     MODEL_ARTIFACT_PATH: Path = DEFAULT_MODEL_ARTIFACT_PATH
     EFFNETB0_MODEL_ARTIFACT_URL: str = (
         "https://huggingface.co/RiP3rQ/effnetb0/resolve/main/effnetb0/effnetb0_epoch_008.pth"
@@ -27,12 +26,9 @@ class Settings(BaseSettings):
     VITB16_MODEL_ARTIFACT_URL: str = (
         "https://huggingface.co/RiP3rQ/vit_b_16/resolve/main/vit_b_16/vit_b_16_epoch_018.pth"
     )
-    HF_MODEL_REPOSITORY: str | None = None
-    HF_MODEL_REVISION: str = "main"
-    HF_MODEL_FILENAME: str | None = None
-    HF_TOKEN: str | None = None
-    MODEL_ARTIFACT_SHA256: str | None = None
     MODEL_DEVICE: str = "cpu"
+    HF_TOKEN: str | None = None
+    HF_USERNAME: str = "RiP3rQ"
     MODEL_NUM_THREADS: int = 1
     MODEL_CLASS_NAMES: str = "NORMAL,PNEUMONIA"
     MODEL_STRICT_LOAD: bool = True
@@ -62,7 +58,15 @@ class Settings(BaseSettings):
         parsed = str(value).strip()
         return parsed or None
 
-    @field_validator("HF_MODEL_REPOSITORY", "HF_MODEL_FILENAME", "HF_TOKEN", "MODEL_ARTIFACT_SHA256", mode="before")
+    @field_validator("EFFNETB0_MODEL_ARTIFACT_URL", "VITB16_MODEL_ARTIFACT_URL", mode="before")
+    @classmethod
+    def normalize_artifact_url(cls, value: str) -> str:
+        parsed = value.strip()
+        if not parsed:
+            raise ValueError("Model Artifact URL must not be empty.")
+        return parsed
+
+    @field_validator("HF_TOKEN", mode="before")
     @classmethod
     def normalize_optional_text(cls, value: Any) -> str | None:
         if value is None:
@@ -70,20 +74,12 @@ class Settings(BaseSettings):
         parsed = str(value).strip()
         return parsed or None
 
-    @field_validator("HF_MODEL_REVISION", mode="before")
+    @field_validator("HF_USERNAME", mode="before")
     @classmethod
-    def normalize_revision(cls, value: str) -> str:
+    def normalize_required_text(cls, value: str) -> str:
         parsed = value.strip()
         if not parsed:
-            raise ValueError("HF_MODEL_REVISION must not be empty.")
-        return parsed
-
-    @field_validator("EFFNETB0_MODEL_ARTIFACT_URL", "VITB16_MODEL_ARTIFACT_URL", mode="before")
-    @classmethod
-    def normalize_required_url(cls, value: str) -> str:
-        parsed = value.strip()
-        if not parsed:
-            raise ValueError("Model Artifact URL must not be empty.")
+            raise ValueError("HF_USERNAME must not be empty.")
         return parsed
 
     @property
@@ -95,9 +91,6 @@ class Settings(BaseSettings):
 
     @property
     def model_slugs(self) -> tuple[ModelSlug, ...]:
-        if self.MODEL_SLUGS is None:
-            return (self.MODEL_SLUG,)
-
         slugs = tuple(ModelSlug(slug.strip()) for slug in self.MODEL_SLUGS.split(",") if slug.strip())
         if not slugs:
             raise ValueError("MODEL_SLUGS must define at least one model slug.")

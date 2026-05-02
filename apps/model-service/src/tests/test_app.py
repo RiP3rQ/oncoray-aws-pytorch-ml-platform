@@ -85,7 +85,7 @@ def test_lifespan_loads_runtime_before_readiness(monkeypatch: MonkeyPatch) -> No
             return runtime
 
     monkeypatch.setattr("src.app.ModelRuntimeFactory", FakeFactory)
-    settings = settings_without_env(MODEL_SLUG=ModelSlug.VITB16)
+    settings = settings_without_env(MODEL_SLUGS="vitb16")
     app = create_app(runtime_settings=settings)
 
     with TestClient(app) as client:

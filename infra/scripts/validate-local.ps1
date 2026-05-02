@@ -265,7 +265,7 @@ Test-ContentRule `
     -FailureMessage "Model Runtime values must live under slug-keyed modelRuntimes, not workloads."
 
 Test-ContentRule `
-    -Label "Prod example model-service URLs" `
+    -Label "Prod example model-service URL" `
     -Path (Join-Path $repoRoot "infra/helm/values/prod.example.yaml") `
     -Predicate {
         param($content)
@@ -273,11 +273,11 @@ Test-ContentRule `
             $content -match '(?ms)^\s*model-service-effnetb0:\s*.*?^\s+enabled:\s*false\s*$' -and
             $content -match '(?ms)^\s*model-service-vitb16:\s*.*?^\s+enabled:\s*false\s*$'
         ) {
-            return $content -match '(?m)^\s*MODEL_RUNTIME_URLS:\s*""\s*$'
+            return $content -match '(?m)^\s*MODEL_SERVICE_URL:\s*http://model-service:8001\s*$'
         }
         return $true
     } `
-    -FailureMessage "Model Runtime URLs must be empty while example model-service workloads stay disabled."
+    -FailureMessage "API must use one MODEL_SERVICE_URL for the Model Runtime Host."
 
 Test-ContentRule `
     -Label "Prod example Model Runtime Interface" `
@@ -287,15 +287,17 @@ Test-ContentRule `
         return (
             $content -match '(?m)^modelRuntimes:\s*$' -and
             $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+artifactPath:\s*/models/effnetb0\.pth\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+HF_MODEL_REPOSITORY:\s*replace-me/effnetb0\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+HF_MODEL_FILENAME:\s*effnetb0/best\.pth\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+MODEL_SLUGS:\s*effnetb0,vitb16\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+EFFNETB0_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/effnetb0/resolve/main/effnetb0/effnetb0_epoch_008\.pth\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+effnetb0:\s*.*?^\s+VITB16_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/vit_b_16/resolve/main/vit_b_16/vit_b_16_epoch_018\.pth\s*$' -and
             $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+artifactPath:\s*/models/vitb16\.pth\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+HF_MODEL_REPOSITORY:\s*replace-me/vitb16\s*$' -and
-            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+HF_MODEL_FILENAME:\s*vitb16/best\.pth\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+MODEL_SLUGS:\s*effnetb0,vitb16\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+EFFNETB0_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/effnetb0/resolve/main/effnetb0/effnetb0_epoch_008\.pth\s*$' -and
+            $content -match '(?ms)^modelRuntimes:\s*.*?^\s+vitb16:\s*.*?^\s+VITB16_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/vit_b_16/resolve/main/vit_b_16/vit_b_16_epoch_018\.pth\s*$' -and
             $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$'
         )
     } `
-    -FailureMessage "Prod Model Runtime overrides must use slug-keyed modelRuntimes with artifact facts."
+    -FailureMessage "Prod Model Runtime overrides must use one multi-model runtime host config."
 
 Test-ContentRule `
     -Label "Backend chart model-service production env" `

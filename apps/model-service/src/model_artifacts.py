@@ -112,13 +112,12 @@ def select_model_artifact_from_snapshot(snapshot_path: Path, source: HuggingFace
         return candidates[0]
     if not candidates:
         raise FileNotFoundError(
-            "No Torch Model Artifact found in Hugging Face snapshot "
-            f"repo={source.repo_id} revision={source.revision}. Set HF_MODEL_FILENAME."
+            f"No Torch Model Artifact found in Hugging Face snapshot repo={source.repo_id} revision={source.revision}."
         )
     candidate_names = ", ".join(str(path.relative_to(snapshot_path)) for path in candidates)
     raise RuntimeError(
         "Multiple Torch Model Artifacts found in Hugging Face snapshot "
-        f"repo={source.repo_id} revision={source.revision}: {candidate_names}. Set HF_MODEL_FILENAME."
+        f"repo={source.repo_id} revision={source.revision}: {candidate_names}."
     )
 
 

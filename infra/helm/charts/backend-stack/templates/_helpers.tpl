@@ -46,9 +46,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- $runtime := .runtime -}}
 {{- $defaults := default (dict) $root.Values.modelRuntimeDefaults -}}
 {{- $workload := mergeOverwrite (deepCopy $defaults) (deepCopy $runtime) -}}
-{{- $modelSlug := default $slug $runtime.modelSlug -}}
 {{- $workloadName := default (printf "model-service-%s" $slug) $runtime.workloadName -}}
-{{- $env := mergeOverwrite (deepCopy (default (dict) $defaults.env)) (dict "MODEL_SLUG" $modelSlug "MODEL_ARTIFACT_PATH" $runtime.artifactPath) (default (dict) $runtime.env) -}}
+{{- $env := mergeOverwrite (deepCopy (default (dict) $defaults.env)) (default (dict) $runtime.env) -}}
 {{- $_ := set $workload "env" $env -}}
 {{- $_ := set $workload "enabled" (default false $runtime.enabled) -}}
 {{- $_ := set $workload "workloadName" $workloadName -}}

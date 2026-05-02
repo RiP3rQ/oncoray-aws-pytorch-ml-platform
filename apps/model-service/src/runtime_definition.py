@@ -31,7 +31,7 @@ class ModelRuntimeDefinition:
         settings: Settings,
         model_specs: dict[ModelSlug, ModelSpec],
     ) -> ModelRuntimeDefinition:
-        return cls.from_settings_for_slug(settings, settings.MODEL_SLUG, model_specs)
+        return cls.from_settings_for_slug(settings, settings.model_slugs[0], model_specs)
 
     @classmethod
     def from_settings_for_slug(
@@ -48,8 +48,8 @@ class ModelRuntimeDefinition:
             slug=slug,
             spec=spec,
             artifact_path=settings.artifact_path_for_slug(slug),
-            artifact_source=hugging_face_source_from_settings(settings, slug=slug),
-            artifact_sha256=settings.MODEL_ARTIFACT_SHA256,
+            artifact_source=hugging_face_source_from_settings(settings, slug),
+            artifact_sha256=None,
             device_name=settings.MODEL_DEVICE,
             num_threads=settings.MODEL_NUM_THREADS,
             class_names=settings.class_names,
@@ -58,27 +58,12 @@ class ModelRuntimeDefinition:
         )
 
 
-def hugging_face_source_from_settings(
-    settings: Settings,
-    slug: ModelSlug | None = None,
-) -> HuggingFaceArtifactSource | None:
-    if settings.HF_MODEL_REPOSITORY is None:
-        return hugging_face_source_from_url(
-            model_artifact_url_from_settings(settings, slug=slug),
-            token=settings.HF_TOKEN,
-        )
-
-    return HuggingFaceArtifactSource(
-        repo_id=settings.HF_MODEL_REPOSITORY,
-        revision=settings.HF_MODEL_REVISION,
-        filename=settings.HF_MODEL_FILENAME,
-        token=settings.HF_TOKEN,
-    )
+def hugging_face_source_from_settings(settings: Settings, slug: ModelSlug) -> HuggingFaceArtifactSource:
+    return hugging_face_source_from_url(model_artifact_url_from_settings(settings, slug), token=settings.HF_TOKEN)
 
 
-def model_artifact_url_from_settings(settings: Settings, slug: ModelSlug | None = None) -> str:
-    resolved_slug = slug or settings.MODEL_SLUG
-    match resolved_slug:
+def model_artifact_url_from_settings(settings: Settings, slug: ModelSlug) -> str:
+    match slug:
         case ModelSlug.EFFNETB0:
             return settings.EFFNETB0_MODEL_ARTIFACT_URL
         case ModelSlug.VITB16:
