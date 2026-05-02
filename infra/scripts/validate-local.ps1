@@ -323,6 +323,44 @@ Test-ContentRule `
     -FailureMessage "deploy-prod.ps1 must reject unresolved placeholders in prod.yaml."
 
 Test-ContentRule `
+    -Label "Production preflight script" `
+    -Path (Join-Path $repoRoot "infra/scripts/preflight-prod.ps1") `
+    -Predicate {
+        param($content)
+        return (
+            $content -match 'Assert-NoPlaceholder' -and
+            $content -match 'terraform validate' -and
+            $content -match 'helm template'
+        )
+    } `
+    -FailureMessage "preflight-prod.ps1 must validate prod inputs and render Terraform/Helm before AWS deploy."
+
+Test-ContentRule `
+    -Label "Production rollback script" `
+    -Path (Join-Path $repoRoot "infra/scripts/rollback-prod.ps1") `
+    -Predicate {
+        param($content)
+        return (
+            $content -match 'helm history' -and
+            $content -match 'helm rollback'
+        )
+    } `
+    -FailureMessage "rollback-prod.ps1 must expose Helm rollback."
+
+Test-ContentRule `
+    -Label "Production destroy bucket purge guard" `
+    -Path (Join-Path $repoRoot "infra/scripts/destroy-prod.ps1") `
+    -Predicate {
+        param($content)
+        return (
+            $content -match 'PurgeS3Buckets' -and
+            $content -match 'ConfirmDestructiveBucketPurge' -and
+            $content -match 'Clear-S3Bucket'
+        )
+    } `
+    -FailureMessage "destroy-prod.ps1 must require explicit confirmation before purging Terraform-managed buckets."
+
+Test-ContentRule `
     -Label "Prod example disables Scalar docs" `
     -Path (Join-Path $repoRoot "infra/helm/values/prod.example.yaml") `
     -Predicate { param($content) $content -match '(?m)^\s*SCALAR_DOCS_ENABLED:\s*"false"\s*$' } `
