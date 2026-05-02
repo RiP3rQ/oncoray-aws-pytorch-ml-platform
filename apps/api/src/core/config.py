@@ -31,6 +31,7 @@ class AppSettings(BaseSettings):
     ACCESS_TOKEN_TTL_MINUTES: int = 15
     EMAIL_VERIFICATION_TOKEN_TTL_HOURS: int = 24
     APP_DOMAIN: str = "localhost:8000"
+    SCALAR_DOCS_ENABLED: bool = True
 
     model_config = _base_config
 
@@ -222,6 +223,8 @@ def validate_production_settings() -> None:
         errors.append("APP_HTTP_PROTOCOL must be 'https' in production.")
     if any(host in app_settings.APP_DOMAIN for host in localhost_values):
         errors.append("APP_DOMAIN must not point at localhost in production.")
+    if app_settings.SCALAR_DOCS_ENABLED:
+        errors.append("SCALAR_DOCS_ENABLED must be false in production.")
     for origin in app_settings.cors_allowed_origins_tuple:
         if not origin.startswith("https://") or any(host in origin for host in localhost_values):
             errors.append("CORS_ALLOWED_ORIGINS must contain only HTTPS non-localhost origins in production.")

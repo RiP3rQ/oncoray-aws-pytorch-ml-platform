@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 from scalar_fastapi import get_scalar_api_reference
@@ -83,6 +83,9 @@ async def get_scalar_docs():
     """
     Adds an Scalar API reference to the API, so we can use it in the Scalar console.
     """
+    if not app_settings.SCALAR_DOCS_ENABLED or app_settings.APP_ENVIRONMENT == "production":
+        raise HTTPException(status_code=404, detail="Not found")
+
     return get_scalar_api_reference(
         openapi_url="/openapi.json",
         title="Core API",

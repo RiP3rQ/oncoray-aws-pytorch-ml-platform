@@ -223,6 +223,28 @@ Test-ContentRule `
     -FailureMessage "terraform.tfvars, addons.yaml, and prod.yaml must stay gitignored."
 
 Test-ContentRule `
+    -Label "SSM Parameter example completeness" `
+    -Path (Join-Path $repoRoot "infra/helm/values/ssm-parameters.prod.example.json") `
+    -Predicate {
+        param($content)
+        try {
+            $parameters = $content | ConvertFrom-Json
+            $names = @($parameters | ForEach-Object { $_.name })
+            return (
+                $names -contains "/pytorch-model/prod/api/REDIS_HOST" -and
+                $names -contains "/pytorch-model/prod/api/REDIS_PORT" -and
+                $names -contains "/pytorch-model/prod/api/REDIS_SSL" -and
+                $names -contains "/pytorch-model/prod/api/AWS_REGION" -and
+                $names -contains "/pytorch-model/prod/api/S3_BUCKET_NAME"
+            )
+        }
+        catch {
+            return $false
+        }
+    } `
+    -FailureMessage "SSM example must include Redis, AWS region, and S3 bucket API parameters."
+
+Test-ContentRule `
     -Label "Backend chart default image tag" `
     -Path (Join-Path $repoRoot "infra/helm/charts/backend-stack/values.yaml") `
     -Predicate { param($content) $content -notmatch '(?m)^\s*defaultImageTag:\s*latest\s*$' } `
@@ -285,6 +307,24 @@ Test-ContentRule `
         )
     } `
     -FailureMessage "Prod Model Runtime overrides must use one multi-model runtime host config and migrations."
+
+Test-ContentRule `
+    -Label "Production Helm values guard" `
+    -Path (Join-Path $repoRoot "infra/scripts/deploy-prod.ps1") `
+    -Predicate {
+        param($content)
+        return (
+            $content -match 'function Test-ProductionValuesFile' -and
+            $content -match 'Production Helm values file contains unresolved placeholder'
+        )
+    } `
+    -FailureMessage "deploy-prod.ps1 must reject unresolved placeholders in prod.yaml."
+
+Test-ContentRule `
+    -Label "Prod example disables Scalar docs" `
+    -Path (Join-Path $repoRoot "infra/helm/values/prod.example.yaml") `
+    -Predicate { param($content) $content -match '(?m)^\s*SCALAR_DOCS_ENABLED:\s*"false"\s*$' } `
+    -FailureMessage "Production Helm values must disable Scalar docs."
 
 Test-ContentRule `
     -Label "Backend chart model-service production env" `

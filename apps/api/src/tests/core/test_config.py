@@ -50,6 +50,7 @@ class TestAppSettings:
         assert settings.ACCESS_TOKEN_TTL_MINUTES == 15
         assert settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS == 24
         assert settings.APP_DOMAIN == "localhost:8000"
+        assert settings.SCALAR_DOCS_ENABLED is True
 
     def test_normalize_app_log_level(self):
         """AppSettings should normalize log level to uppercase."""
@@ -217,7 +218,7 @@ class TestObservabilitySettings:
     """Tests for OpenTelemetry settings."""
 
     def test_observability_defaults(self):
-        settings = ObservabilitySettings()
+        settings = ObservabilitySettings(_env_file=None)
         assert settings.OTEL_ENABLED is True
         assert settings.OTEL_SERVICE_NAME == "core-api"
         assert settings.OTEL_EXPORTER_OTLP_ENDPOINT is None
@@ -336,6 +337,44 @@ class TestProductionValidation:
         with pytest.raises(RuntimeError, match="Invalid production configuration"):
             validate_production_settings()
 
+    def test_validate_production_settings_rejects_public_scalar_docs(self, monkeypatch):
+        monkeypatch.setattr(
+            "src.core.config.app_settings",
+            AppSettings(
+                APP_ENVIRONMENT="production",
+                APP_HTTP_PROTOCOL="https",
+                APP_DOMAIN="api.example.com",
+                CORS_ALLOWED_ORIGINS="https://app.example.com",
+                SCALAR_DOCS_ENABLED=True,
+            ),
+        )
+        monkeypatch.setattr("src.core.config.security_settings", SecuritySettings(SECRET_KEY="x" * 32))
+        monkeypatch.setattr(
+            "src.core.config.db_settings",
+            DatabaseSettings(
+                CORE_API_DATABASE_URL="postgresql+asyncpg://user:pass@db.example.com:5432/app",
+                REDIS_HOST="redis.example.com",
+                REDIS_SSL=True,
+            ),
+        )
+        monkeypatch.setattr("src.core.config.s3_settings", S3Settings(S3_UPLOAD_MODE="aws", S3_BUCKET_NAME="bucket"))
+        monkeypatch.setattr(
+            "src.core.config.model_service_settings",
+            ModelServiceSettings(MODEL_SERVICE_URL="http://pytorch-model-backend-stack-model-runtime-host:8001"),
+        )
+        monkeypatch.setattr(
+            "src.core.config.notification_settings",
+            NotificationSettings(
+                MAIL_USERNAME="mailer",
+                MAIL_PASSWORD="secret",
+                MAIL_FROM="noreply@example.com",
+                MAIL_SERVER="smtp.example.com",
+            ),
+        )
+
+        with pytest.raises(RuntimeError, match="SCALAR_DOCS_ENABLED"):
+            validate_production_settings()
+
     def test_validate_production_settings_accepts_safe_production_values(self, monkeypatch):
         monkeypatch.setattr(
             "src.core.config.app_settings",
@@ -344,6 +383,7 @@ class TestProductionValidation:
                 APP_HTTP_PROTOCOL="https",
                 APP_DOMAIN="api.example.com",
                 CORS_ALLOWED_ORIGINS="https://app.example.com",
+                SCALAR_DOCS_ENABLED=False,
             ),
         )
         monkeypatch.setattr(
