@@ -72,6 +72,10 @@ class MockUserService:
     async def authenticate_user_and_create_token(self, email: str, password: str) -> str:
         if email == "valid@example.com" and password == "validpassword":
             return "fake.jwt.token"
+        if email == "unverified@example.com" and password == "validpassword":
+            from src.core.errors import ClientNotVerified
+
+            raise ClientNotVerified()
         from src.core.errors import BadCredentials
 
         raise BadCredentials()

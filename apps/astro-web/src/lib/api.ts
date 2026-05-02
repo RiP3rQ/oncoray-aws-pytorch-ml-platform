@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/astro";
 import { expireBrowserSession, getStoredToken } from "./auth-session.js";
 import type { components } from "./generated/api-types";
 
@@ -11,6 +12,45 @@ const AUTH_PATHS = ["/user/token", "/user/signup"];
 
 interface ApiOptions extends RequestInit {
   params?: Record<string, string>;
+}
+
+export interface ApiRequestErrorContext {
+  method: string;
+  path: string;
+  url: string;
+  status?: number;
+}
+
+type ApiRequestErrorReporter = (
+  error: unknown,
+  context: ApiRequestErrorContext,
+) => void;
+
+let reportApiRequestError: ApiRequestErrorReporter = (
+  error,
+  { method, path, url, status },
+) => {
+  Sentry.captureException(error, {
+    tags: {
+      api_request_failed: "true",
+      api_request_method: method,
+      api_request_path: path,
+    },
+    extra: {
+      url,
+      status,
+    },
+  });
+};
+
+export function setApiRequestErrorReporterForTests(
+  reporter: ApiRequestErrorReporter,
+): () => void {
+  const previous = reportApiRequestError;
+  reportApiRequestError = reporter;
+  return () => {
+    reportApiRequestError = previous;
+  };
 }
 
 async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
@@ -34,10 +74,23 @@ async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(url.toString(), {
-    ...rest,
-    headers,
-  });
+  const method = rest.method ?? "GET";
+  const requestContext: ApiRequestErrorContext = {
+    method,
+    path,
+    url: url.toString(),
+  };
+
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      ...rest,
+      headers,
+    });
+  } catch (error) {
+    reportApiRequestError(error, requestContext);
+    throw error;
+  }
 
   if (response.status === 401) {
     // Auth endpoints handle their own 401s — let the error propagate
@@ -47,15 +100,30 @@ async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
       expireBrowserSession();
     }
 
-    throw new ApiError(
+    const error = new ApiError(
       response.status,
       "Session expired. Please log in again.",
+      requestContext,
     );
+    reportApiRequestError(error, {
+      ...requestContext,
+      status: response.status,
+    });
+    throw error;
   }
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "");
-    throw new ApiError(response.status, errorBody || response.statusText);
+    const error = new ApiError(
+      response.status,
+      errorBody || response.statusText,
+      requestContext,
+    );
+    reportApiRequestError(error, {
+      ...requestContext,
+      status: response.status,
+    });
+    throw error;
   }
 
   if (
@@ -65,13 +133,22 @@ async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
     return undefined as T;
   }
 
-  return response.json();
+  try {
+    return await response.json();
+  } catch (error) {
+    reportApiRequestError(error, {
+      ...requestContext,
+      status: response.status,
+    });
+    throw error;
+  }
 }
 
 export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public request?: ApiRequestErrorContext,
   ) {
     super(message);
     this.name = "ApiError";

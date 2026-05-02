@@ -44,6 +44,10 @@ _Avoid_: model service, prediction endpoint
 The frontend-owned user flow for selecting a prediction mode, preparing one Chest X-ray Upload, running a Prediction request, and presenting the latest Prediction.
 _Avoid_: prediction orchestration, inference flow
 
+**Account Verification**:
+The email-based confirmation that a User must complete before they can log in.
+_Avoid_: account validation, verified correctly
+
 ## Relationships
 
 - A **Prediction** is produced from exactly one uploaded chest X-ray.
@@ -62,6 +66,7 @@ _Avoid_: prediction orchestration, inference flow
 - **Prediction Orchestration** selects one or more **Model Runtimes** for exactly one **Chest X-ray Upload**.
 - The **Model Catalog** is read-only metadata; it does not produce a **Prediction**.
 - A **Prediction Workflow** calls **Prediction Orchestration**; it does not score **Chest X-ray Uploads** itself.
+- **Account Verification** is required before login can issue an access token.
 ## Example dialogue
 
 > **Dev:** "Should the frontend type its **Prediction** from the internal runtime payload?"

@@ -44,6 +44,23 @@ test("shows invalid-credentials toast for login 401", async ({ page }) => {
   await expect(toastByText(page, "Invalid credentials")).toHaveCount(1);
 });
 
+test("shows email-verification toast for login 403", async ({ page }) => {
+  await mockApiText(
+    page,
+    "/user/token",
+    403,
+    "Email address has not been verified.",
+  );
+  await gotoLogin(page);
+
+  await submitLoginForm(page, "e2e+unverified@example.com", "valid-password");
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(
+    toastByText(page, "Verify your email before logging in."),
+  ).toHaveCount(1);
+});
+
 test("shows inline validation errors for empty and malformed login input", async ({
   page,
 }) => {

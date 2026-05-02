@@ -48,6 +48,8 @@ function LoginFormInner() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         toast.error("Invalid credentials");
+      } else if (err instanceof ApiError && err.status === 403) {
+        toast.error("Verify your email before logging in.");
       } else {
         toast.error("Network error. Try again.");
       }

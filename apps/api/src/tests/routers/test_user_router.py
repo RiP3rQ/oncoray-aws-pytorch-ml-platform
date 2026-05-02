@@ -62,6 +62,15 @@ class TestLoginUser:
         )
         assert response.status_code == 401
 
+    def test_login_unverified_email_returns_403(self, client: TestClient):
+        """POST /user/token with unverified email should return 403."""
+        response = client.post(
+            "/user/token",
+            data={"username": "unverified@example.com", "password": "validpassword"},
+        )
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Email address has not been verified."
+
 
 class TestGetUserProfile:
     """Tests for GET /user/me"""
