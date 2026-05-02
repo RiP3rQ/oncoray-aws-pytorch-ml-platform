@@ -9,6 +9,13 @@ import tailwindcss from "@tailwindcss/vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sentryDsn = process.env.PUBLIC_SENTRY_DSN;
+const sentryRelease = process.env.SENTRY_RELEASE ?? process.env.PUBLIC_APP_RELEASE;
+
+if (sentryRelease) {
+  process.env.SENTRY_RELEASE ??= sentryRelease;
+  process.env.PUBLIC_APP_RELEASE ??= sentryRelease;
+}
+
 const sentrySourceMapsUploadOptions =
   process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
     ? {
