@@ -189,7 +189,9 @@ output "expected_parameter_store_paths" {
     ]
     model_service = [
       "${local.ssm_parameter_prefix}/model-service/EFFNETB0_MODEL_ARTIFACT_URL",
+      "${local.ssm_parameter_prefix}/model-service/EFFNETB0_MODEL_ARTIFACT_SHA256",
       "${local.ssm_parameter_prefix}/model-service/VITB16_MODEL_ARTIFACT_URL",
+      "${local.ssm_parameter_prefix}/model-service/VITB16_MODEL_ARTIFACT_SHA256",
       "${local.ssm_parameter_prefix}/model-service/HF_USERNAME",
       "${local.ssm_parameter_prefix}/model-service/HF_TOKEN",
     ]

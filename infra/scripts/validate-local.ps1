@@ -120,8 +120,39 @@ function Test-WorkflowCommented {
 function Test-NoPatchMarkers {
     param([Parameter(Mandatory = $true)][string[]]$Roots)
 
+    $ignoredDirectories = @(".terraform")
+    $ignoredFilePatterns = @(
+        ".terraform.lock.hcl",
+        "*.tfplan",
+        "*.tfstate",
+        "*.tfstate.*"
+    )
+
     $matches = foreach ($root in $Roots) {
-        Get-ChildItem -Path (Join-Path $repoRoot $root) -Recurse -File | Select-String -Pattern '^\*\*\* (Begin Patch|End Patch|Add File|Update File|Delete File)'
+        Get-ChildItem -Path (Join-Path $repoRoot $root) -Recurse -File |
+            Where-Object {
+                $file = $_
+                $hasIgnoredDirectory = $false
+                foreach ($directoryPart in $file.DirectoryName.Split([IO.Path]::DirectorySeparatorChar)) {
+                    if ($ignoredDirectories -contains $directoryPart) {
+                        $hasIgnoredDirectory = $true
+                        break
+                    }
+                }
+
+                if ($hasIgnoredDirectory) {
+                    return $false
+                }
+
+                foreach ($pattern in $ignoredFilePatterns) {
+                    if ($file.Name -like $pattern) {
+                        return $false
+                    }
+                }
+
+                return $true
+            } |
+            Select-String -Pattern '^\*\*\* (Begin Patch|End Patch|Add File|Update File|Delete File)'
     }
 
     if ($matches) {
@@ -245,6 +276,19 @@ Test-ContentRule `
         }
     } `
     -FailureMessage "SSM example must include Redis, AWS region, and S3 bucket API parameters."
+
+Test-ContentRule `
+    -Label "Terraform SSM path output completeness" `
+    -Path (Join-Path $repoRoot "infra/terraform/environments/prod/outputs.tf") `
+    -Predicate {
+        param($content)
+        return (
+            $content -match 'EFFNETB0_MODEL_ARTIFACT_SHA256' -and
+            $content -match 'VITB16_MODEL_ARTIFACT_SHA256' -and
+            $content -match 'S3_BUCKET_NAME'
+        )
+    } `
+    -FailureMessage "Terraform expected_parameter_store_paths must include Model Artifact checksums and API S3 bucket config."
 
 Test-ContentRule `
     -Label "Backend chart default image tag" `

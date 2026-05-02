@@ -13,11 +13,25 @@ cluster_endpoint_public_access_cidrs = [
 frontend_bucket_name             = "pytorch-model-local-frontend"
 prediction_artifacts_bucket_name = "pytorch-model-local-artifacts"
 
-frontend_aliases             = []
-frontend_acm_certificate_arn = ""
-route53_zone_id              = ""
-api_domain_name              = ""
-api_dns_name                 = ""
+domain_name                     = ""
+create_route53_zone             = false
+enable_managed_acm_certificates = false
+frontend_aliases                = []
+frontend_acm_certificate_arn    = ""
+route53_zone_id                 = ""
+api_domain_name                 = ""
+api_dns_name                    = ""
+api_alb_arn_suffix              = ""
+api_target_group_arn_suffix     = ""
+
+enable_frontend_waf                          = true
+enable_api_waf                               = true
+enable_cloudtrail                            = false
+enable_guardduty                             = false
+enable_security_hub                          = false
+enable_container_insights_node_condition_alarm = false
+
+alarm_email_addresses = []
 
 db_password = "localstack-db-password"
 
