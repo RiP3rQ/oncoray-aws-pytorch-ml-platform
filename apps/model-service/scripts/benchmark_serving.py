@@ -113,7 +113,7 @@ def load_image(path: Path | None) -> tuple[bytes, str]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark model-service /predict latency and throughput.")
-    parser.add_argument("--url", default="http://127.0.0.1:8000", help="Base URL for model-service.")
+    parser.add_argument("--url", default="http://127.0.0.1:8001", help="Base URL for model-service.")
     parser.add_argument("--image", type=Path, default=None, help="Optional image file. Uses tiny PNG when omitted.")
     parser.add_argument("--requests", type=int, default=20, help="Total requests to send.")
     parser.add_argument("--concurrency", type=int, default=4, help="Concurrent in-flight requests.")

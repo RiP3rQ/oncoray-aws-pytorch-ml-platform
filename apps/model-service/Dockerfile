@@ -34,7 +34,7 @@ COPY --from=builder /opt/venv /opt/venv
 COPY main.py ./
 COPY src ./src
 
-EXPOSE 8000
+EXPOSE 8001
 
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
 

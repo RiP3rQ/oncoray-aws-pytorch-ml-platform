@@ -2,7 +2,7 @@
   "name": "model-service",
   "private": true,
   "scripts": {
-    "dev": "uv run uvicorn main:app --host 127.0.0.1 --port 8000 --reload",
+    "dev": "uv run uvicorn main:app --host 127.0.0.1 --port 8001 --reload",
     "check-types": "uv run mypy main.py src",
     "lint": "uv run ruff check main.py src && uv run ruff format --check main.py src",
     "lint:fix": "uv run ruff check --fix main.py src && uv run ruff format main.py src",
