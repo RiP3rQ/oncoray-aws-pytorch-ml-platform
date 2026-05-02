@@ -183,3 +183,45 @@ resource "aws_cloudwatch_metric_alarm" "eks_failed_nodes" {
     ClusterName = module.eks.cluster_name
   }
 }
+
+resource "aws_cloudwatch_log_group" "api_waf" {
+  count = var.enable_api_waf ? 1 : 0
+
+  name              = "aws-waf-logs-${local.name_prefix}-api"
+  retention_in_days = var.log_retention_in_days
+}
+
+resource "aws_cloudwatch_log_group" "frontend_waf" {
+  count    = var.enable_frontend_waf ? 1 : 0
+  provider = aws.us_east_1
+
+  name              = "aws-waf-logs-${local.name_prefix}-frontend"
+  retention_in_days = var.log_retention_in_days
+}
+
+resource "aws_wafv2_web_acl_logging_configuration" "api" {
+  count = var.enable_api_waf ? 1 : 0
+
+  log_destination_configs = [aws_cloudwatch_log_group.api_waf[0].arn]
+  resource_arn            = aws_wafv2_web_acl.api[0].arn
+
+  redacted_fields {
+    single_header {
+      name = "authorization"
+    }
+  }
+
+  redacted_fields {
+    single_header {
+      name = "cookie"
+    }
+  }
+}
+
+resource "aws_wafv2_web_acl_logging_configuration" "frontend" {
+  count    = var.enable_frontend_waf ? 1 : 0
+  provider = aws.us_east_1
+
+  log_destination_configs = [aws_cloudwatch_log_group.frontend_waf[0].arn]
+  resource_arn            = aws_wafv2_web_acl.frontend[0].arn
+}

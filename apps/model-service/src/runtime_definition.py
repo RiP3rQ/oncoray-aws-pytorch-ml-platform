@@ -49,7 +49,7 @@ class ModelRuntimeDefinition:
             spec=spec,
             artifact_path=settings.artifact_path_for_slug(slug),
             artifact_source=hugging_face_source_from_settings(settings, slug),
-            artifact_sha256=None,
+            artifact_sha256=model_artifact_sha256_from_settings(settings, slug),
             device_name=settings.MODEL_DEVICE,
             num_threads=settings.MODEL_NUM_THREADS,
             class_names=settings.class_names,
@@ -68,6 +68,14 @@ def model_artifact_url_from_settings(settings: Settings, slug: ModelSlug) -> str
             return settings.EFFNETB0_MODEL_ARTIFACT_URL
         case ModelSlug.VITB16:
             return settings.VITB16_MODEL_ARTIFACT_URL
+
+
+def model_artifact_sha256_from_settings(settings: Settings, slug: ModelSlug) -> str | None:
+    match slug:
+        case ModelSlug.EFFNETB0:
+            return settings.EFFNETB0_MODEL_ARTIFACT_SHA256
+        case ModelSlug.VITB16:
+            return settings.VITB16_MODEL_ARTIFACT_SHA256
 
 
 def hugging_face_source_from_url(url: str, *, token: str | None = None) -> HuggingFaceArtifactSource:

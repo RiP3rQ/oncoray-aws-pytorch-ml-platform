@@ -33,6 +33,11 @@ output "cloudwatch_alarm_topic_arn" {
   value       = try(aws_sns_topic.cloudwatch_alarms[0].arn, null)
 }
 
+output "cloudtrail_bucket_name" {
+  description = "S3 bucket receiving CloudTrail logs when CloudTrail is enabled."
+  value       = try(aws_s3_bucket.cloudtrail[0].bucket, null)
+}
+
 output "frontend_bucket_name" {
   description = "Private S3 bucket for the Astro frontend."
   value       = aws_s3_bucket.frontend.bucket
@@ -66,6 +71,11 @@ output "api_route53_record_name" {
 output "frontend_waf_acl_arn" {
   description = "Frontend CloudFront WAF Web ACL ARN."
   value       = try(aws_wafv2_web_acl.frontend[0].arn, null)
+}
+
+output "guardduty_detector_id" {
+  description = "GuardDuty detector ID when GuardDuty is enabled."
+  value       = try(aws_guardduty_detector.main[0].id, null)
 }
 
 output "api_waf_acl_arn" {

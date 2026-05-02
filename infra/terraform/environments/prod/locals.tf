@@ -35,6 +35,9 @@ locals {
     : "${local.name_prefix}-artifacts-${data.aws_caller_identity.current.account_id}"
   )
 
+  cloudtrail_bucket_name = "${local.name_prefix}-cloudtrail-${data.aws_caller_identity.current.account_id}"
+  cloudtrail_name        = local.name_prefix
+
   api_repository_name           = "${var.project_name}/api"
   model_service_repository_name = "${var.project_name}/model-service"
   ssm_parameter_prefix          = "/${var.project_name}/${var.environment}"

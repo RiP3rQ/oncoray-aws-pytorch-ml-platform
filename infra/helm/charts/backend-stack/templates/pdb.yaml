@@ -1,0 +1,29 @@
+{{- $root := . -}}
+{{- $workloads := deepCopy .Values.workloads -}}
+{{- range $slug, $runtime := .Values.modelRuntimes }}
+{{- $name := default (printf "model-service-%s" $slug) $runtime.workloadName -}}
+{{- $workload := include "backend-stack.modelRuntimeWorkload" (dict "root" $root "slug" $slug "runtime" $runtime) | fromYaml -}}
+{{- $_ := set $workloads $name $workload -}}
+{{- end }}
+{{- range $name, $workload := $workloads }}
+{{- if and $workload.enabled $workload.disruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "backend-stack.componentName" (dict "root" $root "component" $name) }}
+  labels:
+    {{- include "backend-stack.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  {{- if hasKey $workload.disruptionBudget "minAvailable" }}
+  minAvailable: {{ $workload.disruptionBudget.minAvailable }}
+  {{- else }}
+  maxUnavailable: {{ default 1 $workload.disruptionBudget.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "backend-stack.selectorLabels" $root | nindent 6 }}
+      app.kubernetes.io/component: {{ $name }}
+---
+{{- end }}
+{{- end }}

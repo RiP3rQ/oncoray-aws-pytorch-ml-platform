@@ -48,6 +48,7 @@ def test_runtime_definition_collects_deploy_recipe_from_settings() -> None:
         MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",
         MODEL_STRICT_LOAD=False,
         MODEL_STARTUP_SMOKE_TEST=False,
+        VITB16_MODEL_ARTIFACT_SHA256="b" * 64,
         HF_TOKEN="secret-token",
     )
 
@@ -60,7 +61,7 @@ def test_runtime_definition_collects_deploy_recipe_from_settings() -> None:
     assert definition.artifact_source.repo_id == "RiP3rQ/vit_b_16"
     assert definition.artifact_source.filename == "vit_b_16/vit_b_16_epoch_018.pth"
     assert definition.artifact_source.token == "secret-token"
-    assert definition.artifact_sha256 is None
+    assert definition.artifact_sha256 == "b" * 64
     assert definition.device_name == "cpu"
     assert definition.num_threads == 2
     assert definition.class_names == ("NORMAL", "PNEUMONIA")

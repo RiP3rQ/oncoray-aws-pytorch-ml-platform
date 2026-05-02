@@ -39,6 +39,8 @@ module "eks" {
   enable_cluster_creator_admin_permissions = true
   cluster_endpoint_public_access           = true
   cluster_endpoint_public_access_cidrs     = var.cluster_endpoint_public_access_cidrs
+  cluster_enabled_log_types                = var.eks_cluster_enabled_log_types
+  cloudwatch_log_group_retention_in_days   = var.log_retention_in_days
   enable_irsa                              = !var.use_localstack
 
   cluster_addons = {
@@ -150,8 +152,7 @@ resource "aws_ecr_lifecycle_policy" "repositories" {
 }
 
 resource "aws_s3_bucket" "frontend" {
-  bucket        = local.frontend_bucket_name
-  force_destroy = true
+  bucket = local.frontend_bucket_name
 }
 
 resource "aws_s3_bucket" "prediction_artifacts" {
