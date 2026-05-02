@@ -16,6 +16,7 @@ from src.model_artifacts import (
     parse_model_artifact_manifest,
     read_model_artifact_manifest,
     resolve_model_artifact,
+    select_model_artifact_from_snapshot,
     validate_model_artifact_manifest,
 )
 from src.model_runtime_factory import ModelRuntimeFactory
@@ -202,6 +203,42 @@ def test_resolve_model_artifact_wraps_hugging_face_fetch_failure() -> None:
     assert "missing-revision" in message
     assert "weights/model.pth" in message
     assert "secret-token" not in message
+
+
+def test_select_model_artifact_from_snapshot_accepts_single_torch_artifact() -> None:
+    workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
+    snapshot_path = workspace_tmp_dir / f"snapshot-{uuid4()}"
+    artifact_path = snapshot_path / "weights" / "model.pth"
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_bytes(b"artifact")
+
+    resolved = select_model_artifact_from_snapshot(
+        snapshot_path,
+        HuggingFaceArtifactSource(repo_id="RiP3rQ/effnetb0", revision="main"),
+    )
+
+    assert resolved == artifact_path
+
+
+def test_select_model_artifact_from_snapshot_rejects_ambiguous_artifacts() -> None:
+    workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
+    snapshot_path = workspace_tmp_dir / f"snapshot-{uuid4()}"
+    snapshot_path.mkdir(parents=True, exist_ok=True)
+    (snapshot_path / "a.pth").write_bytes(b"a")
+    (snapshot_path / "b.pt").write_bytes(b"b")
+
+    try:
+        select_model_artifact_from_snapshot(
+            snapshot_path,
+            HuggingFaceArtifactSource(repo_id="RiP3rQ/effnetb0", revision="main"),
+        )
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("Expected ambiguous Model Artifact selection failure.")
+
+    assert "Multiple Torch Model Artifacts" in message
+    assert "Set HF_MODEL_FILENAME" in message
 
 
 def test_resolve_model_artifact_validates_expected_sha256() -> None:

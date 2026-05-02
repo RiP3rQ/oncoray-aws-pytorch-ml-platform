@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from src.config import Settings
 from src.model_artifacts import HuggingFaceArtifactSource
@@ -50,10 +51,33 @@ class ModelRuntimeDefinition:
 
 def hugging_face_source_from_settings(settings: Settings) -> HuggingFaceArtifactSource | None:
     if settings.HF_MODEL_REPOSITORY is None:
-        return None
+        return hugging_face_source_from_url(model_artifact_url_from_settings(settings), token=settings.HF_TOKEN)
+
     return HuggingFaceArtifactSource(
         repo_id=settings.HF_MODEL_REPOSITORY,
         revision=settings.HF_MODEL_REVISION,
-        filename=settings.HF_MODEL_FILENAME or settings.MODEL_ARTIFACT_PATH.name,
+        filename=settings.HF_MODEL_FILENAME,
         token=settings.HF_TOKEN,
+    )
+
+
+def model_artifact_url_from_settings(settings: Settings) -> str:
+    match settings.MODEL_SLUG:
+        case ModelSlug.EFFNETB0:
+            return settings.EFFNETB0_MODEL_ARTIFACT_URL
+        case ModelSlug.VITB16:
+            return settings.VITB16_MODEL_ARTIFACT_URL
+
+
+def hugging_face_source_from_url(url: str, *, token: str | None = None) -> HuggingFaceArtifactSource:
+    parsed_url = urlparse(url.strip())
+    path_parts = [unquote(part) for part in parsed_url.path.split("/") if part]
+    if parsed_url.netloc.lower() != "huggingface.co" or len(path_parts) < 5 or path_parts[2] != "resolve":
+        raise ValueError(f"Expected Hugging Face resolve URL, got: {url}")
+
+    return HuggingFaceArtifactSource(
+        repo_id=f"{path_parts[0]}/{path_parts[1]}",
+        revision=path_parts[3],
+        filename="/".join(path_parts[4:]),
+        token=token,
     )

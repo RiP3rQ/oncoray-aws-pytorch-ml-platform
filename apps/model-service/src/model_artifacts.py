@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class HuggingFaceArtifactSource:
     repo_id: str
     revision: str
-    filename: str
+    filename: str | None = None
     token: str | None = None
 
 
@@ -42,11 +42,22 @@ class ModelArtifactManifest:
 
 def download_hugging_face_artifact(source: HuggingFaceArtifactSource) -> Path:
     try:
-        from huggingface_hub import hf_hub_download
+        from huggingface_hub import hf_hub_download, snapshot_download
     except ImportError as exc:
         raise RuntimeError("huggingface-hub is required to fetch Model Artifacts from Hugging Face.") from exc
 
     try:
+        if source.filename is None:
+            return select_model_artifact_from_snapshot(
+                Path(
+                    snapshot_download(
+                        repo_id=source.repo_id,
+                        revision=source.revision,
+                        token=source.token,
+                    )
+                ),
+                source,
+            )
         return Path(
             hf_hub_download(
                 repo_id=source.repo_id,
@@ -81,7 +92,7 @@ def resolve_model_artifact(
         "Fetching model artifact repo=%s revision=%s filename=%s target=%s",
         source.repo_id,
         source.revision,
-        source.filename,
+        source.filename or "<auto>",
         artifact_path,
     )
     downloaded_path = downloader(source)
@@ -91,6 +102,24 @@ def resolve_model_artifact(
         shutil.copy2(downloaded_path, artifact_path)
     verify_model_artifact_checksum(artifact_path, expected_sha256)
     return artifact_path
+
+
+def select_model_artifact_from_snapshot(snapshot_path: Path, source: HuggingFaceArtifactSource) -> Path:
+    candidates = sorted(
+        path for path in snapshot_path.rglob("*") if path.is_file() and path.suffix.lower() in {".bin", ".pt", ".pth"}
+    )
+    if len(candidates) == 1:
+        return candidates[0]
+    if not candidates:
+        raise FileNotFoundError(
+            "No Torch Model Artifact found in Hugging Face snapshot "
+            f"repo={source.repo_id} revision={source.revision}. Set HF_MODEL_FILENAME."
+        )
+    candidate_names = ", ".join(str(path.relative_to(snapshot_path)) for path in candidates)
+    raise RuntimeError(
+        "Multiple Torch Model Artifacts found in Hugging Face snapshot "
+        f"repo={source.repo_id} revision={source.revision}: {candidate_names}. Set HF_MODEL_FILENAME."
+    )
 
 
 def verify_model_artifact_checksum(artifact_path: Path, expected_sha256: str | None) -> None:

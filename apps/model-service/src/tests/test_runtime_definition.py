@@ -5,11 +5,16 @@ from typing import cast
 
 import torch.nn as nn
 import torchvision
+from pytest import MonkeyPatch
 
 from src.config import Settings
 from src.model_specs import ModelSpec
 from src.runtime import ImageTransform
-from src.runtime_definition import ModelRuntimeDefinition
+from src.runtime_definition import (
+    ModelRuntimeDefinition,
+    hugging_face_source_from_settings,
+    hugging_face_source_from_url,
+)
 from src.types import ModelSlug
 
 
@@ -62,6 +67,60 @@ def test_runtime_definition_collects_deploy_recipe_from_settings() -> None:
     assert definition.class_names == ("NORMAL", "PNEUMONIA")
     assert definition.strict_load is False
     assert definition.startup_smoke_test is False
+
+
+def test_runtime_definition_uses_default_hugging_face_source_for_effnetb0(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.delenv("HF_MODEL_REPOSITORY", raising=False)
+    monkeypatch.delenv("HF_MODEL_FILENAME", raising=False)
+    settings = Settings(MODEL_SLUG=ModelSlug.EFFNETB0, HF_TOKEN="")
+
+    source = hugging_face_source_from_settings(settings)
+
+    assert source is not None
+    assert source.repo_id == "RiP3rQ/effnetb0"
+    assert source.revision == "main"
+    assert source.filename == "effnetb0/effnetb0_epoch_008.pth"
+    assert source.token is None
+
+
+def test_runtime_definition_uses_default_hugging_face_source_for_vitb16(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.delenv("HF_MODEL_REPOSITORY", raising=False)
+    monkeypatch.delenv("HF_MODEL_FILENAME", raising=False)
+    settings = Settings(MODEL_SLUG=ModelSlug.VITB16)
+
+    source = hugging_face_source_from_settings(settings)
+
+    assert source is not None
+    assert source.repo_id == "RiP3rQ/vit_b_16"
+    assert source.revision == "main"
+    assert source.filename == "vit_b_16/vit_b_16_epoch_018.pth"
+
+
+def test_runtime_definition_allows_hugging_face_source_override() -> None:
+    settings = Settings(
+        MODEL_SLUG=ModelSlug.EFFNETB0,
+        HF_MODEL_REPOSITORY="owner/custom",
+        HF_MODEL_FILENAME="weights/custom.pth",
+    )
+
+    source = hugging_face_source_from_settings(settings)
+
+    assert source is not None
+    assert source.repo_id == "owner/custom"
+    assert source.filename == "weights/custom.pth"
+
+
+def test_hugging_face_source_from_url_parses_resolve_url() -> None:
+    source = hugging_face_source_from_url(
+        "https://huggingface.co/RiP3rQ/vit_b_16/resolve/main/vit_b_16/vit_b_16_epoch_018.pth",
+        token="secret-token",
+    )
+
+    assert source.repo_id == "RiP3rQ/vit_b_16"
+    assert source.revision == "main"
+    assert source.filename == "vit_b_16/vit_b_16_epoch_018.pth"
+    assert source.token == "secret-token"
 
 
 def test_runtime_definition_rejects_spec_slug_mismatch() -> None:

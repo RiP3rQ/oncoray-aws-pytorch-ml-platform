@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import field_validator, model_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.types import ModelSlug
@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     APP_LOG_LEVEL: str = "INFO"
     MODEL_SLUG: ModelSlug = ModelSlug.EFFNETB0
     MODEL_ARTIFACT_PATH: Path = Path("/models/model.pth")
+    EFFNETB0_MODEL_ARTIFACT_URL: str = (
+        "https://huggingface.co/RiP3rQ/effnetb0/resolve/main/effnetb0/effnetb0_epoch_008.pth"
+    )
+    VITB16_MODEL_ARTIFACT_URL: str = (
+        "https://huggingface.co/RiP3rQ/vit_b_16/resolve/main/vit_b_16/vit_b_16_epoch_018.pth"
+    )
     HF_MODEL_REPOSITORY: str | None = None
     HF_MODEL_REVISION: str = "main"
     HF_MODEL_FILENAME: str | None = None
@@ -62,24 +68,13 @@ class Settings(BaseSettings):
             raise ValueError("HF_MODEL_REVISION must not be empty.")
         return parsed
 
-    @model_validator(mode="after")
-    def require_hugging_face_source_in_production(self) -> Settings:
-        if self.APP_ENVIRONMENT != "production":
-            return self
-
-        missing = [
-            field_name
-            for field_name, value in (
-                ("HF_MODEL_REPOSITORY", self.HF_MODEL_REPOSITORY),
-                ("HF_MODEL_FILENAME", self.HF_MODEL_FILENAME),
-            )
-            if value is None
-        ]
-        if missing:
-            raise ValueError(
-                "Production Model Runtime requires Hugging Face Model Artifact config: " + ", ".join(missing)
-            )
-        return self
+    @field_validator("EFFNETB0_MODEL_ARTIFACT_URL", "VITB16_MODEL_ARTIFACT_URL", mode="before")
+    @classmethod
+    def normalize_required_url(cls, value: str) -> str:
+        parsed = value.strip()
+        if not parsed:
+            raise ValueError("Model Artifact URL must not be empty.")
+        return parsed
 
     @property
     def class_names(self) -> tuple[str, ...]:
