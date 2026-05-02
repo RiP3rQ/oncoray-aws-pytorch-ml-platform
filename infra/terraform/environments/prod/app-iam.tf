@@ -4,10 +4,6 @@ locals {
       namespace       = var.kubernetes_namespace
       service_account = var.api_service_account_name
     }
-    worker = {
-      namespace       = var.kubernetes_namespace
-      service_account = var.worker_service_account_name
-    }
   }
 
   model_runtime_service_accounts = {
@@ -19,19 +15,6 @@ locals {
 }
 
 data "aws_iam_policy_document" "api_runtime" {
-  statement {
-    sid    = "AllowWorkerQueueSend"
-    effect = "Allow"
-    actions = [
-      "sqs:GetQueueAttributes",
-      "sqs:GetQueueUrl",
-      "sqs:SendMessage",
-    ]
-    resources = [
-      aws_sqs_queue.worker.arn,
-    ]
-  }
-
   statement {
     sid    = "AllowPredictionArtifactsBucketRead"
     effect = "Allow"
@@ -58,30 +41,12 @@ data "aws_iam_policy_document" "api_runtime" {
   }
 }
 
-data "aws_iam_policy_document" "worker_runtime" {
-  statement {
-    sid    = "AllowWorkerQueueConsume"
-    effect = "Allow"
-    actions = [
-      "sqs:ChangeMessageVisibility",
-      "sqs:DeleteMessage",
-      "sqs:GetQueueAttributes",
-      "sqs:GetQueueUrl",
-      "sqs:ReceiveMessage",
-    ]
-    resources = [
-      aws_sqs_queue.worker.arn,
-    ]
-  }
-}
-
 module "workload_identities" {
   count  = var.use_localstack ? 0 : 1
   source = "../../modules/workload-identities"
 
   app_runtime_policy_json = {
-    api    = data.aws_iam_policy_document.api_runtime.json
-    worker = data.aws_iam_policy_document.worker_runtime.json
+    api = data.aws_iam_policy_document.api_runtime.json
   }
   app_service_accounts           = local.app_service_accounts
   model_runtime_service_accounts = local.model_runtime_service_accounts

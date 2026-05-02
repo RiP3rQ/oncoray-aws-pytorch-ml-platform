@@ -29,6 +29,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@repo/tailwind-config": "*",
     "@repo/ui": "*",
+    "@sentry/astro": "^10.51.0",
     "@tailwindcss/vite": "^4.2.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

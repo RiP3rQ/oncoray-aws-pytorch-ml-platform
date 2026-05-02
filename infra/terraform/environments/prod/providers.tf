@@ -26,7 +26,6 @@ provider "aws" {
       rds         = endpoints.value
       route53     = endpoints.value
       s3          = endpoints.value
-      sqs         = endpoints.value
       ssm         = endpoints.value
       sts         = endpoints.value
       wafv2       = endpoints.value
@@ -67,7 +66,6 @@ provider "aws" {
       rds         = endpoints.value
       route53     = endpoints.value
       s3          = endpoints.value
-      sqs         = endpoints.value
       ssm         = endpoints.value
       sts         = endpoints.value
       wafv2       = endpoints.value

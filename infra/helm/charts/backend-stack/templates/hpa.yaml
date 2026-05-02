@@ -6,7 +6,7 @@
 {{- $_ := set $workloads $name $workload -}}
 {{- end }}
 {{- range $name, $workload := $workloads }}
-{{- if and $workload.enabled $workload.autoscaling.enabled (not $workload.queueAutoscaling.enabled) }}
+{{- if and $workload.enabled $workload.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

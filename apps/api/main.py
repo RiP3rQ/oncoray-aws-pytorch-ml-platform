@@ -7,6 +7,7 @@ from src.api_types.enums import APITag
 from src.core.config import app_settings, validate_production_settings
 from src.core.errors import add_exception_handlers
 from src.core.logger import configure_logging, get_logger
+from src.core.observability import configure_observability
 from src.routers.master_router import master_router
 
 # =============================== LOGGER ===============================
@@ -53,6 +54,7 @@ app = FastAPI(
     openapi_tags=API_TAGS_METADATA,
     generate_unique_id_function=custom_generate_unique_id_function,
 )
+configure_observability(app)
 
 # =============================== CORS MIDDLEWARE ===============================
 app.add_middleware(

@@ -13,7 +13,6 @@ param(
     [string]$PlatformValuesFile = "infra/helm/values/addons.yaml",
     [string]$AwsLoadBalancerControllerChartVersion = "1.14.1",
     [string]$ExternalSecretsChartVersion = "1.3.1",
-    [string]$KedaChartVersion = "2.18.1",
     [switch]$DryRun
 )
 
@@ -79,7 +78,6 @@ function Invoke-External {
 
 Invoke-External -FilePath $helmCommand -Arguments @("repo", "add", "eks", "https://aws.github.io/eks-charts", "--force-update") -QuietOutput
 Invoke-External -FilePath $helmCommand -Arguments @("repo", "add", "external-secrets", "https://charts.external-secrets.io", "--force-update") -QuietOutput
-Invoke-External -FilePath $helmCommand -Arguments @("repo", "add", "kedacore", "https://kedacore.github.io/charts", "--force-update") -QuietOutput
 Invoke-External -FilePath $helmCommand -Arguments @("repo", "update") -QuietOutput
 
 $commonDryRunArgs = @()
@@ -152,26 +150,11 @@ $platformArgs = @(
     "fluentBit.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=$FluentBitRoleArn"
 ) + $commonDryRunArgs
 
-$kedaArgs = @(
-    "upgrade",
-    "--install",
-    "keda",
-    "kedacore/keda",
-    "--namespace",
-    "keda",
-    "--create-namespace",
-    "--version",
-    $KedaChartVersion
-) + $commonDryRunArgs
-
 Write-Host "Installing AWS Load Balancer Controller"
 Invoke-External -FilePath $helmCommand -Arguments $loadBalancerArgs
 
 Write-Host "Installing External Secrets Operator"
 Invoke-External -FilePath $helmCommand -Arguments $externalSecretsArgs
-
-Write-Host "Installing KEDA"
-Invoke-External -FilePath $helmCommand -Arguments $kedaArgs
 
 Write-Host "Installing platform add-on config and Fluent Bit"
 Invoke-External -FilePath $helmCommand -Arguments $platformArgs

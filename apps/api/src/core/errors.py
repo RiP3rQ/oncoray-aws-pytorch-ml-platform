@@ -3,6 +3,8 @@ from collections.abc import Callable
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 
+from src.core.observability import record_exception
+
 
 class FastApiCoreError(Exception):
     """Base exception for all exceptions in fastapi core"""
@@ -111,6 +113,7 @@ def add_exception_handlers(app: FastAPI) -> None:
         request: Request,
         exception: Exception,
     ) -> Response:
+        record_exception(exception)
         return JSONResponse(
             content={"detail": "Something went wrong..."},
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

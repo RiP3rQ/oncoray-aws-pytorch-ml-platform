@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 
 from src.config import Settings, settings, validate_production_settings
 from src.model_runtime_factory import ModelRuntimeFactory
+from src.observability import configure_observability, record_exception
 from src.runtime import ModelRuntime
 from src.schemas import ModelRuntimePrediction
 from src.types import ModelSlug
@@ -46,6 +47,7 @@ def create_app(
         version="0.1.0",
         lifespan=lifespan,
     )
+    configure_observability(app, resolved_settings)
     if runtime is not None:
         app.state.runtimes = {runtime.slug: runtime}
     if runtimes is not None:
@@ -83,6 +85,7 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
         except Exception as exc:
+            record_exception(exc)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Prediction failed.",

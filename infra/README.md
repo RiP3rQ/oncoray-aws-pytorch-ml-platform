@@ -7,7 +7,7 @@ Goal: keep deploy understandable. Terraform creates AWS resources. Helm deploys 
 ## Contents
 
 - `terraform/` AWS infrastructure
-- `helm/charts/backend-stack/` API, worker, and Model Runtime workloads
+- `helm/charts/backend-stack/` API and Model Runtime workloads
 - `helm/charts/platform-addons/` ClusterSecretStore config and Fluent Bit
 - `helm/values/prod.example.yaml` production workload values template
 - `helm/values/addons.example.yaml` add-on values template
@@ -47,7 +47,7 @@ bun run infra:bootstrap:install
 
 ## Current Status
 
-- Terraform scaffold exists for VPC, EKS, ECR, S3/CloudFront, SQS, RDS, Redis, WAF, Route53, CloudWatch, and IAM/IRSA.
+- Terraform scaffold exists for VPC, EKS, ECR, S3/CloudFront, RDS, Redis, WAF, Route53, CloudWatch, SNS email alarms, and IAM/IRSA.
 - Helm charts exist for backend workloads and platform add-on config.
 - Thin local helpers exist for validation, add-ons, backend deploy, and destroy.
 - No live AWS resources have been created from this repo in this workspace.

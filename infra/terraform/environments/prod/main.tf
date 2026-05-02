@@ -149,25 +149,6 @@ resource "aws_ecr_lifecycle_policy" "repositories" {
   })
 }
 
-resource "aws_sqs_queue" "worker_dlq" {
-  name                      = local.worker_dlq_name
-  message_retention_seconds = 1209600
-  sqs_managed_sse_enabled   = true
-}
-
-resource "aws_sqs_queue" "worker" {
-  name                       = local.worker_queue_name
-  visibility_timeout_seconds = 60
-  message_retention_seconds  = 345600
-  receive_wait_time_seconds  = 20
-  sqs_managed_sse_enabled    = true
-
-  redrive_policy = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.worker_dlq.arn
-    maxReceiveCount     = 5
-  })
-}
-
 resource "aws_s3_bucket" "frontend" {
   bucket        = local.frontend_bucket_name
   force_destroy = true

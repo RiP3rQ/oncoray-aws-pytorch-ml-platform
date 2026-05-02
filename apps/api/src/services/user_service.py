@@ -1,13 +1,16 @@
 from collections.abc import Mapping
+from datetime import timedelta
 from typing import Any, cast
 from uuid import UUID
 
 import bcrypt
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+from pydantic import NameEmail
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
-from src.core.config import app_settings
+from src.core.config import TEMPLATE_DIR, app_settings, notification_settings
 from src.core.errors import (
     BadCredentials,
     BadPassword,
@@ -23,12 +26,12 @@ from src.utils.token_utils import (
     generate_access_token,
     generate_url_safe_token,
 )
-from src.worker.tasks import dispatch_email_with_template
 
 from .base import BaseService
 
 logger = get_logger(__name__)
 MAX_BCRYPT_PASSWORD_BYTES = 72
+fast_mail = FastMail(ConnectionConfig(**notification_settings.model_dump(), TEMPLATE_FOLDER=TEMPLATE_DIR))
 
 
 class UserService(BaseService):
@@ -85,22 +88,26 @@ class UserService(BaseService):
         return not email.lower().endswith("@example.com")
 
     async def _send_verification_email(self, user: User, router_prefix: str) -> None:
-        """Queue the account verification email for a newly created user."""
+        """Send the account verification email for a newly created user."""
 
         if not self._should_send_verification_email(user.email):
             logger.info("Skipping verification email for reserved example.com address")
             return
 
         token = generate_url_safe_token({"id": str(user.id)})
-        await dispatch_email_with_template(
-            recipients=[user.email],
-            subject="Verify Your Account With PyTorch Model",
-            context={
-                "username": user.email,
-                "verification_url": self._build_verification_url(token, router_prefix),
-            },
+        await fast_mail.send_message(
+            message=MessageSchema(
+                recipients=[NameEmail(name=user.email, email=user.email)],
+                subject="Verify Your Account With PyTorch Model",
+                template_body={
+                    "username": user.email,
+                    "verification_url": self._build_verification_url(token, router_prefix),
+                },
+                subtype=MessageType.html,
+            ),
             template_name="mail_email_verify.html",
         )
+        logger.info("Verification email sent to %s", user.email)
 
     async def _create_pending_user_and_send_verification_email(
         self,
@@ -134,7 +141,10 @@ class UserService(BaseService):
     async def verify_user_email(self, token: str) -> None:
         """Mark a user's email address as verified using the emailed token."""
 
-        token_data = decode_url_safe_token(token)
+        token_data = decode_url_safe_token(
+            token,
+            expiry=timedelta(hours=app_settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS),
+        )
         if not token_data:
             raise InvalidToken()
 

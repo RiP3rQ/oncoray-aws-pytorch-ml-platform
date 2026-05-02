@@ -11,12 +11,12 @@ Current scope:
 - private S3 bucket for prediction artifacts
 - CloudFront WAF and regional API WAF policy
 - Route53 frontend aliases and optional API CNAME
-- SQS queue + DLQ for worker jobs
+- SNS email notifications for CloudWatch alarms
 - RDS PostgreSQL (Multi-AZ)
 - ElastiCache Redis replication group
 - CloudWatch log group for workload shipping
 - CloudWatch alarms for queue depth, database pressure, cache pressure, optional API ALB health, and optional EKS node-condition health when Container Insights metrics are enabled
-- IRSA roles for AWS Load Balancer Controller, External Secrets, Fluent Bit, API, and worker
+- IRSA roles for AWS Load Balancer Controller, External Secrets, Fluent Bit, API, and Model Runtime Host
 - expected Parameter Store path outputs for later secret population
 
 Still pending after this scaffold:

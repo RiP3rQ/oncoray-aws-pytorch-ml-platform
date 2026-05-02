@@ -28,6 +28,11 @@ output "cloudwatch_workload_log_group_name" {
   value       = aws_cloudwatch_log_group.eks_workloads.name
 }
 
+output "cloudwatch_alarm_topic_arn" {
+  description = "SNS topic ARN used for CloudWatch alarm email notifications when alarm_email_addresses is non-empty."
+  value       = try(aws_sns_topic.cloudwatch_alarms[0].arn, null)
+}
+
 output "frontend_bucket_name" {
   description = "Private S3 bucket for the Astro frontend."
   value       = aws_s3_bucket.frontend.bucket
@@ -66,16 +71,6 @@ output "frontend_waf_acl_arn" {
 output "api_waf_acl_arn" {
   description = "Regional WAF Web ACL ARN for ALB ingress annotations."
   value       = try(aws_wafv2_web_acl.api[0].arn, null)
-}
-
-output "worker_queue_url" {
-  description = "Primary worker SQS queue URL."
-  value       = aws_sqs_queue.worker.url
-}
-
-output "worker_dlq_url" {
-  description = "Dead-letter queue URL for worker failures."
-  value       = aws_sqs_queue.worker_dlq.url
 }
 
 output "ecr_repository_urls" {
@@ -124,7 +119,6 @@ output "kubernetes_service_accounts" {
   value = {
     namespace      = var.kubernetes_namespace
     api            = var.api_service_account_name
-    worker         = var.worker_service_account_name
     model_service  = var.model_service_service_account_name
     model_runtimes = var.model_runtime_service_account_names
   }
@@ -140,7 +134,6 @@ output "expected_parameter_store_paths" {
       "${local.ssm_parameter_prefix}/api/REDIS_PORT",
       "${local.ssm_parameter_prefix}/api/REDIS_SSL",
       "${local.ssm_parameter_prefix}/api/AWS_REGION",
-      "${local.ssm_parameter_prefix}/api/SQS_QUEUE_URL",
       "${local.ssm_parameter_prefix}/api/MAIL_USERNAME",
       "${local.ssm_parameter_prefix}/api/MAIL_PASSWORD",
       "${local.ssm_parameter_prefix}/api/MAIL_FROM",
@@ -152,20 +145,6 @@ output "expected_parameter_store_paths" {
       "${local.ssm_parameter_prefix}/api/USE_CREDENTIALS",
       "${local.ssm_parameter_prefix}/api/VALIDATE_CERTS",
       "${local.ssm_parameter_prefix}/api/S3_BUCKET_NAME",
-    ]
-    worker = [
-      "${local.ssm_parameter_prefix}/worker/AWS_REGION",
-      "${local.ssm_parameter_prefix}/worker/SQS_QUEUE_URL",
-      "${local.ssm_parameter_prefix}/worker/MAIL_USERNAME",
-      "${local.ssm_parameter_prefix}/worker/MAIL_PASSWORD",
-      "${local.ssm_parameter_prefix}/worker/MAIL_FROM",
-      "${local.ssm_parameter_prefix}/worker/MAIL_PORT",
-      "${local.ssm_parameter_prefix}/worker/MAIL_SERVER",
-      "${local.ssm_parameter_prefix}/worker/MAIL_FROM_NAME",
-      "${local.ssm_parameter_prefix}/worker/MAIL_STARTTLS",
-      "${local.ssm_parameter_prefix}/worker/MAIL_SSL_TLS",
-      "${local.ssm_parameter_prefix}/worker/USE_CREDENTIALS",
-      "${local.ssm_parameter_prefix}/worker/VALIDATE_CERTS",
     ]
     model_service = [
       "${local.ssm_parameter_prefix}/model-service/EFFNETB0_MODEL_ARTIFACT_URL",

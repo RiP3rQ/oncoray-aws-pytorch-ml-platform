@@ -176,19 +176,19 @@ class TestSendVerificationEmail:
     """Tests for UserService._send_verification_email."""
 
     @pytest.mark.asyncio
-    async def test_send_verification_email_calls_task(self, user_service, mock_session, fake_user):
-        """_send_verification_email should queue the email verification task."""
-        fake_user.email = "real-user@hospital.test"
+    async def test_send_verification_email_sends_directly(self, user_service, mock_session, fake_user):
+        """_send_verification_email should send the email directly."""
+        fake_user.email = "real-user@hospital.org"
 
         with patch(
-            "src.services.user_service.dispatch_email_with_template",
+            "src.services.user_service.fast_mail.send_message",
             new_callable=AsyncMock,
         ) as mock_send:
             await user_service._send_verification_email(fake_user, "user")
 
             mock_send.assert_called_once()
             call_kwargs = mock_send.call_args[1]
-            assert call_kwargs["recipients"] == [fake_user.email]
+            assert call_kwargs["message"].recipients[0].email == fake_user.email
             assert call_kwargs["template_name"] == "mail_email_verify.html"
 
     @pytest.mark.asyncio
@@ -197,7 +197,7 @@ class TestSendVerificationEmail:
         fake_user.email = "e2e+signup@example.com"
 
         with patch(
-            "src.services.user_service.dispatch_email_with_template",
+            "src.services.user_service.fast_mail.send_message",
             new_callable=AsyncMock,
         ) as mock_send:
             await user_service._send_verification_email(fake_user, "user")
@@ -219,7 +219,7 @@ class TestCreatePendingUserAndSendVerificationEmail:
         mock_session.refresh.side_effect = lambda obj: None
 
         with patch(
-            "src.services.user_service.dispatch_email_with_template",
+            "src.services.user_service.fast_mail.send_message",
             new_callable=AsyncMock,
         ):
             user_data = {"email": "new@example.com", "password": "securepassword123"}
@@ -291,7 +291,7 @@ class TestVerifyUserEmail:
             patch(
                 "src.services.user_service.decode_url_safe_token",
                 return_value={"id": user_id},
-            ),
+            ) as mock_decode,
             patch.object(user_service, "_save_user", new_callable=AsyncMock) as mock_save,
         ):
             mock_session.get.return_value = fake_user
@@ -300,6 +300,7 @@ class TestVerifyUserEmail:
 
             assert fake_user.email_verified is True
             mock_save.assert_called_once_with(fake_user)
+            assert mock_decode.call_args.kwargs["expiry"].total_seconds() == 24 * 60 * 60
 
     @pytest.mark.asyncio
     async def test_verify_user_email_invalid_token(self, user_service, mock_session):

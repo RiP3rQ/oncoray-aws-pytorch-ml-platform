@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     MODEL_CLASS_NAMES: str = "NORMAL,PNEUMONIA"
     MODEL_STRICT_LOAD: bool = True
     MODEL_STARTUP_SMOKE_TEST: bool = True
+    OTEL_ENABLED: bool = True
+    OTEL_SERVICE_NAME: str = "model-runtime-host"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
+    OTEL_EXCLUDED_URLS: str = "/livez,/readyz,/startupz"
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_DIR / ".env",
@@ -81,6 +85,14 @@ class Settings(BaseSettings):
         if not parsed:
             raise ValueError("HF_USERNAME must not be empty.")
         return parsed
+
+    @field_validator("OTEL_EXPORTER_OTLP_ENDPOINT", mode="before")
+    @classmethod
+    def normalize_optional_endpoint(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        parsed = str(value).strip().rstrip("/")
+        return parsed or None
 
     @property
     def class_names(self) -> tuple[str, ...]:

@@ -35,14 +35,6 @@ locals {
     : "${local.name_prefix}-artifacts-${data.aws_caller_identity.current.account_id}"
   )
 
-  worker_queue_name = (
-    var.worker_queue_name != ""
-    ? var.worker_queue_name
-    : "${local.name_prefix}-worker"
-  )
-
-  worker_dlq_name = "${local.worker_queue_name}-dlq"
-
   api_repository_name           = "${var.project_name}/api"
   model_service_repository_name = "${var.project_name}/model-service"
   ssm_parameter_prefix          = "/${var.project_name}/${var.environment}"

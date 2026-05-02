@@ -17,20 +17,19 @@ from src.core.config import (
     DatabaseSettings,
     ModelServiceSettings,
     NotificationSettings,
+    ObservabilitySettings,
     S3Settings,
     SecuritySettings,
-    WorkerSettings,
     app_settings,
     db_settings,
-    extract_queue_name_from_url,
     model_service_settings,
     normalize_database_url,
     notification_settings,
+    observability_settings,
     s3_settings,
     security_settings,
     to_sync_database_url,
     validate_production_settings,
-    worker_settings,
 )
 
 # =============================================================================
@@ -49,6 +48,7 @@ class TestAppSettings:
         assert settings.APP_ENVIRONMENT == "development"
         assert settings.APP_LOG_LEVEL == "INFO"
         assert settings.ACCESS_TOKEN_TTL_MINUTES == 15
+        assert settings.EMAIL_VERIFICATION_TOKEN_TTL_HOURS == 24
         assert settings.APP_DOMAIN == "localhost:8000"
 
     def test_normalize_app_log_level(self):
@@ -213,45 +213,18 @@ class TestModelServiceSettings:
         }
 
 
-class TestWorkerSettings:
-    """Tests for worker and broker settings."""
+class TestObservabilitySettings:
+    """Tests for OpenTelemetry settings."""
 
-    def test_worker_defaults(self):
-        settings = WorkerSettings()
-        assert settings.AWS_REGION == "us-east-1"
-        assert settings.resolved_broker_url.startswith("redis://")
-        assert settings.resolved_queue_name == "celery"
-        assert settings.uses_sqs is False
+    def test_observability_defaults(self):
+        settings = ObservabilitySettings()
+        assert settings.OTEL_ENABLED is True
+        assert settings.OTEL_SERVICE_NAME == "core-api"
+        assert settings.OTEL_EXPORTER_OTLP_ENDPOINT is None
 
-    def test_worker_uses_sqs_when_queue_url_present(self):
-        settings = WorkerSettings(
-            SQS_QUEUE_URL="https://sqs.eu-central-1.amazonaws.com/123456789012/my-queue",
-        )
-        assert settings.resolved_broker_url == "sqs://"
-        assert settings.uses_sqs is True
-        assert settings.should_dispatch_via_worker is True
-        assert settings.resolved_queue_name == "my-queue"
-
-    def test_worker_uses_custom_queue_name_when_set(self):
-        settings = WorkerSettings(
-            SQS_QUEUE_URL="https://sqs.eu-central-1.amazonaws.com/123456789012/my-queue",
-            CELERY_QUEUE_NAME="mail-jobs",
-        )
-        assert settings.resolved_queue_name == "mail-jobs"
-
-
-class TestExtractQueueNameFromUrl:
-    """Tests for SQS queue-name parsing."""
-
-    def test_extract_queue_name(self):
-        queue_name = extract_queue_name_from_url(
-            "https://sqs.eu-central-1.amazonaws.com/123456789012/pytorch-worker",
-        )
-        assert queue_name == "pytorch-worker"
-
-    def test_extract_queue_name_raises_for_invalid_url(self):
-        with pytest.raises(ValueError):
-            extract_queue_name_from_url("https://sqs.eu-central-1.amazonaws.com/")
+    def test_otlp_endpoint_is_normalized(self):
+        settings = ObservabilitySettings(OTEL_EXPORTER_OTLP_ENDPOINT=" http://collector:4317/ ")
+        assert settings.OTEL_EXPORTER_OTLP_ENDPOINT == "http://collector:4317"
 
 
 # =============================================================================
@@ -339,9 +312,9 @@ class TestModuleInstances:
         """model_service_settings should be an instance of ModelServiceSettings."""
         assert isinstance(model_service_settings, ModelServiceSettings)
 
-    def test_worker_settings_instance(self):
-        """worker_settings should be an instance of WorkerSettings."""
-        assert isinstance(worker_settings, WorkerSettings)
+    def test_observability_settings_instance(self):
+        """observability_settings should be an instance of ObservabilitySettings."""
+        assert isinstance(observability_settings, ObservabilitySettings)
 
 
 class TestProductionValidation:
@@ -359,7 +332,6 @@ class TestProductionValidation:
         monkeypatch.setattr("src.core.config.s3_settings", S3Settings())
         monkeypatch.setattr("src.core.config.model_service_settings", ModelServiceSettings(_env_file=None))
         monkeypatch.setattr("src.core.config.notification_settings", NotificationSettings())
-        monkeypatch.setattr("src.core.config.worker_settings", WorkerSettings())
 
         with pytest.raises(RuntimeError, match="Invalid production configuration"):
             validate_production_settings()
@@ -403,6 +375,4 @@ class TestProductionValidation:
                 MAIL_SERVER="smtp.example.com",
             ),
         )
-        monkeypatch.setattr("src.core.config.worker_settings", WorkerSettings())
-
         validate_production_settings()

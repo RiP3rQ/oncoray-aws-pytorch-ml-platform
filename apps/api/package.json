@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "uv sync",
-    "check-types": "uv run mypy main.py src",
+    "check-types": "uv run mypy --explicit-package-bases src --exclude \"src/(tests|migrations)\"",
     "lint": "uv run ruff check main.py src && uv run ruff format --check main.py src",
     "lint:fix": "uv run ruff check --fix main.py src && uv run ruff format main.py src",
     "format": "uv run ruff format main.py src",
@@ -11,7 +11,6 @@
     "openapi:export": "uv run python scripts/export_openapi.py",
     "dev": "fastapi dev",
     "dev:e2e": "uv run uvicorn main:app --host 127.0.0.1 --port 8000",
-    "worker": "celery -A src.worker.tasks worker --loglevel=INFO",
     "test": "uv run pytest src/tests/ -v",
     "test:coverage": "uv run pytest src/tests/ -v --cov=src --cov-report=term-missing --cov-report=html",
     "migrate": "uv run alembic upgrade head",
