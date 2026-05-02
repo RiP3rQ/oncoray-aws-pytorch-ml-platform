@@ -55,8 +55,8 @@ export default function PredictionResult({
 
 function PredictionCard({ card }: { card: PredictionResultCardViewModel }) {
   return (
-    <div className="border-border bg-card rounded-[4px] border px-5 py-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="border-border bg-card min-w-0 overflow-hidden rounded-[4px] border px-5 py-4">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-xs leading-none font-bold tracking-[0.08em] uppercase">
           {card.label}
         </p>
@@ -71,13 +71,13 @@ function PredictionCard({ card }: { card: PredictionResultCardViewModel }) {
       </div>
 
       <div className="mt-4 grid gap-2">
-        <div className="border-border bg-card flex flex-col gap-3 rounded-[4px] border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="border-border bg-card grid min-w-0 gap-3 rounded-[4px] border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,13rem)] sm:items-center">
           <span className="text-muted-foreground text-xs leading-none font-bold tracking-[0.08em] uppercase">
             Predicted class
           </span>
           <strong
             className={cn(
-              "text-base font-bold",
+              "min-w-0 text-base font-bold [overflow-wrap:anywhere] sm:text-right",
               valueToneClass(card.valueTone),
             )}
           >
@@ -85,13 +85,13 @@ function PredictionCard({ card }: { card: PredictionResultCardViewModel }) {
           </strong>
         </div>
 
-        <div className="border-border bg-card flex flex-col gap-3 rounded-[4px] border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="border-border bg-card grid min-w-0 gap-3 rounded-[4px] border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,13rem)] sm:items-center">
           <span className="text-muted-foreground text-xs leading-none font-bold tracking-[0.08em] uppercase">
             Confidence
           </span>
-          <div className="flex w-full flex-col gap-2 sm:w-[16rem] sm:flex-row sm:items-center">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <div
-              className="bg-border h-1 w-full overflow-hidden rounded-[4px]"
+              className="bg-border h-1 min-w-0 overflow-hidden rounded-[4px]"
               role="progressbar"
               aria-label={`${card.label} prediction confidence`}
               aria-valuemin={0}
@@ -104,16 +104,13 @@ function PredictionCard({ card }: { card: PredictionResultCardViewModel }) {
                   confidenceBarClass(card.confidenceTone),
                 )}
                 style={{
-                  width:
-                    card.confidencePercent === null
-                      ? "0%"
-                      : `${card.confidencePercent}%`,
+                  width: `${confidenceBarWidth(card.confidencePercent)}%`,
                 }}
               />
             </div>
             <strong
               className={cn(
-                "text-base font-bold",
+                "shrink-0 text-right text-base font-bold tabular-nums",
                 confidenceTextClass(card.confidenceTone),
               )}
             >
@@ -124,6 +121,11 @@ function PredictionCard({ card }: { card: PredictionResultCardViewModel }) {
       </div>
     </div>
   );
+}
+
+function confidenceBarWidth(confidencePercent: number | null): number {
+  if (confidencePercent === null) return 0;
+  return Math.min(Math.max(confidencePercent, 0), 100);
 }
 
 function uploadToneClass(tone: PredictionUploadTone): string {

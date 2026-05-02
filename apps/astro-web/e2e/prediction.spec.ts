@@ -341,3 +341,78 @@ test("shows both model cards in compare mode", async ({ page }) => {
   await expect(page.getByText("ViTB16")).toBeVisible();
   await expect(page.getByText("timeout")).toBeVisible();
 });
+
+test("keeps Prediction result content inside its panel at responsive widths", async ({
+  page,
+}) => {
+  await page.route(predictionRoutePattern(), async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        request_id: "request-overflow",
+        mode: "both",
+        upload: {
+          status: "ok",
+          image_s3_key:
+            "uploads/patient-study-with-long-reference-name-2026-05-02.png",
+        },
+        results: {
+          effnetb0: {
+            status: "ok",
+            prediction: "Pneumonia",
+            confidence: 1.24,
+          },
+          vitb16: {
+            status: "error",
+            error: "runtime-timeout-after-model-warmup",
+          },
+        },
+      }),
+    });
+  });
+
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await openMockedDashboard(page);
+
+    await page.getByRole("tab", { name: "Compare both" }).click();
+    await page
+      .locator('input[type="file"]')
+      .setInputFiles(makeFile("scan-overflow.png", "image/png"));
+    await page.getByRole("button", { name: "Run prediction" }).click();
+
+    const resultPanel = page
+      .locator('[aria-live="polite"]')
+      .filter({ hasText: "Classification result" });
+
+    await expect(resultPanel).toBeVisible();
+    await expect(page.getByText("124.0%", { exact: true })).toBeVisible();
+
+    const overflow = await resultPanel.evaluate((panel) => {
+      const viewportOverflow =
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth;
+      const panelOverflow = panel.scrollWidth - panel.clientWidth;
+      const panelRect = panel.getBoundingClientRect();
+      const progressBars = Array.from(
+        panel.querySelectorAll('[role="progressbar"]'),
+      );
+
+      return {
+        viewportOverflow,
+        panelOverflow,
+        progressBarsInsidePanel: progressBars.every((progressBar) => {
+          const rect = progressBar.getBoundingClientRect();
+          return (
+            rect.left >= panelRect.left - 1 && rect.right <= panelRect.right + 1
+          );
+        }),
+      };
+    });
+
+    expect(overflow.viewportOverflow).toBeLessThanOrEqual(1);
+    expect(overflow.panelOverflow).toBeLessThanOrEqual(1);
+    expect(overflow.progressBarsInsidePanel).toBe(true);
+  }
+});
