@@ -58,14 +58,39 @@ output "frontend_distribution_domain_name" {
   value       = aws_cloudfront_distribution.frontend.domain_name
 }
 
+output "route53_zone_id" {
+  description = "Route53 hosted zone ID used for production DNS records."
+  value       = local.managed_zone_id != "" ? local.managed_zone_id : null
+}
+
+output "route53_name_servers" {
+  description = "Name servers for Terraform-managed Route53 hosted zone. Configure these at the external registrar."
+  value       = try(aws_route53_zone.primary[0].name_servers, [])
+}
+
 output "frontend_route53_record_names" {
   description = "Frontend Route53 aliases managed by Terraform."
   value       = keys(aws_route53_record.frontend_ipv4)
 }
 
+output "frontend_acm_certificate_arn" {
+  description = "Frontend ACM certificate ARN used by CloudFront."
+  value       = local.frontend_acm_certificate_arn != "" ? local.frontend_acm_certificate_arn : null
+}
+
 output "api_route53_record_name" {
   description = "API Route53 CNAME managed by Terraform once api_dns_name is supplied."
   value       = try(aws_route53_record.api[0].fqdn, null)
+}
+
+output "api_domain_name" {
+  description = "API domain name used for ALB ingress and Route53."
+  value       = local.api_domain_name != "" ? local.api_domain_name : null
+}
+
+output "api_acm_certificate_arn" {
+  description = "API ACM certificate ARN for the ALB ingress when Terraform manages certificates."
+  value       = local.api_acm_certificate_arn != "" ? local.api_acm_certificate_arn : null
 }
 
 output "frontend_waf_acl_arn" {
@@ -99,6 +124,12 @@ output "postgres" {
     port     = aws_db_instance.postgres.port
     db_name  = aws_db_instance.postgres.db_name
   }
+}
+
+output "postgres_database_url" {
+  description = "Async PostgreSQL database URL for CORE_API_DATABASE_URL. Sensitive because it includes the generated password."
+  value       = "postgresql+asyncpg://${var.db_username}:${local.postgres_password}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${aws_db_instance.postgres.db_name}"
+  sensitive   = true
 }
 
 output "redis" {

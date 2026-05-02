@@ -329,6 +329,8 @@ Test-ContentRule `
         param($content)
         return (
             $content -match 'Assert-NoPlaceholder' -and
+            $content -match 'DnsBootstrap' -and
+            $content -match 'FullDeploy' -and
             $content -match 'terraform validate' -and
             $content -match 'helm template'
         )

@@ -1,3 +1,11 @@
+resource "random_password" "postgres" {
+  count = var.db_password == "" ? 1 : 0
+
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
 resource "aws_security_group" "postgres" {
   name        = "${local.postgres_identifier}-sg"
   description = "Allow PostgreSQL access from within the production VPC"
@@ -38,7 +46,7 @@ resource "aws_db_instance" "postgres" {
   publicly_accessible          = false
   db_name                      = var.db_name
   username                     = var.db_username
-  password                     = var.db_password
+  password                     = local.postgres_password
   db_subnet_group_name         = aws_db_subnet_group.postgres.name
   vpc_security_group_ids       = [aws_security_group.postgres.id]
   backup_retention_period      = var.db_backup_retention_period

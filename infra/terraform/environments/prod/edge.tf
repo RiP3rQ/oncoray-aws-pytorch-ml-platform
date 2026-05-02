@@ -210,9 +210,9 @@ resource "aws_wafv2_web_acl" "api" {
 }
 
 resource "aws_route53_record" "frontend_ipv4" {
-  for_each = local.route53_frontend_records_enabled ? toset(var.frontend_aliases) : toset([])
+  for_each = local.route53_frontend_records_enabled ? toset(local.frontend_distribution_aliases) : toset([])
 
-  zone_id = var.route53_zone_id
+  zone_id = local.managed_zone_id
   name    = each.value
   type    = "A"
 
@@ -224,9 +224,9 @@ resource "aws_route53_record" "frontend_ipv4" {
 }
 
 resource "aws_route53_record" "frontend_ipv6" {
-  for_each = local.route53_frontend_records_enabled ? toset(var.frontend_aliases) : toset([])
+  for_each = local.route53_frontend_records_enabled ? toset(local.frontend_distribution_aliases) : toset([])
 
-  zone_id = var.route53_zone_id
+  zone_id = local.managed_zone_id
   name    = each.value
   type    = "AAAA"
 
@@ -240,8 +240,8 @@ resource "aws_route53_record" "frontend_ipv6" {
 resource "aws_route53_record" "api" {
   count = local.route53_api_record_enabled ? 1 : 0
 
-  zone_id = var.route53_zone_id
-  name    = var.api_domain_name
+  zone_id = local.managed_zone_id
+  name    = local.api_domain_name
   type    = "CNAME"
   ttl     = 60
   records = [var.api_dns_name]

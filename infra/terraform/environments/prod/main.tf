@@ -50,7 +50,7 @@ module "eks" {
     vpc-cni                = {}
   }
 
-  eks_managed_node_groups = var.use_localstack ? tomap({}) : tomap({
+  eks_managed_node_groups = var.use_localstack ? {} : {
     general = {
       ami_type       = "AL2_x86_64"
       instance_types = var.general_node_instance_types
@@ -62,6 +62,8 @@ module "eks" {
       labels = {
         workload = "general"
       }
+
+      taints = {}
     }
 
     model_service = {
@@ -84,7 +86,7 @@ module "eks" {
         }
       }
     }
-  })
+  }
 }
 
 resource "aws_ecr_repository" "api" {
@@ -279,7 +281,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   comment             = "Static frontend for ${local.name_prefix}"
   default_root_object = "index.html"
-  aliases             = var.frontend_aliases
+  aliases             = local.frontend_distribution_aliases
   http_version        = "http2and3"
   price_class         = "PriceClass_100"
   web_acl_id          = var.enable_frontend_waf ? aws_wafv2_web_acl.frontend[0].arn : null
@@ -329,10 +331,10 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   viewer_certificate {
-    acm_certificate_arn            = var.frontend_acm_certificate_arn != "" ? var.frontend_acm_certificate_arn : null
-    ssl_support_method             = var.frontend_acm_certificate_arn != "" ? "sni-only" : null
-    minimum_protocol_version       = var.frontend_acm_certificate_arn != "" ? "TLSv1.2_2021" : null
-    cloudfront_default_certificate = var.frontend_acm_certificate_arn == ""
+    acm_certificate_arn            = local.frontend_acm_certificate_arn != "" ? local.frontend_acm_certificate_arn : null
+    ssl_support_method             = local.frontend_acm_certificate_arn != "" ? "sni-only" : null
+    minimum_protocol_version       = local.frontend_acm_certificate_arn != "" ? "TLSv1.2_2021" : null
+    cloudfront_default_certificate = local.frontend_acm_certificate_arn == ""
   }
 }
 
