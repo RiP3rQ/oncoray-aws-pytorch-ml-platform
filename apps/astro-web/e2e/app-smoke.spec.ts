@@ -5,6 +5,7 @@ import {
   createVerifiedTestUser,
   e2eUserPassword,
   readTokenState,
+  requireRealApi,
   waitForAstroHydration,
 } from "./helpers";
 
@@ -25,6 +26,8 @@ test("logs in against real API, loads models, and logs out", async ({
   page,
   request,
 }) => {
+  await requireRealApi(request);
+
   const e2eUserEmail = createUniqueE2EEmail();
 
   await createVerifiedTestUser(request, e2eUserEmail);

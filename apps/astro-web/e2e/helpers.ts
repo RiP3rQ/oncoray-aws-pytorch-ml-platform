@@ -1,5 +1,6 @@
 import {
   expect,
+  test,
   type APIRequestContext,
   type Locator,
   type Page,
@@ -128,6 +129,14 @@ export async function createVerifiedTestUser(
   });
 
   expect(response.ok()).toBeTruthy();
+}
+
+export async function requireRealApi(request: APIRequestContext) {
+  try {
+    await request.get(apiUrl("/"), { timeout: 5_000 });
+  } catch {
+    test.skip(true, `Real API unavailable at ${apiBaseUrl}.`);
+  }
 }
 
 export async function upsertE2ETestUser(

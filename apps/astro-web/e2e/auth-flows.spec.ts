@@ -7,6 +7,7 @@ import {
   gotoLogin,
   gotoRegister,
   mockApiText,
+  requireRealApi,
   routeSignupToE2ETestUser,
   toastByText,
 } from "./helpers";
@@ -93,6 +94,8 @@ test("registers and redirects to login without sending verification email", asyn
   page,
   request,
 }) => {
+  await requireRealApi(request);
+
   const e2eUserEmail = createUniqueE2EEmail();
 
   try {

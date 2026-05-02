@@ -337,9 +337,15 @@ test("shows both model cards in compare mode", async ({ page }) => {
     .setInputFiles(makeFile("scan-compare.png", "image/png"));
   await page.getByRole("button", { name: "Run prediction" }).click();
 
-  await expect(page.getByText("EffNetB0")).toBeVisible();
-  await expect(page.getByText("ViTB16")).toBeVisible();
-  await expect(page.getByText("timeout")).toBeVisible();
+  const resultPanel = page
+    .locator('[aria-live="polite"]')
+    .filter({ hasText: "Classification result" });
+
+  await expect(
+    resultPanel.getByText("EffNetB0", { exact: true }),
+  ).toBeVisible();
+  await expect(resultPanel.getByText("ViTB16", { exact: true })).toBeVisible();
+  await expect(resultPanel.getByText("timeout")).toBeVisible();
 });
 
 test("keeps Prediction result content inside its panel at responsive widths", async ({
