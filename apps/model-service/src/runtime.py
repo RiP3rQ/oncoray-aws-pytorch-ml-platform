@@ -1,8 +1,13 @@
+# ruff: noqa: E402, I001
 from __future__ import annotations
 
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Protocol
+
+from src.torch_environment import configure_torch_cache_dir
+
+configure_torch_cache_dir()
 
 import torch
 import torch.nn as nn

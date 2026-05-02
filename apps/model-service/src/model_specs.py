@@ -1,8 +1,13 @@
+# ruff: noqa: E402, I001
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
+
+from src.torch_environment import configure_torch_cache_dir
+
+configure_torch_cache_dir()
 
 import torch.nn as nn
 import torchvision

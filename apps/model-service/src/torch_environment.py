@@ -1,10 +1,26 @@
+# ruff: noqa: E402, I001
 from __future__ import annotations
 
 import logging
-
-import torch
+import os
+import tempfile
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def configure_torch_cache_dir() -> None:
+    """Set Torch compiler cache path without asking Windows for current user."""
+    if os.environ.get("TORCHINDUCTOR_CACHE_DIR"):
+        return
+
+    cache_root = Path(os.environ.get("LOCALAPPDATA") or tempfile.gettempdir())
+    os.environ["TORCHINDUCTOR_CACHE_DIR"] = str(cache_root / "pytorch-model" / "torchinductor")
+
+
+configure_torch_cache_dir()
+
+import torch
 
 
 def configure_torch_threads(num_threads: int) -> None:

@@ -1,3 +1,4 @@
+# ruff: noqa: E402, I001
 from __future__ import annotations
 
 import hashlib
@@ -6,6 +7,10 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
+
+from src.torch_environment import configure_torch_cache_dir
+
+configure_torch_cache_dir()
 
 import torch
 
