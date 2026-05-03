@@ -44,6 +44,11 @@ if (-not $helmCommand) {
     throw "helm not found. Install helm before using install-cluster-addons.ps1."
 }
 
+$kubectlCommand = Resolve-ToolPath -Name "kubectl"
+if (-not $kubectlCommand) {
+    throw "kubectl not found. Install kubectl before using install-cluster-addons.ps1."
+}
+
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $platformChartPath = Join-Path $repoRoot "infra/helm/charts/platform-addons"
 $resolvedPlatformValuesFile = if ([System.IO.Path]::IsPathRooted($PlatformValuesFile)) {
@@ -105,7 +110,7 @@ $loadBalancerArgs = @(
     "--set",
     "serviceAccount.name=aws-load-balancer-controller",
     "--set-string",
-    "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=$LoadBalancerControllerRoleArn"
+    "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=$LoadBalancerControllerRoleArn"
 ) + $commonDryRunArgs
 
 $externalSecretsArgs = @(
@@ -125,7 +130,7 @@ $externalSecretsArgs = @(
     "--set",
     "serviceAccount.name=external-secrets",
     "--set-string",
-    "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=$ExternalSecretsRoleArn"
+    "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=$ExternalSecretsRoleArn"
 ) + $commonDryRunArgs
 
 $platformArgs = @(
@@ -147,14 +152,38 @@ $platformArgs = @(
     "--set",
     "externalSecrets.serviceAccount.namespace=external-secrets",
     "--set-string",
-    "fluentBit.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=$FluentBitRoleArn"
+    "fluentBit.serviceAccount.annotations.eks\.amazonaws\.com/role-arn=$FluentBitRoleArn"
 ) + $commonDryRunArgs
 
 Write-Host "Installing AWS Load Balancer Controller"
 Invoke-External -FilePath $helmCommand -Arguments $loadBalancerArgs
+Invoke-External -FilePath $kubectlCommand -Arguments @(
+    "rollout",
+    "status",
+    "deployment/aws-load-balancer-controller",
+    "--namespace",
+    "kube-system",
+    "--timeout=180s"
+)
 
 Write-Host "Installing External Secrets Operator"
 Invoke-External -FilePath $helmCommand -Arguments $externalSecretsArgs
+Invoke-External -FilePath $kubectlCommand -Arguments @(
+    "wait",
+    "--for=condition=Established",
+    "crd/clustersecretstores.external-secrets.io",
+    "crd/externalsecrets.external-secrets.io",
+    "crd/secretstores.external-secrets.io",
+    "--timeout=180s"
+)
+Invoke-External -FilePath $kubectlCommand -Arguments @(
+    "rollout",
+    "status",
+    "deployment/external-secrets",
+    "--namespace",
+    "external-secrets",
+    "--timeout=180s"
+)
 
 Write-Host "Installing platform add-on config and Fluent Bit"
 Invoke-External -FilePath $helmCommand -Arguments $platformArgs
