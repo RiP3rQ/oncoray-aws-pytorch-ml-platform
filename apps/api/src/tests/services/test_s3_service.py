@@ -89,6 +89,32 @@ class TestUploadChestXray:
         client.upload_fileobj.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_verify_upload_access_puts_and_heads_verification_object(self):
+        """verify_upload_access should exercise production S3 write and read permissions."""
+        client = Mock()
+        service = S3Service(
+            bucket_name="prod-bucket",
+            region_name="eu-central-1",
+            upload_mode="aws",
+            s3_client=client,
+        )
+
+        result = await service.verify_upload_access()
+
+        assert result.startswith("predictions/verification/")
+        assert result.endswith(".txt")
+        client.put_object.assert_called_once()
+        client.head_object.assert_called_once_with(Bucket="prod-bucket", Key=result)
+
+    @pytest.mark.asyncio
+    async def test_verify_upload_access_requires_aws_mode(self):
+        """verify_upload_access should fail before deployment when mock mode is still active."""
+        service = S3Service(upload_mode="mock")
+
+        with pytest.raises(RuntimeError, match="S3_UPLOAD_MODE='aws'"):
+            await service.verify_upload_access()
+
+    @pytest.mark.asyncio
     async def test_persist_chest_xray_upload_returns_ok_status(self, chest_xray_upload):
         """persist_chest_xray_upload should return public upload status."""
         service = S3Service()

@@ -37,6 +37,7 @@ RUN apt-get update \
 COPY --from=builder /opt/venv /opt/venv
 COPY alembic.ini main.py ./
 COPY src ./src
+COPY scripts ./scripts
 
 EXPOSE 8000
 

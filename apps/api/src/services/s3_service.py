@@ -75,6 +75,29 @@ class S3Service:
 
         return object_key
 
+    async def verify_upload_access(self) -> str:
+        """
+        Verify production upload access by writing and reading one tiny object.
+
+        The object is intentionally retained. The production API role does not
+        need delete permission for normal Chest X-ray Upload persistence.
+        """
+        if self.upload_mode != "aws":
+            raise RuntimeError("S3 upload verification requires S3_UPLOAD_MODE='aws'.")
+
+        assert self.s3_client is not None
+        object_key = f"predictions/verification/{uuid.uuid4()}.txt"
+        self.s3_client.put_object(
+            Bucket=self.bucket_name,
+            Key=object_key,
+            Body=b"pytorch-model-s3-upload-verification\n",
+            ContentType="text/plain",
+        )
+        self.s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+
+        logger.info("Verified S3 upload access with s3://%s/%s", self.bucket_name, object_key)
+        return object_key
+
     async def persist_chest_xray_upload(self, upload: ChestXrayUpload) -> PredictionUploadStatus:
         """Persist a Chest X-ray Upload and return best-effort public status."""
         try:
