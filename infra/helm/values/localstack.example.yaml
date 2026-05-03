@@ -31,5 +31,3 @@ workloads:
 
 migrations:
   enabled: false
-
-modelRuntimes: {}

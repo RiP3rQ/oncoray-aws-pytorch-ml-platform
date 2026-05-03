@@ -17,7 +17,7 @@ output "role_arns" {
       for name, role in aws_iam_role.app : name => role.arn
     },
     {
-      model_service = aws_iam_role.model_runtime.arn
+      model_runtime_host = aws_iam_role.model_runtime.arn
     },
   )
 }

@@ -321,10 +321,11 @@ Test-ContentRule `
             $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}MODEL_SLUGS:\s*effnetb0,vitb16\s*$' -and
             $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}EFFNETB0_MODEL_ARTIFACT_URL:' -and
             $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}VITB16_MODEL_ARTIFACT_URL:' -and
-            $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$'
+            $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$' -and
+            $content -notmatch '(?m)^modelRuntime(Default|s)'
         )
     } `
-    -FailureMessage "Model Runtime values must use one model-runtime-host workload."
+    -FailureMessage "Model Runtime values must use only one model-runtime-host workload."
 
 Test-ContentRule `
     -Label "Prod example model-service URL" `
@@ -346,7 +347,8 @@ Test-ContentRule `
             $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}EFFNETB0_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/effnetb0/resolve/replace-me-revision/effnetb0/effnetb0_epoch_008\.pth\s*$' -and
             $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}VITB16_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/vit_b_16/resolve/replace-me-revision/vit_b_16/vit_b_16_epoch_018\.pth\s*$' -and
             $content -match '(?ms)^migrations:\s*.*?^\s{2}enabled:\s*true\s*$' -and
-            $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$'
+            $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$' -and
+            $content -notmatch '(?m)^modelRuntimes:'
         )
     } `
     -FailureMessage "Prod Model Runtime overrides must use one multi-model runtime host config and migrations."

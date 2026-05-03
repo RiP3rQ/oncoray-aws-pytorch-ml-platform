@@ -45,7 +45,7 @@ run "plans_expected_workload_identity_resources" {
   }
 
   assert {
-    condition     = contains(keys(output.role_arns), "api") && contains(keys(output.role_arns), "model_service")
+    condition     = contains(keys(output.role_arns), "api") && contains(keys(output.role_arns), "model_runtime_host")
     error_message = "role_arns output must match workload keys."
   }
 }

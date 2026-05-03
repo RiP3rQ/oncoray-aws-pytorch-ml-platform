@@ -144,10 +144,9 @@ output "app_workload_role_arns" {
 output "kubernetes_service_accounts" {
   description = "Stable Kubernetes service account names expected by Helm values and IRSA."
   value = {
-    namespace      = var.kubernetes_namespace
-    api            = var.api_service_account_name
-    model_service  = var.model_service_service_account_name
-    model_runtimes = var.model_runtime_service_account_names
+    namespace          = var.kubernetes_namespace
+    api                = var.api_service_account_name
+    model_runtime_host = var.model_runtime_service_account_names["host"]
   }
 }
 
