@@ -358,10 +358,12 @@ Test-ContentRule `
         param($content)
         return (
             $content -match 'function Test-ProductionValuesFile' -and
-            $content -match 'Production Helm values file contains unresolved placeholder'
+            $content -match 'Production Helm values file contains unresolved placeholder' -and
+            $content -match '--wait-for-jobs' -and
+            $content -match 'migrations\.enabled=true'
         )
     } `
-    -FailureMessage "deploy-prod.ps1 must reject unresolved placeholders in prod.yaml."
+    -FailureMessage "deploy-prod.ps1 must reject unresolved placeholders and wait for enabled migration jobs."
 
 Test-ContentRule `
     -Label "Production preflight script" `
@@ -387,7 +389,7 @@ Test-ContentRule `
             $content -match 'get-caller-identity' -and
             $content -match 'put-parameter' -and
             $content -match 'Assert-NoUnsafeValue' -and
-            $content -match '/resolve/main/'
+            $content -match 'REPLACE_ME'
         )
     } `
     -FailureMessage "put-ssm-parameters.ps1 must verify AWS identity and reject unsafe SSM values before upload."
