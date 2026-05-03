@@ -9,6 +9,7 @@
     "dev": "astro dev",
     "dev:e2e": "astro dev --host 127.0.0.1 --port 4321",
     "build": "astro build",
+    "start": "astro preview",
     "preview": "astro preview",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

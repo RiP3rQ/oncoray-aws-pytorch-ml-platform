@@ -256,6 +256,35 @@ resource "aws_cloudfront_response_headers_policy" "frontend_security_headers" {
   }
 }
 
+resource "aws_cloudfront_function" "frontend_static_route_rewrite" {
+  name    = "${local.name_prefix}-frontend-static-route-rewrite"
+  runtime = "cloudfront-js-2.0"
+  comment = "Rewrite Astro static routes to S3 index objects"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+      var request = event.request;
+      var uri = request.uri;
+
+      if (uri === "/") {
+        request.uri = "/index.html";
+        return request;
+      }
+
+      if (uri.endsWith("/")) {
+        request.uri = uri + "index.html";
+        return request;
+      }
+
+      if (!uri.includes(".")) {
+        request.uri = uri + "/index.html";
+      }
+
+      return request;
+    }
+  EOT
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   comment             = "Static frontend for ${local.name_prefix}"
@@ -279,6 +308,11 @@ resource "aws_cloudfront_distribution" "frontend" {
     response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend_security_headers.id
 
     viewer_protocol_policy = "redirect-to-https"
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.frontend_static_route_rewrite.arn
+    }
 
     forwarded_values {
       query_string = false
