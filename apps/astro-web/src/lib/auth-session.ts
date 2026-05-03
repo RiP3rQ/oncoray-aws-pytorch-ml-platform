@@ -62,6 +62,7 @@ export function setStoredToken(
 export function removeStoredToken(storage: TokenStoragePair): void {
   storage.local.removeItem(TOKEN_KEY);
   storage.session.removeItem(TOKEN_KEY);
+  removeTokenCookie();
 }
 
 function getBrowserTokenStorage(): TokenStoragePair {
@@ -69,4 +70,12 @@ function getBrowserTokenStorage(): TokenStoragePair {
     local: localStorage,
     session: sessionStorage,
   };
+}
+
+function removeTokenCookie(): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.cookie = `${TOKEN_KEY}=; Max-Age=0; path=/; SameSite=Lax`;
 }

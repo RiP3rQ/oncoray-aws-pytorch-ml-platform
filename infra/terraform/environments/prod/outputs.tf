@@ -132,15 +132,6 @@ output "postgres_database_url" {
   sensitive   = true
 }
 
-output "redis" {
-  description = "Production ElastiCache Redis endpoints."
-  value = {
-    primary_endpoint = aws_elasticache_replication_group.redis.primary_endpoint_address
-    reader_endpoint  = aws_elasticache_replication_group.redis.reader_endpoint_address
-    port             = aws_elasticache_replication_group.redis.port
-  }
-}
-
 output "cluster_addon_role_arns" {
   description = "IRSA roles for cluster add-ons."
   value = var.use_localstack ? {} : {
@@ -171,9 +162,6 @@ output "expected_parameter_store_paths" {
     api = [
       "${local.ssm_parameter_prefix}/api/SECRET_KEY",
       "${local.ssm_parameter_prefix}/api/CORE_API_DATABASE_URL",
-      "${local.ssm_parameter_prefix}/api/REDIS_HOST",
-      "${local.ssm_parameter_prefix}/api/REDIS_PORT",
-      "${local.ssm_parameter_prefix}/api/REDIS_SSL",
       "${local.ssm_parameter_prefix}/api/AWS_REGION",
       "${local.ssm_parameter_prefix}/api/MAIL_USERNAME",
       "${local.ssm_parameter_prefix}/api/MAIL_PASSWORD",

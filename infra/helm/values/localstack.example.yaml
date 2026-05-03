@@ -20,9 +20,6 @@ workloads:
       S3_UPLOAD_MODE: aws
       AWS_REGION: eu-central-1
       S3_BUCKET_NAME: pytorch-model-local-artifacts
-      REDIS_HOST: localhost.localstack.cloud
-      REDIS_PORT: "4514"
-      REDIS_SSL: "false"
     envFromSecrets: []
     ingress:
       enabled: false

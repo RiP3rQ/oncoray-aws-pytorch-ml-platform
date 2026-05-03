@@ -175,10 +175,6 @@ export function signup(email: string, password: string): Promise<void> {
   });
 }
 
-export function logout(): Promise<void> {
-  return request("/user/logout", { method: "GET" });
-}
-
 export function getMe(): Promise<{
   id: string;
   email: string;

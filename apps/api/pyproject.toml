@@ -21,7 +21,6 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "psycopg2>=2.9.11",
     "pyjwt>=2.12.1",
-    "redis>=7.4.0",
     "scalar-fastapi>=1.8.1",
     "sqlmodel>=0.0.38",
 ]

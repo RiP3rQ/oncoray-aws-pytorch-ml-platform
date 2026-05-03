@@ -93,7 +93,6 @@ class TestDatabaseSettings:
         assert settings.POSTGRES_PORT == 5433
         assert settings.POSTGRES_USER == "postgres"
         assert settings.POSTGRES_DB == "pytorch-model"
-        assert settings.REDIS_SSL is False
 
     def test_postgres_url_with_override(self):
         """POSTGRES_URL should use CORE_API_DATABASE_URL when set."""
@@ -115,18 +114,6 @@ class TestDatabaseSettings:
         sync_url = settings.SYNC_POSTGRES_URL
         assert "postgresql://" in sync_url
         assert "asyncpg" not in sync_url
-
-    def test_redis_url(self):
-        """REDIS_URL should construct Redis URL correctly."""
-        settings = DatabaseSettings()
-        url = settings.REDIS_URL(0)
-        assert url.startswith("redis://")
-        assert ":6379/0" in url
-
-    def test_redis_url_uses_tls_scheme_when_enabled(self):
-        """REDIS_URL should use rediss:// when TLS is enabled."""
-        settings = DatabaseSettings(REDIS_SSL=True)
-        assert settings.REDIS_URL(0).startswith("rediss://")
 
 
 # =============================================================================
@@ -353,8 +340,6 @@ class TestProductionValidation:
             "src.core.config.db_settings",
             DatabaseSettings(
                 CORE_API_DATABASE_URL="postgresql+asyncpg://user:pass@db.example.com:5432/app",
-                REDIS_HOST="redis.example.com",
-                REDIS_SSL=True,
             ),
         )
         monkeypatch.setattr("src.core.config.s3_settings", S3Settings(S3_UPLOAD_MODE="aws", S3_BUCKET_NAME="bucket"))
@@ -394,8 +379,6 @@ class TestProductionValidation:
             "src.core.config.db_settings",
             DatabaseSettings(
                 CORE_API_DATABASE_URL="postgresql+asyncpg://user:pass@db.example.com:5432/app",
-                REDIS_HOST="redis.example.com",
-                REDIS_SSL=True,
             ),
         )
         monkeypatch.setattr(

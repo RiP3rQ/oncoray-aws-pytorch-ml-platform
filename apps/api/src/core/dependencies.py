@@ -9,7 +9,6 @@ from src.core.config import model_service_settings, s3_settings
 from src.core.errors import ClientNotAuthorized, InvalidToken
 from src.core.security import oauth2_scheme_user
 from src.database.postgres import User
-from src.database.redis import is_jti_blacklisted
 from src.database.session import get_session
 from src.services.model_catalog import ModelCatalog
 from src.services.model_runtime_pool import ModelRuntimeAdapter, ModelRuntimePool
@@ -29,7 +28,7 @@ async def _get_access_token(token: str) -> dict[str, Any]:
     data = decode_access_token(token)
 
     # Validate the token
-    if data is None or await is_jti_blacklisted(data["jti"]):
+    if data is None:
         raise InvalidToken()
 
     return data

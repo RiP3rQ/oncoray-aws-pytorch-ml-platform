@@ -256,7 +256,6 @@ export async function mockAuthenticatedDashboard(
 ) {
   await mockApiJson(page, "/user/me", options.user ?? mockUser);
   await mockApiJson(page, "/model/", options.models ?? mockModels);
-  await mockApiNoContent(page, "/user/logout");
 }
 
 export function toastByText(page: Page, message: string): Locator {

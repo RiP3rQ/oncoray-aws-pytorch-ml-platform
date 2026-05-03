@@ -3,7 +3,6 @@ import {
   createUniqueE2EEmail,
   e2eUserPassword,
   mockApiJson,
-  mockApiNoContent,
   mockModels,
   readTokenState,
   waitForAstroHydration,
@@ -36,7 +35,6 @@ test("logs in, loads models, and logs out", async ({ page }) => {
     updated_at: "2026-04-06T18:00:00Z",
   });
   await mockApiJson(page, "/model/", mockModels);
-  await mockApiNoContent(page, "/user/logout");
 
   await page.goto("/login");
   await waitForAstroHydration(page);

@@ -7,7 +7,6 @@ from src.api_types.enums import APITag
 from src.core.dependencies import UserDep, UserServiceDep, get_user_access_token
 from src.core.logger import get_logger
 from src.core.security import TokenData
-from src.database.redis import add_jti_to_blacklist
 from src.schemas.user_schemas import UserCreate, UserRead
 
 router = APIRouter(prefix="/user", tags=[APITag.USER])
@@ -61,10 +60,11 @@ async def verify_user_email(token: str, service: UserServiceDep) -> dict[str, st
 ### Logout a user
 @router.get("/logout")
 async def logout_user(
-    token_data: Annotated[dict[str, Any], Depends(get_user_access_token)],
+    _token_data: Annotated[dict[str, Any], Depends(get_user_access_token)],
 ) -> dict[str, str]:
     """
-    Logout a user & add the JTI to the blacklist.
+    Confirm the current access token is valid.
+
+    Session cleanup is client-owned; the frontend removes stored JWTs.
     """
-    await add_jti_to_blacklist(token_data["jti"])
     return {"detail": "Successfully logged out"}

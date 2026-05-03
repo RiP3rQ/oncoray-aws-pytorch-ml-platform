@@ -1,10 +1,7 @@
-import asyncio
-
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.redis import ping_redis
 from src.database.session import get_session, ping_database
 
 router = APIRouter(include_in_schema=False)
@@ -15,14 +12,12 @@ _session = Depends(get_session)
 def _probe_response(
     *,
     db_ready: bool | None = None,
-    redis_ready: bool | None = None,
 ) -> dict[str, object]:
     """
     Build a consistent payload for Kubernetes probes.
     """
     checks = {
         "database": db_ready,
-        "redis": redis_ready,
     }
     payload: dict[str, object] = {
         "service": "core-api",
@@ -39,12 +34,9 @@ async def _dependency_probe(session: AsyncSession) -> JSONResponse | dict[str, o
     """
     Run shared dependency checks used by readiness, startup, and health probes.
     """
-    db_ready, redis_ready = await asyncio.gather(
-        ping_database(session),
-        ping_redis(),
-    )
-    payload = _probe_response(db_ready=db_ready, redis_ready=redis_ready)
-    if not (db_ready and redis_ready):
+    db_ready = await ping_database(session)
+    payload = _probe_response(db_ready=db_ready)
+    if not db_ready:
         return JSONResponse(status_code=503, content=payload)
     return payload
 

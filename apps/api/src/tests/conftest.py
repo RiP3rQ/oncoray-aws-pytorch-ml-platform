@@ -247,18 +247,9 @@ def app(mock_session, mock_user_service, mock_model_catalog, mock_prediction_orc
     # Must patch at the import location (where the name is used), not the
     # definition location, because Python binds imports to local names.
     patches = [
-        patch("src.routers.kubernetes_router.ping_redis", new=AsyncMock(return_value=True)),
         patch(
             "src.routers.kubernetes_router.ping_database",
             new=AsyncMock(return_value=True),
-        ),
-        patch(
-            "src.core.dependencies.is_jti_blacklisted",
-            new=AsyncMock(return_value=False),
-        ),
-        patch(
-            "src.routers.user_router.add_jti_to_blacklist",
-            new=AsyncMock(return_value=None),
         ),
     ]
 

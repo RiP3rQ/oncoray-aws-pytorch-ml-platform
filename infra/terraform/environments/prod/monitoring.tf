@@ -1,7 +1,4 @@
 locals {
-  redis_cache_cluster_ids = [
-    for idx in range(var.redis_num_cache_clusters) : format("%s-%03d", local.redis_replication_group_id, idx + 1)
-  ]
   cloudwatch_alarm_actions = length(var.alarm_email_addresses) > 0 ? [aws_sns_topic.cloudwatch_alarms[0].arn] : []
   cloudwatch_ok_actions    = local.cloudwatch_alarm_actions
 }
@@ -74,48 +71,6 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
 
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.postgres.identifier
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
-  for_each = toset(local.redis_cache_cluster_ids)
-
-  alarm_name          = "${each.value}-cpu"
-  alarm_description   = "ElastiCache CPU utilization is above the production threshold."
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 3
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/ElastiCache"
-  period              = 300
-  statistic           = "Average"
-  threshold           = 75
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = local.cloudwatch_alarm_actions
-  ok_actions          = local.cloudwatch_ok_actions
-
-  dimensions = {
-    CacheClusterId = each.value
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "redis_memory" {
-  for_each = toset(local.redis_cache_cluster_ids)
-
-  alarm_name          = "${each.value}-freeable-memory"
-  alarm_description   = "ElastiCache freeable memory is below the production threshold."
-  comparison_operator = "LessThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "FreeableMemory"
-  namespace           = "AWS/ElastiCache"
-  period              = 300
-  statistic           = "Minimum"
-  threshold           = 100000000
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = local.cloudwatch_alarm_actions
-  ok_actions          = local.cloudwatch_ok_actions
-
-  dimensions = {
-    CacheClusterId = each.value
   }
 }
 

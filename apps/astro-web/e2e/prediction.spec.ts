@@ -4,7 +4,6 @@ import {
   gotoAuthenticatedDashboard,
   makeFile,
   mockApiJson,
-  mockApiNoContent,
   mockAuthenticatedDashboard,
   mockModels,
   mockUser,
@@ -207,7 +206,6 @@ test("clears token and redirects to login when prediction returns 401", async ({
 }) => {
   await mockApiJson(page, "/user/me", mockUser);
   await mockApiJson(page, "/model/", mockModels);
-  await mockApiNoContent(page, "/user/logout");
   await page.route(predictionRoutePattern(), async (route) => {
     await route.fulfill({
       status: 401,

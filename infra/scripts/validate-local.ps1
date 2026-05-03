@@ -262,9 +262,6 @@ Test-ContentRule `
             $parameters = $content | ConvertFrom-Json
             $names = @($parameters | ForEach-Object { $_.name })
             return (
-                $names -contains "/pytorch-model/prod/api/REDIS_HOST" -and
-                $names -contains "/pytorch-model/prod/api/REDIS_PORT" -and
-                $names -contains "/pytorch-model/prod/api/REDIS_SSL" -and
                 $names -contains "/pytorch-model/prod/api/AWS_REGION" -and
                 $names -contains "/pytorch-model/prod/api/S3_BUCKET_NAME" -and
                 $names -contains "/pytorch-model/prod/model-service/EFFNETB0_MODEL_ARTIFACT_SHA256" -and
@@ -275,7 +272,7 @@ Test-ContentRule `
             return $false
         }
     } `
-    -FailureMessage "SSM example must include Redis, AWS region, and S3 bucket API parameters."
+    -FailureMessage "SSM example must include AWS region and S3 bucket API parameters."
 
 Test-ContentRule `
     -Label "Terraform SSM path output completeness" `

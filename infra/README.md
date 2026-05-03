@@ -34,7 +34,7 @@ Goal: keep deploy understandable. Terraform creates AWS resources. Helm deploys 
 
 No one-command full production release script is supported until first live AWS deployment proves the flow.
 
-LocalStack verification is supported with `infra/terraform/environments/prod/localstack.tfvars.example` and `infra/helm/values/localstack.example.yaml`. ElastiCache may show read-back drift in LocalStack after apply; keep real AWS drift detection intact.
+LocalStack verification is supported with `infra/terraform/environments/prod/localstack.tfvars.example` and `infra/helm/values/localstack.example.yaml`.
 
 ## Tool Bootstrap
 
@@ -47,7 +47,7 @@ bun run infra:bootstrap:install
 
 ## Current Status
 
-- Terraform scaffold exists for VPC, EKS, ECR, S3/CloudFront, RDS, Redis, WAF, Route53, CloudWatch, SNS email alarms, and IAM/IRSA.
+- Terraform scaffold exists for VPC, EKS, ECR, S3/CloudFront, RDS, WAF, Route53, CloudWatch, SNS email alarms, and IAM/IRSA.
 - Helm charts exist for backend workloads and platform add-on config.
 - Thin local helpers exist for validation, add-ons, backend deploy, and destroy.
 - No live AWS resources have been created from this repo in this workspace.

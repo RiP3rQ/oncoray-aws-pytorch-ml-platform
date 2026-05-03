@@ -41,10 +41,6 @@ class TestGetAccessToken:
                 "src.core.dependencies.decode_access_token",
                 return_value=token_data,
             ),
-            patch(
-                "src.core.dependencies.is_jti_blacklisted",
-                new=AsyncMock(return_value=False),
-            ),
         ):
             result = await _get_access_token("valid_token")
             assert result == token_data
@@ -62,29 +58,6 @@ class TestGetAccessToken:
             pytest.raises(InvalidToken),
         ):
             await _get_access_token("invalid_token")
-
-    @pytest.mark.asyncio
-    async def test_blacklisted_token_raises_error(self):
-        """_get_access_token should raise InvalidToken for blacklisted JTI."""
-        from src.core.dependencies import _get_access_token
-
-        token_data = {
-            "user": {"id": str(uuid4())},
-            "jti": str(uuid4()),
-        }
-
-        with (
-            patch(
-                "src.core.dependencies.decode_access_token",
-                return_value=token_data,
-            ),
-            patch(
-                "src.core.dependencies.is_jti_blacklisted",
-                new=AsyncMock(return_value=True),
-            ),
-            pytest.raises(InvalidToken),
-        ):
-            await _get_access_token("blacklisted_token")
 
 
 # =============================================================================

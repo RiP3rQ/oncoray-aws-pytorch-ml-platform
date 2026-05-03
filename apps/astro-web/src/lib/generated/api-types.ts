@@ -32,10 +32,10 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Get All Models
-     * @description Get all models from the database.
+     * List Model Catalog
+     * @description List Model Catalog items.
      */
-    get: operations["get_all_models"];
+    get: operations["list_model_catalog"];
     put?: never;
     post?: never;
     delete?: never;
@@ -52,10 +52,10 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Get Model By Id
-     * @description Get a model by id.
+     * Get Model Catalog Item
+     * @description Get a Model Catalog item by id.
      */
-    get: operations["get_model_by_id"];
+    get: operations["get_model_catalog_item"];
     put?: never;
     post?: never;
     delete?: never;
@@ -93,7 +93,9 @@ export interface paths {
     };
     /**
      * Logout User
-     * @description Logout a user & add the JTI to the blacklist.
+     * @description Confirm the current access token is valid.
+     *
+     *     Session cleanup is client-owned; the frontend removes stored JWTs.
      */
     get: operations["logout_user"];
     put?: never;
@@ -386,7 +388,7 @@ export interface operations {
       };
     };
   };
-  get_all_models: {
+  list_model_catalog: {
     parameters: {
       query?: never;
       header?: never;
@@ -406,7 +408,7 @@ export interface operations {
       };
     };
   };
-  get_model_by_id: {
+  get_model_catalog_item: {
     parameters: {
       query?: never;
       header?: never;
@@ -489,7 +491,9 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": unknown;
+          "application/json": {
+            [key: string]: string;
+          };
         };
       };
     };

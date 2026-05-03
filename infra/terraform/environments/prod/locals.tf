@@ -11,7 +11,6 @@ locals {
   frontend_cloudfront_hosted_zone_id = "Z2FDTNDATAQYW2"
   postgres_identifier                = "${local.name_prefix}-postgres"
   postgres_password                  = var.db_password != "" ? var.db_password : random_password.postgres[0].result
-  redis_replication_group_id         = "${local.name_prefix}-redis"
   cloudwatch_workload_log_group_name = "/aws/eks/${local.eks_cluster_name}/workloads"
 
   managed_domain_name = trimspace(var.domain_name)

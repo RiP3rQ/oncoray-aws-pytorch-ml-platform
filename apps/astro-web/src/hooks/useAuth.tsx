@@ -52,11 +52,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    try {
-      await api.logout();
-    } catch {
-      // proceed with local cleanup even if API call fails
-    }
     removeToken();
     setUser(null);
     toast.success("Successfully logged out.");

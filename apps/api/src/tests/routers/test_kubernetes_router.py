@@ -37,19 +37,12 @@ class TestReadyzProbe:
         assert data["status"] == "ok"
         assert "checks" in data
         assert data["checks"]["database"] is True
-        assert data["checks"]["redis"] is True
 
     def test_readyz_degraded_when_db_fails(self, app):
         """GET /readyz should return degraded status when database is unreachable."""
-        with (
-            patch(
-                "src.routers.kubernetes_router.ping_database",
-                new=AsyncMock(return_value=False),
-            ),
-            patch(
-                "src.routers.kubernetes_router.ping_redis",
-                new=AsyncMock(return_value=True),
-            ),
+        with patch(
+            "src.routers.kubernetes_router.ping_database",
+            new=AsyncMock(return_value=False),
         ):
             from fastapi.testclient import TestClient
 
@@ -59,51 +52,6 @@ class TestReadyzProbe:
             data = response.json()
             assert data["status"] == "degraded"
             assert data["checks"]["database"] is False
-            assert data["checks"]["redis"] is True
-
-    def test_readyz_degraded_when_redis_fails(self, app):
-        """GET /readyz should return degraded status when Redis is unreachable."""
-        with (
-            patch(
-                "src.routers.kubernetes_router.ping_database",
-                new=AsyncMock(return_value=True),
-            ),
-            patch(
-                "src.routers.kubernetes_router.ping_redis",
-                new=AsyncMock(return_value=False),
-            ),
-        ):
-            from fastapi.testclient import TestClient
-
-            client = TestClient(app)
-            response = client.get("/readyz")
-            assert response.status_code == 503
-            data = response.json()
-            assert data["status"] == "degraded"
-            assert data["checks"]["database"] is True
-            assert data["checks"]["redis"] is False
-
-    def test_readyz_degraded_when_both_fail(self, app):
-        """GET /readyz should return degraded status when both deps fail."""
-        with (
-            patch(
-                "src.routers.kubernetes_router.ping_database",
-                new=AsyncMock(return_value=False),
-            ),
-            patch(
-                "src.routers.kubernetes_router.ping_redis",
-                new=AsyncMock(return_value=False),
-            ),
-        ):
-            from fastapi.testclient import TestClient
-
-            client = TestClient(app)
-            response = client.get("/readyz")
-            assert response.status_code == 503
-            data = response.json()
-            assert data["status"] == "degraded"
-            assert data["checks"]["database"] is False
-            assert data["checks"]["redis"] is False
 
 
 class TestStartupzProbe:

@@ -13,9 +13,8 @@ Current scope:
 - Route53 frontend aliases and optional API CNAME
 - SNS email notifications for CloudWatch alarms
 - RDS PostgreSQL (Multi-AZ)
-- ElastiCache Redis replication group
 - CloudWatch log group for workload shipping
-- CloudWatch alarms for queue depth, database pressure, cache pressure, optional API ALB health, and optional EKS node-condition health when Container Insights metrics are enabled
+- CloudWatch alarms for database pressure, optional API ALB health, and optional EKS node-condition health when Container Insights metrics are enabled
 - IRSA roles for AWS Load Balancer Controller, External Secrets, Fluent Bit, API, and Model Runtime Host
 - expected Parameter Store path outputs for later secret population
 

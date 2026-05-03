@@ -5,7 +5,6 @@ import {
   abortApiRequest,
   gotoAuthenticatedDashboard,
   mockApiJson,
-  mockApiNoContent,
   mockApiText,
   mockAuthenticatedDashboard,
   mockModels,
@@ -45,7 +44,6 @@ test("clears session and redirects to login on logout", async ({ page }) => {
 test("shows clear fallback state when model API is down", async ({ page }) => {
   await mockApiJson(page, "/user/me", mockUser);
   await abortApiRequest(page, "/model/");
-  await mockApiNoContent(page, "/user/logout");
 
   await gotoAuthenticatedDashboard(page);
 
@@ -74,7 +72,6 @@ test("clears token and redirects to login when model request returns 401", async
 }) => {
   await mockApiJson(page, "/user/me", mockUser);
   await mockApiText(page, "/model/", 401, "Expired");
-  await mockApiNoContent(page, "/user/logout");
 
   await gotoAuthenticatedDashboard(page);
 
@@ -109,8 +106,6 @@ test("shows retry state for model list failure and recovers after reload", async
       body: JSON.stringify(mockModels),
     });
   });
-  await mockApiNoContent(page, "/user/logout");
-
   await gotoAuthenticatedDashboard(page);
 
   await expect(page.getByText("Failed to load models")).toBeVisible();
@@ -185,8 +180,6 @@ test("reloads user and models cleanly on authenticated refresh", async ({
       body: JSON.stringify(mockModels),
     });
   });
-  await mockApiNoContent(page, "/user/logout");
-
   await gotoAuthenticatedDashboard(page);
   await expect(page.getByText(mockUser.email)).toBeVisible();
   await expect(

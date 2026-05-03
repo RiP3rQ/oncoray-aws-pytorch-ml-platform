@@ -12,23 +12,22 @@ provider "aws" {
     for_each = var.use_localstack ? [var.localstack_endpoint] : []
 
     content {
-      acm         = endpoints.value
-      cloudfront  = endpoints.value
-      cloudwatch  = endpoints.value
-      ec2         = endpoints.value
-      ecr         = endpoints.value
-      eks         = endpoints.value
-      elasticache = endpoints.value
-      elbv2       = endpoints.value
-      iam         = endpoints.value
-      kms         = endpoints.value
-      logs        = endpoints.value
-      rds         = endpoints.value
-      route53     = endpoints.value
-      s3          = endpoints.value
-      ssm         = endpoints.value
-      sts         = endpoints.value
-      wafv2       = endpoints.value
+      acm        = endpoints.value
+      cloudfront = endpoints.value
+      cloudwatch = endpoints.value
+      ec2        = endpoints.value
+      ecr        = endpoints.value
+      eks        = endpoints.value
+      elbv2      = endpoints.value
+      iam        = endpoints.value
+      kms        = endpoints.value
+      logs       = endpoints.value
+      rds        = endpoints.value
+      route53    = endpoints.value
+      s3         = endpoints.value
+      ssm        = endpoints.value
+      sts        = endpoints.value
+      wafv2      = endpoints.value
     }
   }
 
@@ -52,23 +51,22 @@ provider "aws" {
     for_each = var.use_localstack ? [var.localstack_endpoint] : []
 
     content {
-      acm         = endpoints.value
-      cloudfront  = endpoints.value
-      cloudwatch  = endpoints.value
-      ec2         = endpoints.value
-      ecr         = endpoints.value
-      eks         = endpoints.value
-      elasticache = endpoints.value
-      elbv2       = endpoints.value
-      iam         = endpoints.value
-      kms         = endpoints.value
-      logs        = endpoints.value
-      rds         = endpoints.value
-      route53     = endpoints.value
-      s3          = endpoints.value
-      ssm         = endpoints.value
-      sts         = endpoints.value
-      wafv2       = endpoints.value
+      acm        = endpoints.value
+      cloudfront = endpoints.value
+      cloudwatch = endpoints.value
+      ec2        = endpoints.value
+      ecr        = endpoints.value
+      eks        = endpoints.value
+      elbv2      = endpoints.value
+      iam        = endpoints.value
+      kms        = endpoints.value
+      logs       = endpoints.value
+      rds        = endpoints.value
+      route53    = endpoints.value
+      s3         = endpoints.value
+      ssm        = endpoints.value
+      sts        = endpoints.value
+      wafv2      = endpoints.value
     }
   }
 

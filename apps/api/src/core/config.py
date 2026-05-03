@@ -46,7 +46,7 @@ class AppSettings(BaseSettings):
 
 
 class DatabaseSettings(BaseSettings):
-    """PostgreSQL and Redis connection settings."""
+    """PostgreSQL connection settings."""
 
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5433
@@ -54,10 +54,6 @@ class DatabaseSettings(BaseSettings):
     POSTGRES_PASSWORD: str = "12345678"
     POSTGRES_DB: str = "pytorch-model"
     CORE_API_DATABASE_URL: str | None = None
-
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
-    REDIS_SSL: bool = False
 
     model_config = _base_config
 
@@ -73,10 +69,6 @@ class DatabaseSettings(BaseSettings):
     @property
     def SYNC_POSTGRES_URL(self) -> str:
         return to_sync_database_url(self.POSTGRES_URL)
-
-    def REDIS_URL(self, db: int) -> str:
-        scheme = "rediss" if self.REDIS_SSL else "redis"
-        return f"{scheme}://{self.REDIS_HOST}:{self.REDIS_PORT}/{db}"
 
 
 class SecuritySettings(BaseSettings):
@@ -234,11 +226,6 @@ def validate_production_settings() -> None:
         errors.append("SECRET_KEY must be a real production secret with at least 32 characters.")
     if not db_settings.CORE_API_DATABASE_URL:
         errors.append("CORE_API_DATABASE_URL must be set in production.")
-    if any(host in db_settings.REDIS_HOST for host in localhost_values):
-        errors.append("REDIS_HOST must not point at localhost in production.")
-    if not db_settings.REDIS_SSL:
-        errors.append("REDIS_SSL must be true in production.")
-
     if s3_settings.S3_UPLOAD_MODE != "aws":
         errors.append("S3_UPLOAD_MODE must be 'aws' in production.")
     if not s3_settings.S3_BUCKET_NAME or s3_settings.S3_BUCKET_NAME == "model-predictions":
