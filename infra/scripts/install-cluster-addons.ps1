@@ -184,6 +184,22 @@ Invoke-External -FilePath $kubectlCommand -Arguments @(
     "external-secrets",
     "--timeout=180s"
 )
+Invoke-External -FilePath $kubectlCommand -Arguments @(
+    "rollout",
+    "status",
+    "deployment/external-secrets-webhook",
+    "--namespace",
+    "external-secrets",
+    "--timeout=180s"
+)
+Invoke-External -FilePath $kubectlCommand -Arguments @(
+    "rollout",
+    "status",
+    "deployment/external-secrets-cert-controller",
+    "--namespace",
+    "external-secrets",
+    "--timeout=180s"
+)
 
 Write-Host "Installing platform add-on config and Fluent Bit"
 Invoke-External -FilePath $helmCommand -Arguments $platformArgs
