@@ -115,9 +115,7 @@ Assert-Covered `
         "POSTGRES_PASSWORD",
         "POSTGRES_DB",
         "AWS_ACCESS_KEY_ID",
-        "AWS_SECRET_ACCESS_KEY",
-        "JWT_SECRET",
-        "JWT_ALGORITHM"
+        "AWS_SECRET_ACCESS_KEY"
     )
 
 Assert-Covered `

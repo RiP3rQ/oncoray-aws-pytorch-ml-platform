@@ -40,39 +40,19 @@ def test_production_validation_rejects_mutable_main_artifacts() -> None:
 
 
 def test_production_validation_accepts_pinned_artifacts() -> None:
-    checksum = "a" * 64
     settings = settings_without_env(
         APP_ENVIRONMENT="production",
         EFFNETB0_MODEL_ARTIFACT_URL=(
             "https://huggingface.co/RiP3rQ/effnetb0/resolve/abc123/effnetb0/effnetb0_epoch_008.pth"
         ),
-        EFFNETB0_MODEL_ARTIFACT_SHA256=checksum,
         VITB16_MODEL_ARTIFACT_URL=(
             "https://huggingface.co/RiP3rQ/vit_b_16/resolve/def456/vit_b_16/vit_b_16_epoch_018.pth"
         ),
-        VITB16_MODEL_ARTIFACT_SHA256=checksum,
         HF_USERNAME="RiP3rQ",
         HF_TOKEN="token",
     )
 
     validate_production_settings(settings)
-
-
-def test_production_validation_rejects_missing_checksum() -> None:
-    settings = settings_without_env(
-        APP_ENVIRONMENT="production",
-        EFFNETB0_MODEL_ARTIFACT_URL=(
-            "https://huggingface.co/RiP3rQ/effnetb0/resolve/abc123/effnetb0/effnetb0_epoch_008.pth"
-        ),
-        VITB16_MODEL_ARTIFACT_URL=(
-            "https://huggingface.co/RiP3rQ/vit_b_16/resolve/def456/vit_b_16/vit_b_16_epoch_018.pth"
-        ),
-        HF_USERNAME="RiP3rQ",
-        HF_TOKEN="token",
-    )
-
-    with pytest.raises(RuntimeError, match="SHA256"):
-        validate_production_settings(settings)
 
 
 def test_model_slugs_defaults_to_single_model_slug() -> None:

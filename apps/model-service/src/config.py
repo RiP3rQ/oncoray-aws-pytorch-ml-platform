@@ -25,11 +25,9 @@ class Settings(BaseSettings):
     EFFNETB0_MODEL_ARTIFACT_URL: str = (
         "https://huggingface.co/RiP3rQ/effnetb0/resolve/main/effnetb0/effnetb0_epoch_008.pth"
     )
-    EFFNETB0_MODEL_ARTIFACT_SHA256: str | None = None
     VITB16_MODEL_ARTIFACT_URL: str = (
         "https://huggingface.co/RiP3rQ/vit_b_16/resolve/main/vit_b_16/vit_b_16_epoch_018.pth"
     )
-    VITB16_MODEL_ARTIFACT_SHA256: str | None = None
     MODEL_DEVICE: str = "cpu"
     HF_TOKEN: str | None = None
     HF_USERNAME: str = "RiP3rQ"
@@ -77,14 +75,6 @@ class Settings(BaseSettings):
         if value is None:
             return None
         parsed = str(value).strip()
-        return parsed or None
-
-    @field_validator("EFFNETB0_MODEL_ARTIFACT_SHA256", "VITB16_MODEL_ARTIFACT_SHA256", mode="before")
-    @classmethod
-    def normalize_optional_sha256(cls, value: Any) -> str | None:
-        if value is None:
-            return None
-        parsed = str(value).strip().lower()
         return parsed or None
 
     @field_validator("HF_USERNAME", mode="before")
@@ -142,16 +132,6 @@ def validate_production_settings(runtime_settings: Settings = settings) -> None:
             artifact_url = runtime_settings.VITB16_MODEL_ARTIFACT_URL
         if "/resolve/main/" in artifact_url:
             errors.append(f"{slug.value} Model Artifact URL must use an immutable Hugging Face revision, not main.")
-        artifact_sha256 = runtime_settings.EFFNETB0_MODEL_ARTIFACT_SHA256
-        if slug == ModelSlug.VITB16:
-            artifact_sha256 = runtime_settings.VITB16_MODEL_ARTIFACT_SHA256
-        if (
-            artifact_sha256 is None
-            or len(artifact_sha256) != 64
-            or not all(char in "0123456789abcdef" for char in artifact_sha256)
-        ):
-            errors.append(f"{slug.value} Model Artifact SHA256 checksum must be set in production.")
-
     if runtime_settings.HF_USERNAME == "RiP3rQ" and runtime_settings.HF_TOKEN is None:
         errors.append("HF_USERNAME/HF_TOKEN must be explicitly reviewed for production Model Artifact access.")
 

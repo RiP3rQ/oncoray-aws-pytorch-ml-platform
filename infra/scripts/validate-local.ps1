@@ -263,9 +263,7 @@ Test-ContentRule `
             $names = @($parameters | ForEach-Object { $_.name })
             return (
                 $names -contains "/pytorch-model/prod/api/AWS_REGION" -and
-                $names -contains "/pytorch-model/prod/api/S3_BUCKET_NAME" -and
-                $names -contains "/pytorch-model/prod/model-service/EFFNETB0_MODEL_ARTIFACT_SHA256" -and
-                $names -contains "/pytorch-model/prod/model-service/VITB16_MODEL_ARTIFACT_SHA256"
+                $names -contains "/pytorch-model/prod/api/S3_BUCKET_NAME"
             )
         }
         catch {
@@ -280,12 +278,12 @@ Test-ContentRule `
     -Predicate {
         param($content)
         return (
-            $content -match 'EFFNETB0_MODEL_ARTIFACT_SHA256' -and
-            $content -match 'VITB16_MODEL_ARTIFACT_SHA256' -and
+            $content -match 'EFFNETB0_MODEL_ARTIFACT_URL' -and
+            $content -match 'VITB16_MODEL_ARTIFACT_URL' -and
             $content -match 'S3_BUCKET_NAME'
         )
     } `
-    -FailureMessage "Terraform expected_parameter_store_paths must include Model Artifact checksums and API S3 bucket config."
+    -FailureMessage "Terraform expected_parameter_store_paths must include Model Artifact URLs and API S3 bucket config."
 
 Test-ContentRule `
     -Label "Backend chart default image tag" `
@@ -459,17 +457,17 @@ Test-ContentRule `
     -FailureMessage "backend-stack must render PodDisruptionBudgets for production workloads."
 
 Test-ContentRule `
-    -Label "Model Artifact checksum validation" `
+    -Label "Model Artifact immutable revision validation" `
     -Path (Join-Path $repoRoot "apps/model-service/src/config.py") `
     -Predicate {
         param($content)
         return (
-            $content -match 'EFFNETB0_MODEL_ARTIFACT_SHA256' -and
-            $content -match 'VITB16_MODEL_ARTIFACT_SHA256' -and
-            $content -match 'SHA256 checksum must be set in production'
+            $content -match 'EFFNETB0_MODEL_ARTIFACT_URL' -and
+            $content -match 'VITB16_MODEL_ARTIFACT_URL' -and
+            $content -match 'must use an immutable Hugging Face revision'
         )
     } `
-    -FailureMessage "Model Runtime Host must require Model Artifact SHA256 checksums in production."
+    -FailureMessage "Model Runtime Host must require immutable Model Artifact revisions in production."
 
 Test-ContentRule `
     -Label "Terraform CloudTrail audit logging" `

@@ -135,16 +135,6 @@ class TestSecuritySettings:
         assert settings.SECRET_KEY == "change-me-before-production"
         assert settings.ALGORITHM == "HS256"
 
-    def test_jwt_secret_property(self):
-        """JWT_SECRET property should return SECRET_KEY."""
-        settings = SecuritySettings()
-        assert settings.JWT_SECRET == settings.SECRET_KEY
-
-    def test_jwt_algorithm_property(self):
-        """JWT_ALGORITHM property should return ALGORITHM."""
-        settings = SecuritySettings()
-        assert settings.JWT_ALGORITHM == settings.ALGORITHM
-
 
 # =============================================================================
 # Tests for NotificationSettings
