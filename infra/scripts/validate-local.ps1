@@ -395,6 +395,20 @@ Test-ContentRule `
     -FailureMessage "put-ssm-parameters.ps1 must verify AWS identity and reject unsafe SSM values before upload."
 
 Test-ContentRule `
+    -Label "Environment parity validator" `
+    -Path (Join-Path $repoRoot "infra/scripts/validate-env-parity.ps1") `
+    -Predicate {
+        param($content)
+        return (
+            $content -match 'apps/api/.env.example' -and
+            $content -match 'apps/model-service/.env.example' -and
+            $content -match 'ssm-parameters.prod.example.json' -and
+            $content -match 'AllowedMissing'
+        )
+    } `
+    -FailureMessage "validate-env-parity.ps1 must compare app .env.example files against Helm, SSM, and documented frontend build env."
+
+Test-ContentRule `
     -Label "Production rollback script" `
     -Path (Join-Path $repoRoot "infra/scripts/rollback-prod.ps1") `
     -Predicate {
