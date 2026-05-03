@@ -18,6 +18,10 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
+  {{- with $workload.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- if not $workload.autoscaling.enabled }}
   replicas: {{ $workload.replicaCount }}
   {{- end }}
