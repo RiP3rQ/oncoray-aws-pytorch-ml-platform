@@ -47,7 +47,7 @@ bun run infra:bootstrap:install
 
 ## Current Status
 
-- Terraform scaffold exists for VPC, EKS, ECR, S3/CloudFront, RDS, WAF, Route53, CloudWatch, SNS email alarms, and IAM/IRSA.
+- Terraform scaffold exists for budget-first VPC, EKS, ECR, S3/CloudFront, RDS, Route53, CloudWatch, SNS email alarms, CloudTrail, and IAM/IRSA. WAF is optional and disabled by default.
 - Helm charts exist for backend workloads and platform add-on config.
 - Thin local helpers exist for validation, add-ons, backend deploy, and destroy.
 - No live AWS resources have been created from this repo in this workspace.

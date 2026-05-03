@@ -98,11 +98,6 @@ output "frontend_waf_acl_arn" {
   value       = try(aws_wafv2_web_acl.frontend[0].arn, null)
 }
 
-output "guardduty_detector_id" {
-  description = "GuardDuty detector ID when GuardDuty is enabled."
-  value       = try(aws_guardduty_detector.main[0].id, null)
-}
-
 output "api_waf_acl_arn" {
   description = "Regional WAF Web ACL ARN for ALB ingress annotations."
   value       = try(aws_wafv2_web_acl.api[0].arn, null)

@@ -82,6 +82,18 @@ data "aws_iam_policy_document" "external_secrets" {
       "kms:Decrypt",
     ]
     resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:CallerAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["ssm.${data.aws_region.current.name}.amazonaws.com"]
+    }
   }
 }
 

@@ -442,23 +442,22 @@ Test-ContentRule `
     -FailureMessage "Model Runtime Host must require Model Artifact SHA256 checksums in production."
 
 Test-ContentRule `
-    -Label "Terraform account security services" `
+    -Label "Terraform CloudTrail audit logging" `
     -Path (Join-Path $repoRoot "infra/terraform/environments/prod/security.tf") `
+    -Predicate { param($content) $content -match 'aws_cloudtrail' } `
+    -FailureMessage "Terraform must keep CloudTrail audit logging."
+
+Test-ContentRule `
+    -Label "Terraform WAF disabled by default" `
+    -Path (Join-Path $repoRoot "infra/terraform/environments/prod/variables.tf") `
     -Predicate {
         param($content)
         return (
-            $content -match 'aws_cloudtrail' -and
-            $content -match 'aws_guardduty_detector' -and
-            $content -match 'aws_securityhub_account'
+            $content -match '(?ms)variable "enable_frontend_waf".*?default\s*=\s*false' -and
+            $content -match '(?ms)variable "enable_api_waf".*?default\s*=\s*false'
         )
     } `
-    -FailureMessage "Terraform must include CloudTrail, GuardDuty, and Security Hub production safeguards."
-
-Test-ContentRule `
-    -Label "Terraform WAF logging" `
-    -Path (Join-Path $repoRoot "infra/terraform/environments/prod/monitoring.tf") `
-    -Predicate { param($content) $content -match 'aws_wafv2_web_acl_logging_configuration' } `
-    -FailureMessage "Terraform must configure WAF logging."
+    -FailureMessage "WAF must stay disabled by default for the budget-first architecture."
 
 Test-ContentRule `
     -Label "Terraform EKS endpoint CIDR default" `

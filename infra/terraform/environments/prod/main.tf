@@ -10,8 +10,8 @@ module "vpc" {
   private_subnets = local.private_subnets
 
   enable_nat_gateway     = true
-  single_nat_gateway     = false
-  one_nat_gateway_per_az = true
+  single_nat_gateway     = true
+  one_nat_gateway_per_az = false
   enable_dns_support     = true
   enable_dns_hostnames   = true
 
@@ -55,36 +55,15 @@ module "eks" {
       ami_type       = "AL2_x86_64"
       instance_types = var.general_node_instance_types
 
-      min_size     = 2
+      min_size     = 1
       max_size     = 4
-      desired_size = 2
+      desired_size = 1
 
       labels = {
         workload = "general"
       }
 
       taints = {}
-    }
-
-    model_service = {
-      ami_type       = "AL2_x86_64"
-      instance_types = var.model_node_instance_types
-
-      min_size     = 1
-      max_size     = 2
-      desired_size = 1
-
-      labels = {
-        workload = "model-service"
-      }
-
-      taints = {
-        dedicated = {
-          key    = "dedicated"
-          value  = "model-service"
-          effect = "NO_SCHEDULE"
-        }
-      }
     }
   }
 }

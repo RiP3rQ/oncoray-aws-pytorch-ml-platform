@@ -24,11 +24,9 @@ api_dns_name                    = ""
 api_alb_arn_suffix              = ""
 api_target_group_arn_suffix     = ""
 
-enable_frontend_waf                          = true
-enable_api_waf                               = true
+enable_frontend_waf                          = false
+enable_api_waf                               = false
 enable_cloudtrail                            = false
-enable_guardduty                             = false
-enable_security_hub                          = false
 enable_container_insights_node_condition_alarm = false
 
 alarm_email_addresses = []

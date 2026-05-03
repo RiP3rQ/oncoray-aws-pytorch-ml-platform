@@ -5,14 +5,14 @@ Initial production scaffold for `pytorch-model`.
 Current scope:
 
 - VPC with public and private subnets
-- EKS cluster with separate general and model-service node groups
+- EKS cluster with one general managed node group
 - ECR repositories for `api` and `model-service`
 - private S3 bucket + CloudFront distribution for frontend delivery
 - private S3 bucket for prediction artifacts
-- CloudFront WAF and regional API WAF policy
+- optional CloudFront WAF and regional API WAF policy, disabled by default
 - Route53 frontend aliases and optional API CNAME
 - SNS email notifications for CloudWatch alarms
-- RDS PostgreSQL (Multi-AZ)
+- RDS PostgreSQL single-AZ instance
 - CloudWatch log group for workload shipping
 - CloudWatch alarms for database pressure, optional API ALB health, and optional EKS node-condition health when Container Insights metrics are enabled
 - IRSA roles for AWS Load Balancer Controller, External Secrets, Fluent Bit, API, and Model Runtime Host
