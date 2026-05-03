@@ -42,6 +42,7 @@ module "eks" {
   cluster_enabled_log_types                = var.eks_cluster_enabled_log_types
   cloudwatch_log_group_retention_in_days   = var.log_retention_in_days
   enable_irsa                              = !var.use_localstack
+  kms_key_deletion_window_in_days          = 7
 
   cluster_addons = {
     coredns                = {}
