@@ -33,6 +33,7 @@ build
 *.pem
 .astro-cache/
 .terraform/
+infra/terraform/**/.terraform/
 *.tfstate
 *.tfstate.*
 crash.log
