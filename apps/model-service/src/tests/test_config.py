@@ -50,7 +50,7 @@ def test_production_validation_accepts_pinned_artifacts() -> None:
             "https://huggingface.co/RiP3rQ/vit_b_16/resolve/def456/vit_b_16/vit_b_16_epoch_018.pth"
         ),
         VITB16_MODEL_ARTIFACT_SHA256=checksum,
-        HF_USERNAME="production-artifacts",
+        HF_USERNAME="RiP3rQ",
         HF_TOKEN="token",
     )
 
@@ -66,7 +66,7 @@ def test_production_validation_rejects_missing_checksum() -> None:
         VITB16_MODEL_ARTIFACT_URL=(
             "https://huggingface.co/RiP3rQ/vit_b_16/resolve/def456/vit_b_16/vit_b_16_epoch_018.pth"
         ),
-        HF_USERNAME="production-artifacts",
+        HF_USERNAME="RiP3rQ",
         HF_TOKEN="token",
     )
 
