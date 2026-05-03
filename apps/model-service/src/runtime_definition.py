@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from src.config import Settings
+from src.config import DEFAULT_RUNTIME_THREADS, DEFAULT_STRICT_ARTIFACT_LOAD, Settings
 from src.model_artifacts import HuggingFaceArtifactSource
 from src.model_specs import ModelSpec
 from src.types import ModelSlug
@@ -51,9 +51,9 @@ class ModelRuntimeDefinition:
             artifact_source=hugging_face_source_from_settings(settings, slug),
             artifact_sha256=model_artifact_sha256_from_settings(settings, slug),
             device_name=settings.MODEL_DEVICE,
-            num_threads=settings.MODEL_NUM_THREADS,
+            num_threads=DEFAULT_RUNTIME_THREADS,
             class_names=settings.class_names,
-            strict_load=settings.MODEL_STRICT_LOAD,
+            strict_load=DEFAULT_STRICT_ARTIFACT_LOAD,
             startup_smoke_test=settings.MODEL_STARTUP_SMOKE_TEST,
         )
 

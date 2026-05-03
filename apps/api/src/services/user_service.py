@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
-from src.core.config import TEMPLATE_DIR, app_settings, notification_settings
+from src.core.config import app_settings, notification_connection_config
 from src.core.errors import (
     BadCredentials,
     BadPassword,
@@ -31,7 +31,7 @@ from .base import BaseService
 
 logger = get_logger(__name__)
 MAX_BCRYPT_PASSWORD_BYTES = 72
-fast_mail = FastMail(ConnectionConfig(**notification_settings.model_dump(), TEMPLATE_FOLDER=TEMPLATE_DIR))
+fast_mail = FastMail(ConnectionConfig(**notification_connection_config()))
 
 
 class UserService(BaseService):

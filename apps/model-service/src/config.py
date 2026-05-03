@@ -9,7 +9,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from src.types import ModelSlug
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_MODEL_ARTIFACT_PATH = Path("/models/model.pth")
+DEFAULT_ARTIFACT_PATH = Path("/models/model.pth")
+DEFAULT_RUNTIME_THREADS = 1
+DEFAULT_CLASS_LABELS = ("NORMAL", "PNEUMONIA")
+DEFAULT_STRICT_ARTIFACT_LOAD = True
 
 
 class Settings(BaseSettings):
@@ -19,7 +22,6 @@ class Settings(BaseSettings):
     APP_ENVIRONMENT: str = "development"
     APP_LOG_LEVEL: str = "INFO"
     MODEL_SLUGS: str = "effnetb0,vitb16"
-    MODEL_ARTIFACT_PATH: Path = DEFAULT_MODEL_ARTIFACT_PATH
     EFFNETB0_MODEL_ARTIFACT_URL: str = (
         "https://huggingface.co/RiP3rQ/effnetb0/resolve/main/effnetb0/effnetb0_epoch_008.pth"
     )
@@ -31,9 +33,6 @@ class Settings(BaseSettings):
     MODEL_DEVICE: str = "cpu"
     HF_TOKEN: str | None = None
     HF_USERNAME: str = "RiP3rQ"
-    MODEL_NUM_THREADS: int = 1
-    MODEL_CLASS_NAMES: str = "NORMAL,PNEUMONIA"
-    MODEL_STRICT_LOAD: bool = True
     MODEL_STARTUP_SMOKE_TEST: bool = True
     OTEL_ENABLED: bool = True
     OTEL_SERVICE_NAME: str = "model-runtime-host"
@@ -106,10 +105,7 @@ class Settings(BaseSettings):
 
     @property
     def class_names(self) -> tuple[str, ...]:
-        parsed = tuple(name.strip() for name in self.MODEL_CLASS_NAMES.split(",") if name.strip())
-        if len(parsed) < 2:
-            raise ValueError("MODEL_CLASS_NAMES must define at least 2 class labels.")
-        return parsed
+        return DEFAULT_CLASS_LABELS
 
     @property
     def model_slugs(self) -> tuple[ModelSlug, ...]:
@@ -120,10 +116,10 @@ class Settings(BaseSettings):
 
     def artifact_path_for_slug(self, slug: ModelSlug) -> Path:
         if len(self.model_slugs) == 1:
-            return self.MODEL_ARTIFACT_PATH
+            return DEFAULT_ARTIFACT_PATH
 
-        suffix = self.MODEL_ARTIFACT_PATH.suffix or ".pth"
-        return self.MODEL_ARTIFACT_PATH.parent / f"{slug.value}{suffix}"
+        suffix = DEFAULT_ARTIFACT_PATH.suffix or ".pth"
+        return DEFAULT_ARTIFACT_PATH.parent / f"{slug.value}{suffix}"
 
 
 settings = Settings()

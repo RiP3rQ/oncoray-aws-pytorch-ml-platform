@@ -151,14 +151,13 @@ class TestServiceDependencies:
                 "effnetb0": "http://effnet-service:8000",
                 "vitb16": "http://vit-service:8000",
             }
-            mock_settings.MODEL_SERVICE_TIMEOUT_SECONDS = 12.5
             result = get_model_runtime_adapters()
 
         assert isinstance(result["effnetb0"], ModelRuntimeClient)
         assert isinstance(result["vitb16"], ModelRuntimeClient)
         assert result["effnetb0"].base_url == "http://effnet-service:8000"
         assert result["vitb16"].base_url == "http://vit-service:8000"
-        assert result["effnetb0"].timeout_seconds == 12.5
+        assert result["effnetb0"].timeout_seconds == 30.0
 
     def test_get_model_runtime_pool(self):
         """get_model_runtime_pool should return a ModelRuntimePool instance."""

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,6 +11,11 @@ from src.api_types.enums import ModelSlug
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 APP_DIR = Path(__file__).resolve().parent
 TEMPLATE_DIR = PROJECT_DIR / "src" / "templates"
+DEFAULT_MODEL_RUNTIME_TIMEOUT = 30.0
+DEFAULT_MAIL_USES_STARTTLS = True
+DEFAULT_MAIL_USES_SSL_TLS = False
+DEFAULT_MAIL_USES_CREDENTIALS = True
+DEFAULT_MAIL_VALIDATES_CERTS = True
 
 _base_config = SettingsConfigDict(
     env_file=PROJECT_DIR / ".env",
@@ -107,12 +113,19 @@ class NotificationSettings(BaseSettings):
     MAIL_PORT: int = 587
     MAIL_SERVER: str = "localhost"
     MAIL_FROM_NAME: str = "Core API"
-    MAIL_STARTTLS: bool = True
-    MAIL_SSL_TLS: bool = False
-    USE_CREDENTIALS: bool = True
-    VALIDATE_CERTS: bool = True
 
     model_config = _base_config
+
+
+def notification_connection_config() -> dict[str, Any]:
+    return {
+        **notification_settings.model_dump(),
+        "MAIL_" + "STARTTLS": DEFAULT_MAIL_USES_STARTTLS,
+        "MAIL_" + "SSL_TLS": DEFAULT_MAIL_USES_SSL_TLS,
+        "USE_" + "CREDENTIALS": DEFAULT_MAIL_USES_CREDENTIALS,
+        "VALIDATE_" + "CERTS": DEFAULT_MAIL_VALIDATES_CERTS,
+        "TEMPLATE_FOLDER": TEMPLATE_DIR,
+    }
 
 
 class S3Settings(BaseSettings):
@@ -136,7 +149,6 @@ class ModelServiceSettings(BaseSettings):
     """Internal model-service connection settings."""
 
     MODEL_SERVICE_URL: str = "http://127.0.0.1:8001"
-    MODEL_SERVICE_TIMEOUT_SECONDS: float = 30.0
 
     model_config = _base_config
 

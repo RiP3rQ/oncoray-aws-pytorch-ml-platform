@@ -5,10 +5,12 @@ from pathlib import Path
 from typing import cast
 from uuid import uuid4
 
+import pytest
 import torch
 import torch.nn as nn
 import torchvision
 
+import src.config as config
 from src.config import Settings
 from src.model_artifacts import (
     HuggingFaceArtifactSource,
@@ -275,19 +277,17 @@ def test_resolve_model_artifact_rejects_checksum_mismatch() -> None:
     assert str(artifact_path) in message
 
 
-def test_model_runtime_factory_builds_inference_runtime_from_settings() -> None:
+def test_model_runtime_factory_builds_inference_runtime_from_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
     workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
     artifact_path = workspace_tmp_dir / f"tiny-{uuid4()}.pth"
     model = TinyModel()
     torch.save(model.state_dict(), artifact_path)
+    monkeypatch.setattr(config, "DEFAULT_ARTIFACT_PATH", artifact_path)
 
     settings = settings_without_env(
         MODEL_SLUGS="effnetb0",
-        MODEL_ARTIFACT_PATH=artifact_path,
         MODEL_DEVICE="cpu",
-        MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",
-        MODEL_STRICT_LOAD=True,
     )
     factory = ModelRuntimeFactory.from_settings_and_specs(
         settings=settings,
@@ -309,7 +309,7 @@ def test_model_runtime_factory_builds_inference_runtime_from_settings() -> None:
     assert runtime.device == torch.device("cpu")
 
 
-def test_model_runtime_factory_validates_embedded_artifact_manifest() -> None:
+def test_model_runtime_factory_validates_embedded_artifact_manifest(monkeypatch: pytest.MonkeyPatch) -> None:
     workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
     workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
     artifact_path = workspace_tmp_dir / f"manifest-mismatch-{uuid4()}.pth"
@@ -324,13 +324,11 @@ def test_model_runtime_factory_validates_embedded_artifact_manifest() -> None:
         },
         artifact_path,
     )
+    monkeypatch.setattr(config, "DEFAULT_ARTIFACT_PATH", artifact_path)
 
     settings = settings_without_env(
         MODEL_SLUGS="effnetb0",
-        MODEL_ARTIFACT_PATH=artifact_path,
         MODEL_DEVICE="cpu",
-        MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",
-        MODEL_STRICT_LOAD=True,
     )
     factory = ModelRuntimeFactory.from_settings_and_specs(
         settings=settings,
@@ -354,19 +352,17 @@ def test_model_runtime_factory_validates_embedded_artifact_manifest() -> None:
     assert "Model Artifact manifest slug mismatch" in message
 
 
-def test_model_runtime_factory_rejects_failed_startup_smoke_test() -> None:
+def test_model_runtime_factory_rejects_failed_startup_smoke_test(monkeypatch: pytest.MonkeyPatch) -> None:
     workspace_tmp_dir = Path(__file__).resolve().parents[3] / "tmp" / "model-service-tests"
     workspace_tmp_dir.mkdir(parents=True, exist_ok=True)
     artifact_path = workspace_tmp_dir / f"bad-tiny-{uuid4()}.pth"
     model = build_bad_tiny_model(2)
     torch.save(model.state_dict(), artifact_path)
+    monkeypatch.setattr(config, "DEFAULT_ARTIFACT_PATH", artifact_path)
 
     settings = settings_without_env(
         MODEL_SLUGS="effnetb0",
-        MODEL_ARTIFACT_PATH=artifact_path,
         MODEL_DEVICE="cpu",
-        MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",
-        MODEL_STRICT_LOAD=True,
         MODEL_STARTUP_SMOKE_TEST=True,
     )
     factory = ModelRuntimeFactory.from_settings_and_specs(

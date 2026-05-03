@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+import src.config as config
 from src.config import Settings, validate_production_settings
 from src.types import ModelSlug
 
@@ -86,11 +87,9 @@ def test_model_slugs_parses_comma_separated_values() -> None:
     assert settings.model_slugs == (ModelSlug.EFFNETB0, ModelSlug.VITB16)
 
 
-def test_multi_runtime_artifact_paths_are_slug_scoped() -> None:
-    settings = settings_without_env(
-        MODEL_SLUGS="effnetb0,vitb16",
-        MODEL_ARTIFACT_PATH=Path("/models/model.pth"),
-    )
+def test_multi_runtime_artifact_paths_are_slug_scoped(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config, "DEFAULT_ARTIFACT_PATH", Path("/models/model.pth"))
+    settings = settings_without_env(MODEL_SLUGS="effnetb0,vitb16")
 
     assert settings.artifact_path_for_slug(ModelSlug.EFFNETB0) == Path("/models/effnetb0.pth")
     assert settings.artifact_path_for_slug(ModelSlug.VITB16) == Path("/models/vitb16.pth")

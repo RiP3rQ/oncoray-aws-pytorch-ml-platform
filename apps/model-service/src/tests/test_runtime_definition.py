@@ -3,9 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
+import pytest
 import torch.nn as nn
 import torchvision
 
+import src.config as config
 from src.config import Settings
 from src.model_specs import ModelSpec
 from src.runtime import ImageTransform
@@ -39,14 +41,11 @@ def make_spec(slug: ModelSlug) -> ModelSpec:
     )
 
 
-def test_runtime_definition_collects_deploy_recipe_from_settings() -> None:
+def test_runtime_definition_collects_deploy_recipe_from_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config, "DEFAULT_ARTIFACT_PATH", Path("/models/vitb16.pth"))
     settings = settings_without_env(
         MODEL_SLUGS="vitb16",
-        MODEL_ARTIFACT_PATH=Path("/models/vitb16.pth"),
         MODEL_DEVICE="cpu",
-        MODEL_NUM_THREADS=2,
-        MODEL_CLASS_NAMES="NORMAL,PNEUMONIA",
-        MODEL_STRICT_LOAD=False,
         MODEL_STARTUP_SMOKE_TEST=False,
         VITB16_MODEL_ARTIFACT_SHA256="b" * 64,
         HF_TOKEN="secret-token",
@@ -63,9 +62,9 @@ def test_runtime_definition_collects_deploy_recipe_from_settings() -> None:
     assert definition.artifact_source.token == "secret-token"
     assert definition.artifact_sha256 == "b" * 64
     assert definition.device_name == "cpu"
-    assert definition.num_threads == 2
+    assert definition.num_threads == 1
     assert definition.class_names == ("NORMAL", "PNEUMONIA")
-    assert definition.strict_load is False
+    assert definition.strict_load is True
     assert definition.startup_smoke_test is False
 
 

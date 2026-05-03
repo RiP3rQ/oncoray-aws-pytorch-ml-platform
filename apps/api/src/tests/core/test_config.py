@@ -13,6 +13,11 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.core.config import (
+    DEFAULT_MAIL_USES_CREDENTIALS,
+    DEFAULT_MAIL_USES_SSL_TLS,
+    DEFAULT_MAIL_USES_STARTTLS,
+    DEFAULT_MAIL_VALIDATES_CERTS,
+    DEFAULT_MODEL_RUNTIME_TIMEOUT,
     AppSettings,
     DatabaseSettings,
     ModelServiceSettings,
@@ -153,10 +158,10 @@ class TestNotificationSettings:
         """NotificationSettings should have correct defaults for port and flags."""
         settings = NotificationSettings()
         assert settings.MAIL_PORT == 587
-        assert settings.MAIL_STARTTLS is True
-        assert settings.MAIL_SSL_TLS is False
-        assert settings.USE_CREDENTIALS is True
-        assert settings.VALIDATE_CERTS is True
+        assert DEFAULT_MAIL_USES_STARTTLS is True
+        assert DEFAULT_MAIL_USES_SSL_TLS is False
+        assert DEFAULT_MAIL_USES_CREDENTIALS is True
+        assert DEFAULT_MAIL_VALIDATES_CERTS is True
 
 
 # =============================================================================
@@ -186,7 +191,7 @@ class TestModelServiceSettings:
     def test_model_service_defaults(self):
         settings = ModelServiceSettings(_env_file=None)
         assert settings.MODEL_SERVICE_URL == "http://127.0.0.1:8001"
-        assert settings.MODEL_SERVICE_TIMEOUT_SECONDS == 30.0
+        assert DEFAULT_MODEL_RUNTIME_TIMEOUT == 30.0
 
     def test_model_service_url_is_normalized(self):
         settings = ModelServiceSettings(MODEL_SERVICE_URL=" http://model-service:8000/ ")

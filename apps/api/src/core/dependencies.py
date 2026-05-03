@@ -5,7 +5,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api_types.enums import ModelSlug
-from src.core.config import model_service_settings, s3_settings
+from src.core.config import DEFAULT_MODEL_RUNTIME_TIMEOUT, model_service_settings, s3_settings
 from src.core.errors import ClientNotAuthorized, InvalidToken
 from src.core.security import oauth2_scheme_user
 from src.database.postgres import User
@@ -102,7 +102,7 @@ ChestXrayUploadPersistenceDep = Annotated[
 def get_model_runtime_adapters() -> dict[ModelSlug, ModelRuntimeAdapter]:
     registry = ModelRuntimeRegistry(
         runtime_urls=model_service_settings.model_service_urls,
-        timeout_seconds=model_service_settings.MODEL_SERVICE_TIMEOUT_SECONDS,
+        timeout_seconds=DEFAULT_MODEL_RUNTIME_TIMEOUT,
     )
     return registry.build_adapters()
 

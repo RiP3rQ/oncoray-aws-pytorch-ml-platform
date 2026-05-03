@@ -163,10 +163,6 @@ output "expected_parameter_store_paths" {
       "${local.ssm_parameter_prefix}/api/MAIL_PORT",
       "${local.ssm_parameter_prefix}/api/MAIL_SERVER",
       "${local.ssm_parameter_prefix}/api/MAIL_FROM_NAME",
-      "${local.ssm_parameter_prefix}/api/MAIL_STARTTLS",
-      "${local.ssm_parameter_prefix}/api/MAIL_SSL_TLS",
-      "${local.ssm_parameter_prefix}/api/USE_CREDENTIALS",
-      "${local.ssm_parameter_prefix}/api/VALIDATE_CERTS",
       "${local.ssm_parameter_prefix}/api/S3_BUCKET_NAME",
     ]
     model_service = [
