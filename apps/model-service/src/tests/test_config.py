@@ -39,6 +39,16 @@ def test_production_validation_rejects_mutable_main_artifacts() -> None:
         validate_production_settings(settings)
 
 
+def test_production_validation_can_allow_mutable_main_artifacts_for_prototype() -> None:
+    settings = settings_without_env(
+        APP_ENVIRONMENT="production",
+        ALLOW_MUTABLE_MODEL_ARTIFACTS=True,
+        HF_TOKEN="token",
+    )
+
+    validate_production_settings(settings)
+
+
 def test_production_validation_accepts_pinned_artifacts() -> None:
     settings = settings_without_env(
         APP_ENVIRONMENT="production",

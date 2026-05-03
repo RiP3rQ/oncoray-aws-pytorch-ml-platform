@@ -17,7 +17,7 @@ from src.database.postgres import LLMModel, User  # noqa: F401
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-    db_settings.POSTGRES_URL,
+    db_settings.POSTGRES_URL.replace("%", "%%"),
 )
 
 # Interpret the config file for Python logging.
