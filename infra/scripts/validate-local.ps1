@@ -319,13 +319,14 @@ Test-ContentRule `
         return (
             $content -match '(?ms)^workloads:\s*.*?^\s{2}model-runtime-host:\s*$' -and
             $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}MODEL_SLUGS:\s*effnetb0,vitb16\s*$' -and
-            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}EFFNETB0_MODEL_ARTIFACT_URL:' -and
-            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}VITB16_MODEL_ARTIFACT_URL:' -and
+            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{4}envFromSecrets:\s*.*?model-runtime-host-secrets' -and
+            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{8}- secretKey:\s*EFFNETB0_MODEL_ARTIFACT_URL' -and
+            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{8}- secretKey:\s*VITB16_MODEL_ARTIFACT_URL' -and
             $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$' -and
             $content -notmatch '(?m)^modelRuntime(Default|s)'
         )
     } `
-    -FailureMessage "Model Runtime values must use only one model-runtime-host workload."
+    -FailureMessage "Model Runtime values must use one model-runtime-host workload and source artifact config from ExternalSecret."
 
 Test-ContentRule `
     -Label "Prod example model-service URL" `
@@ -344,14 +345,13 @@ Test-ContentRule `
         return (
             $content -match '(?ms)^workloads:\s*.*?^\s{2}model-runtime-host:\s*.*?^\s{4}enabled:\s*false\s*$' -and
             $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}MODEL_SLUGS:\s*effnetb0,vitb16\s*$' -and
-            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}EFFNETB0_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/effnetb0/resolve/replace-me-revision/effnetb0/effnetb0_epoch_008\.pth\s*$' -and
-            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{6}VITB16_MODEL_ARTIFACT_URL:\s*https://huggingface\.co/RiP3rQ/vit_b_16/resolve/replace-me-revision/vit_b_16/vit_b_16_epoch_018\.pth\s*$' -and
+            $content -match '(?ms)^\s{2}model-runtime-host:\s*.*?^\s{4}externalSecret:\s*.*?^\s{6}enabled:\s*true\s*$' -and
             $content -match '(?ms)^migrations:\s*.*?^\s{2}enabled:\s*true\s*$' -and
             $content -notmatch '(?m)^\s{2}model-service-(effnetb0|vitb16):\s*$' -and
             $content -notmatch '(?m)^modelRuntimes:'
         )
     } `
-    -FailureMessage "Prod Model Runtime overrides must use one multi-model runtime host config and migrations."
+    -FailureMessage "Prod Model Runtime overrides must use one multi-model runtime host config, ExternalSecret, and migrations."
 
 Test-ContentRule `
     -Label "Production Helm values guard" `
@@ -379,6 +379,20 @@ Test-ContentRule `
         )
     } `
     -FailureMessage "preflight-prod.ps1 must validate prod inputs and render Terraform/Helm before AWS deploy."
+
+Test-ContentRule `
+    -Label "Production SSM upload script" `
+    -Path (Join-Path $repoRoot "infra/scripts/put-ssm-parameters.ps1") `
+    -Predicate {
+        param($content)
+        return (
+            $content -match 'get-caller-identity' -and
+            $content -match 'put-parameter' -and
+            $content -match 'Assert-NoUnsafeValue' -and
+            $content -match '/resolve/main/'
+        )
+    } `
+    -FailureMessage "put-ssm-parameters.ps1 must verify AWS identity and reject unsafe SSM values before upload."
 
 Test-ContentRule `
     -Label "Production rollback script" `

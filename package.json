@@ -23,6 +23,7 @@
     "infra:validate:helm": "powershell -ExecutionPolicy Bypass -File infra/scripts/validate-local.ps1 -CheckHelm -RequireHelm",
     "prod:deploy:backend": "powershell -ExecutionPolicy Bypass -File infra/scripts/deploy-prod.ps1",
     "prod:preflight": "powershell -ExecutionPolicy Bypass -File infra/scripts/preflight-prod.ps1",
+    "prod:ssm:put": "powershell -ExecutionPolicy Bypass -File infra/scripts/put-ssm-parameters.ps1",
     "prod:rollback": "powershell -ExecutionPolicy Bypass -File infra/scripts/rollback-prod.ps1",
     "prod:destroy": "powershell -ExecutionPolicy Bypass -File infra/scripts/destroy-prod.ps1",
     "test:e2e": "turbo run test:e2e --filter=astro-web",
