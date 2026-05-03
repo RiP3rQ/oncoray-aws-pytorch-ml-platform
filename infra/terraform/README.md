@@ -5,7 +5,7 @@ Initial production scaffold for `pytorch-model`.
 Current scope:
 
 - VPC with public and private subnets
-- EKS cluster with one general managed node group
+- EKS cluster with one small CPU-focused managed node group
 - ECR repositories for `api` and `model-service`
 - private S3 bucket + CloudFront distribution for frontend delivery
 - private S3 bucket for prediction artifacts
