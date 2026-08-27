@@ -105,6 +105,24 @@ function Test-PowerShellParse {
 function Test-WorkflowCommented {
     param([Parameter(Mandatory = $true)][string]$Path)
 
+    if ((Split-Path -Leaf $Path) -eq "public-repo-guard.yml") {
+        $content = Get-Content -LiteralPath $Path -Raw
+        $requiredPatterns = @(
+            '(?m)^permissions:\s*$',
+            '(?m)^\s+contents:\s+read\s*$',
+            '(?m)^\s+fetch-depth:\s+0\s*$',
+            '(?m)^\s+run:\s+python scripts/public_repo_guard.py all --json\s*$'
+        )
+        $missingPatterns = @($requiredPatterns | Where-Object { $content -notmatch $_ })
+        if ($missingPatterns.Count -gt 0 -or $content -match '(?i)\bsecrets\.') {
+            Add-Failure "Public repository guard workflow violates the read-only workflow policy: $Path"
+            return
+        }
+
+        Add-Pass "Read-only public repository guard workflow $Path"
+        return
+    }
+
     $activeLines = @(Get-Content -LiteralPath $Path | Where-Object {
         $_.Trim() -ne "" -and $_ -notmatch '^\s*#'
     })

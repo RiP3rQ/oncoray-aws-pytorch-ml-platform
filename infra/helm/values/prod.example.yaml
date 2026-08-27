@@ -1,0 +1,89 @@
+# Copy this file to prod.yaml and replace every placeholder before deploy.
+# deploy-prod.ps1 rejects unresolved placeholders in prod.yaml.
+global:
+  awsRegion: eu-central-1
+  defaultImageTag: sha-REPLACE_ME
+
+workloads:
+  api:
+    replicaCount: 1
+    serviceAccount:
+      name: pytorch-model-api
+      annotations:
+        eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/pytorch-model-prod-api
+    image:
+      repository: 123456789012.dkr.ecr.eu-central-1.amazonaws.com/pytorch-model/api
+      tag: sha-REPLACE_ME
+    env:
+      APP_NAME: Core API
+      APP_ENVIRONMENT: production
+      APP_HTTP_PROTOCOL: https
+      APP_LOG_LEVEL: INFO
+      APP_DOMAIN: api.example.com
+      CORS_ALLOWED_ORIGINS: https://app.example.com,https://example.com
+      AUTH_RATE_LIMIT_MAX_REQUESTS: "5"
+      AUTH_RATE_LIMIT_WINDOW_SECONDS: "60"
+      ACCESS_TOKEN_TTL_MINUTES: "15"
+      EMAIL_VERIFICATION_TOKEN_TTL_HOURS: "24"
+      ALGORITHM: HS256
+      MODEL_SERVICE_URL: http://pytorch-model-backend-stack-model-runtime-host:8001
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: core-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: ""
+      OTEL_EXCLUDED_URLS: /livez,/readyz,/startupz,/health,/healthz
+      S3_UPLOAD_MODE: aws
+      SCALAR_DOCS_ENABLED: "false"
+    ingress:
+      annotations:
+        alb.ingress.kubernetes.io/scheme: internet-facing
+        alb.ingress.kubernetes.io/target-type: ip
+        alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+        alb.ingress.kubernetes.io/ssl-redirect: "443"
+        alb.ingress.kubernetes.io/group.name: pytorch-model-prod
+        alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-central-1:123456789012:certificate/replace-me
+        # Optional. Can be passed to deploy-prod.ps1 with -ApiWafAclArn from Terraform output `api_waf_acl_arn`.
+        # alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:eu-central-1:123456789012:regional/webacl/pytorch-model-prod-api/replace-me
+      hosts:
+        - host: api.example.com
+          paths:
+            - path: /
+              pathType: Prefix
+    externalSecret:
+      enabled: true
+    autoscaling:
+      enabled: false
+
+  model-runtime-host:
+    enabled: false
+    serviceAccount:
+      name: pytorch-model-model-runtime-host
+      annotations:
+        eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/pytorch-model-prod-model-service
+    image:
+      repository: 123456789012.dkr.ecr.eu-central-1.amazonaws.com/pytorch-model/model-service
+      tag: sha-REPLACE_ME
+    env:
+      APP_NAME: model-service
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: model-runtime-host
+      OTEL_EXPORTER_OTLP_ENDPOINT: ""
+      OTEL_EXCLUDED_URLS: /livez,/readyz,/startupz
+      MODEL_SLUGS: effnetb0,vitb16
+      MODEL_DEVICE: cpu
+      ALLOW_MUTABLE_MODEL_ARTIFACTS: "true"
+      MODEL_STARTUP_SMOKE_TEST: "true"
+    externalSecret:
+      enabled: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 1500m
+        memory: 3Gi
+
+migrations:
+  enabled: true
+  image:
+    repository: 123456789012.dkr.ecr.eu-central-1.amazonaws.com/pytorch-model/api
+    tag: sha-REPLACE_ME

@@ -1,0 +1,311 @@
+global:
+  nameOverride: ""
+  fullnameOverride: ""
+  awsRegion: eu-central-1
+  defaultImageTag: sha-REPLACE_ME
+  commonLabels: { }
+  imagePullSecrets: [ ]
+  podAnnotations: { }
+  podSecurityContext: { }
+  containerSecurityContext: { }
+
+workloads:
+  api:
+    enabled: true
+    replicaCount: 1
+    strategy: { }
+    extraLabels: { }
+    podAnnotations: { }
+    podSecurityContext: { }
+    securityContext: { }
+    serviceAccount:
+      create: true
+      name: pytorch-model-api
+      annotations: { }
+    image:
+      repository: 123456789012.dkr.ecr.eu-central-1.amazonaws.com/pytorch-model/api
+      tag: ""
+      pullPolicy: IfNotPresent
+    command:
+      - python
+      - -m
+      - uvicorn
+      - main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    args: [ ]
+    containerPort: 8000
+    env:
+      APP_NAME: Core API
+      APP_ENVIRONMENT: production
+      APP_HTTP_PROTOCOL: https
+      APP_LOG_LEVEL: INFO
+      APP_DOMAIN: api.example.com
+      CORS_ALLOWED_ORIGINS: https://app.example.com,https://example.com
+      AUTH_RATE_LIMIT_MAX_REQUESTS: "5"
+      AUTH_RATE_LIMIT_WINDOW_SECONDS: "60"
+      ACCESS_TOKEN_TTL_MINUTES: "15"
+      EMAIL_VERIFICATION_TOKEN_TTL_HOURS: "24"
+      ALGORITHM: HS256
+      MODEL_SERVICE_URL: http://model-service:8001
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: core-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: ""
+      OTEL_EXCLUDED_URLS: /livez,/readyz,/startupz,/health,/healthz
+      S3_UPLOAD_MODE: mock
+      SCALAR_DOCS_ENABLED: "false"
+    envFromSecrets:
+      - api-secrets
+    service:
+      enabled: true
+      type: ClusterIP
+      port: 80
+      targetPort: 8000
+    ingress:
+      enabled: true
+      className: alb
+      annotations:
+        alb.ingress.kubernetes.io/scheme: internet-facing
+        alb.ingress.kubernetes.io/target-type: ip
+        alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+        alb.ingress.kubernetes.io/ssl-redirect: "443"
+      hosts:
+        - host: api.example.com
+          paths:
+            - path: /
+              pathType: Prefix
+      tls: [ ]
+    probes:
+      liveness:
+        httpGet:
+          path: /livez
+          port: http
+        initialDelaySeconds: 20
+        periodSeconds: 20
+      readiness:
+        httpGet:
+          path: /readyz
+          port: http
+        initialDelaySeconds: 10
+        periodSeconds: 15
+      startup:
+        httpGet:
+          path: /startupz
+          port: http
+        failureThreshold: 30
+        periodSeconds: 10
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+    disruptionBudget:
+      enabled: true
+      minAvailable: 1
+    nodeSelector:
+      workload: general
+    tolerations: [ ]
+    affinity: { }
+    volumes: [ ]
+    volumeMounts: [ ]
+    externalSecret:
+      enabled: false
+      refreshInterval: 1h
+      targetName: api-secrets
+      secretStoreRef:
+        kind: ClusterSecretStore
+        name: aws-parameter-store
+      data:
+        - secretKey: SECRET_KEY
+          remoteRef:
+            key: /pytorch-model/prod/api/SECRET_KEY
+        - secretKey: CORE_API_DATABASE_URL
+          remoteRef:
+            key: /pytorch-model/prod/api/CORE_API_DATABASE_URL
+        - secretKey: AWS_REGION
+          remoteRef:
+            key: /pytorch-model/prod/api/AWS_REGION
+        - secretKey: MAIL_USERNAME
+          remoteRef:
+            key: /pytorch-model/prod/api/MAIL_USERNAME
+        - secretKey: MAIL_PASSWORD
+          remoteRef:
+            key: /pytorch-model/prod/api/MAIL_PASSWORD
+        - secretKey: MAIL_FROM
+          remoteRef:
+            key: /pytorch-model/prod/api/MAIL_FROM
+        - secretKey: MAIL_PORT
+          remoteRef:
+            key: /pytorch-model/prod/api/MAIL_PORT
+        - secretKey: MAIL_SERVER
+          remoteRef:
+            key: /pytorch-model/prod/api/MAIL_SERVER
+        - secretKey: MAIL_FROM_NAME
+          remoteRef:
+            key: /pytorch-model/prod/api/MAIL_FROM_NAME
+        - secretKey: S3_BUCKET_NAME
+          remoteRef:
+            key: /pytorch-model/prod/api/S3_BUCKET_NAME
+
+  model-runtime-host:
+    enabled: false
+    replicaCount: 1
+    strategy: { }
+    extraLabels: { }
+    podAnnotations: { }
+    podSecurityContext: { }
+    securityContext: { }
+    serviceAccount:
+      create: true
+      name: pytorch-model-model-runtime-host
+      annotations: { }
+    image:
+      repository: 123456789012.dkr.ecr.eu-central-1.amazonaws.com/pytorch-model/model-service
+      tag: ""
+      pullPolicy: IfNotPresent
+    command:
+      - python
+      - -m
+      - uvicorn
+      - main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8001"
+      - --workers
+      - "1"
+    args: [ ]
+    containerPort: 8001
+    env:
+      APP_NAME: model-service
+      APP_ENVIRONMENT: production
+      APP_LOG_LEVEL: INFO
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: model-runtime-host
+      OTEL_EXPORTER_OTLP_ENDPOINT: ""
+      OTEL_EXCLUDED_URLS: /livez,/readyz,/startupz
+      MODEL_SLUGS: effnetb0,vitb16
+      MODEL_DEVICE: cpu
+      ALLOW_MUTABLE_MODEL_ARTIFACTS: "true"
+      MODEL_STARTUP_SMOKE_TEST: "true"
+    envFromSecrets:
+      - model-runtime-host-secrets
+    service:
+      enabled: true
+      type: ClusterIP
+      port: 8001
+      targetPort: 8001
+    ingress:
+      enabled: false
+      className: ""
+      annotations: { }
+      hosts: [ ]
+      tls: [ ]
+    probes:
+      liveness:
+        httpGet:
+          path: /livez
+          port: http
+        initialDelaySeconds: 20
+        periodSeconds: 20
+      readiness:
+        httpGet:
+          path: /readyz
+          port: http
+        initialDelaySeconds: 10
+        periodSeconds: 15
+      startup:
+        httpGet:
+          path: /startupz
+          port: http
+        failureThreshold: 30
+        periodSeconds: 10
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 1500m
+        memory: 3Gi
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 1
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+    disruptionBudget:
+      enabled: true
+      minAvailable: 1
+    nodeSelector:
+      workload: general
+    tolerations: [ ]
+    affinity: { }
+    volumes: [ ]
+    volumeMounts: [ ]
+    externalSecret:
+      enabled: false
+      refreshInterval: 1h
+      targetName: model-runtime-host-secrets
+      secretStoreRef:
+        kind: ClusterSecretStore
+        name: aws-parameter-store
+      data:
+        - secretKey: EFFNETB0_MODEL_ARTIFACT_URL
+          remoteRef:
+            key: /pytorch-model/prod/model-service/EFFNETB0_MODEL_ARTIFACT_URL
+        - secretKey: VITB16_MODEL_ARTIFACT_URL
+          remoteRef:
+            key: /pytorch-model/prod/model-service/VITB16_MODEL_ARTIFACT_URL
+        - secretKey: HF_USERNAME
+          remoteRef:
+            key: /pytorch-model/prod/model-service/HF_USERNAME
+        - secretKey: HF_TOKEN
+          remoteRef:
+            key: /pytorch-model/prod/model-service/HF_TOKEN
+
+migrations:
+  enabled: true
+  hookDeletePolicy: before-hook-creation,hook-succeeded
+  activeDeadlineSeconds: 300
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  image:
+    repository: 123456789012.dkr.ecr.eu-central-1.amazonaws.com/pytorch-model/api
+    tag: ""
+    pullPolicy: IfNotPresent
+  command:
+    - alembic
+    - upgrade
+    - head
+  env:
+    APP_ENVIRONMENT: production
+    APP_LOG_LEVEL: INFO
+  envFromSecrets:
+    - api-secrets
+  serviceAccount:
+    create: false
+    name: pytorch-model-api
+  podAnnotations: { }
+  podSecurityContext: { }
+  securityContext: { }
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  nodeSelector:
+    workload: general
+  tolerations: [ ]
+  affinity: { }

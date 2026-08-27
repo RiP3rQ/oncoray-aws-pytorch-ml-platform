@@ -31,11 +31,23 @@ build
 # misc
 .DS_Store
 *.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.ppk
+*.crt
+*.cer
+*.der
 .astro-cache/
 .terraform/
 infra/terraform/**/.terraform/
 *.tfstate
 *.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
 crash.log
 infra/terraform/environments/prod/outputs.json
 infra/terraform/environments/prod/terraform.tfvars
@@ -53,16 +65,46 @@ tmp/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
+*.out
+*.dump
+logs/
+**/logs/
 
 # test
 .coverage
 
 # local env files
 .env
+.env.*
+!.env.example
+!.env.*.example
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# local cloud and cluster credentials
+.aws/
+.kube/
+.netrc
+.pypirc
+
+# local databases and generated model artifacts
+*.db
+*.sqlite
+*.sqlite3
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+
+# private operational transcripts and screenshots
+docs/AWS_*DEPLOY*.md
+docs/AWS_*TEARDOWN*.md
+demo/*executed*.png
+demo/*prediction*.png
 
 # turbo
 .turbo

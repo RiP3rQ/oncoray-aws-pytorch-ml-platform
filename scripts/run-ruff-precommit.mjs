@@ -30,12 +30,19 @@ for (const file of stagedFiles) {
     continue;
   }
 
+  if (normalizedFile.startsWith("scripts/")) {
+    addFile("apps/api", normalizedFile);
+    continue;
+  }
+
   unsupportedFiles.push(normalizedFile);
 }
 
 if (unsupportedFiles.length > 0) {
   console.error("ruff pre-commit: unsupported Python file location.");
-  console.error("Expected file under apps/api, apps/pytorch-engine, or apps/model-service.");
+  console.error(
+    "Expected file under apps/api, apps/pytorch-engine, apps/model-service, or scripts.",
+  );
   printFileList(unsupportedFiles);
   process.exit(1);
 }
@@ -67,7 +74,14 @@ function addFile(projectDir, file) {
 }
 
 function runRuff(projectDir, args) {
-  const command = [uvExecutable, "run", "--project", projectDir, "ruff", ...args];
+  const command = [
+    uvExecutable,
+    "run",
+    "--project",
+    projectDir,
+    "ruff",
+    ...args,
+  ];
   console.log(`$ ${command.join(" ")}`);
 
   const result = spawnSync(command[0], command.slice(1), {
@@ -84,7 +98,9 @@ function runRuff(projectDir, args) {
   }
 
   if (result.error) {
-    console.error(`ruff pre-commit: failed to start command for ${projectDir}.`);
+    console.error(
+      `ruff pre-commit: failed to start command for ${projectDir}.`,
+    );
     console.error(result.error.message);
     return 1;
   }
@@ -99,7 +115,9 @@ function printFileList(files) {
 }
 
 function normalizeFilePath(file) {
-  const absoluteFile = path.isAbsolute(file) ? file : path.resolve(repoRoot, file);
+  const absoluteFile = path.isAbsolute(file)
+    ? file
+    : path.resolve(repoRoot, file);
   const relativeFile = path.relative(repoRoot, absoluteFile);
   return relativeFile.replace(/\\/g, "/");
 }

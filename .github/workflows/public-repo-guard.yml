@@ -1,0 +1,19 @@
+name: Public repository guard
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  public-repo-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan tracked tree and reachable history
+        run: python scripts/public_repo_guard.py all --json

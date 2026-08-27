@@ -1,0 +1,16 @@
+global:
+  clusterName: pytorch-model-prod-eks
+  awsRegion: eu-central-1
+
+externalSecrets:
+  serviceAccount:
+    name: external-secrets
+    namespace: external-secrets
+
+fluentBit:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/pytorch-model-prod-fluent-bit
+  cloudWatch:
+    logGroupName: /aws/eks/pytorch-model-prod-eks/workloads
+    logStreamPrefix: fluent-bit-

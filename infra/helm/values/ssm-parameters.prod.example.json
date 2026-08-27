@@ -1,0 +1,72 @@
+[
+  {
+    "name": "/pytorch-model/prod/api/SECRET_KEY",
+    "type": "SecureString",
+    "value": "replace-me-secret-key"
+  },
+  {
+    "name": "/pytorch-model/prod/api/CORE_API_DATABASE_URL",
+    "type": "SecureString",
+    "value": "postgresql://appuser:replace-me@postgres.example.internal:5432/pytorchmodel"
+  },
+  {
+    "name": "/pytorch-model/prod/api/AWS_REGION",
+    "type": "String",
+    "value": "eu-central-1"
+  },
+  {
+    "name": "/pytorch-model/prod/api/MAIL_USERNAME",
+    "type": "SecureString",
+    "value": "smtp-user"
+  },
+  {
+    "name": "/pytorch-model/prod/api/MAIL_PASSWORD",
+    "type": "SecureString",
+    "value": "replace-me-mail-password"
+  },
+  {
+    "name": "/pytorch-model/prod/api/MAIL_FROM",
+    "type": "String",
+    "value": "noreply@example.com"
+  },
+  {
+    "name": "/pytorch-model/prod/api/MAIL_PORT",
+    "type": "String",
+    "value": "587"
+  },
+  {
+    "name": "/pytorch-model/prod/api/MAIL_SERVER",
+    "type": "String",
+    "value": "smtp.example.com"
+  },
+  {
+    "name": "/pytorch-model/prod/api/MAIL_FROM_NAME",
+    "type": "String",
+    "value": "PyTorch Model"
+  },
+  {
+    "name": "/pytorch-model/prod/api/S3_BUCKET_NAME",
+    "type": "String",
+    "value": "pytorch-model-prod-artifacts-123456789012"
+  },
+  {
+    "name": "/pytorch-model/prod/model-service/EFFNETB0_MODEL_ARTIFACT_URL",
+    "type": "String",
+    "value": "https://huggingface.co/RiP3rQ/effnetb0/resolve/replace-me-revision/effnetb0/effnetb0_epoch_008.pth"
+  },
+  {
+    "name": "/pytorch-model/prod/model-service/VITB16_MODEL_ARTIFACT_URL",
+    "type": "String",
+    "value": "https://huggingface.co/RiP3rQ/vit_b_16/resolve/replace-me-revision/vit_b_16/vit_b_16_epoch_018.pth"
+  },
+  {
+    "name": "/pytorch-model/prod/model-service/HF_USERNAME",
+    "type": "String",
+    "value": "RiP3rQ"
+  },
+  {
+    "name": "/pytorch-model/prod/model-service/HF_TOKEN",
+    "type": "SecureString",
+    "value": ""
+  }
+]

@@ -1,0 +1,65 @@
+project_name = "pytorch-model"
+environment  = "prod"
+aws_region   = "eu-central-1"
+
+# Production account guard. Must match `aws sts get-caller-identity`.
+expected_aws_account_id    = "123456789012"
+expected_aws_principal_arn = "arn:aws:iam::123456789012:user/pytorch-model-cli-user"
+
+vpc_cidr = "10.20.0.0/16"
+
+# Replace with office or VPN CIDRs before applying.
+cluster_endpoint_public_access_cidrs = [
+  "203.0.113.10/32",
+]
+
+# Bucket names must be globally unique.
+frontend_bucket_name = "pytorch-model-prod-frontend-123456789012"
+prediction_artifacts_bucket_name = "pytorch-model-prod-artifacts-123456789012"
+
+# External registrar flow: buy the domain outside AWS, create the hosted zone here, then paste
+# route53_name_servers output into the registrar nameserver settings.
+domain_name         = "example.com"
+create_route53_zone = true
+
+# First apply with enable_managed_acm_certificates=false to create the hosted zone and output nameservers.
+# After registrar nameserver delegation has propagated, set this true and apply again.
+enable_managed_acm_certificates = false
+
+# Defaults to app.<domain_name> and api.<domain_name> when left unset.
+frontend_aliases = []
+api_domain_name  = ""
+
+# API DNS record is created once the first ingress ALB exists.
+api_dns_name    = "internal-k8s-pytorchmo-123456789.eu-central-1.elb.amazonaws.com"
+
+# Optional once the API ingress exists and ALB alarms should be enabled.
+api_alb_arn_suffix          = "app/k8s-pytorchmodelprod-1234567890abcdef/1234567890abcdef"
+api_target_group_arn_suffix = "targetgroup/k8s-pytorchmodelprod-1234567890abcdef/1234567890abcdef"
+
+# Optional only after enabling CloudWatch Container Insights on the cluster.
+# enable_container_insights_node_condition_alarm = true
+
+# Keep CloudTrail for basic AWS API audit logs. WAF is disabled by default for budget.
+enable_cloudtrail   = true
+enable_frontend_waf = false
+enable_api_waf      = false
+
+alarm_email_addresses = [
+  "ops@example.com",
+]
+
+# Empty means Terraform generates the short-lived test password.
+db_password = ""
+
+# Disposable 24-hour AWS prototypes should set deletion protection false so
+# `bun run prod:destroy` can remove RDS. Keep true for longer-lived production.
+db_deletion_protection = false
+
+# Set true only for disposable prototypes when no final RDS snapshot should remain.
+# Keep false when you want a recoverable final database snapshot.
+db_skip_final_snapshot = true
+
+tags = {
+  Owner = "riperq"
+}
